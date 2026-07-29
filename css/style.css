@@ -1059,6 +1059,32 @@ body {
   margin: 0 0 10px;
 }
 
+.home-appendix {
+  margin-top: 40px;
+  padding-top: 22px;
+  border-top: 1px dashed var(--surface-2);
+}
+
+.home-appendix-label {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-bottom: 10px;
+}
+
+.home-appendix-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .install-guide-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1066,8 +1092,8 @@ body {
 }
 
 .install-guide-card {
-  background: var(--surface);
-  border: 1px solid var(--surface-2);
+  background: transparent;
+  border: 1px dashed var(--surface-2);
   border-radius: 12px;
   padding: 18px;
 }
