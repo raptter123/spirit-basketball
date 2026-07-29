@@ -65,7 +65,8 @@ function renderHome() {
   app.innerHTML = `
     <section class="home-view">
       <h1>혼(Spirit)</h1>
-      <p class="hint">농구 동호회 혼(Spirit)의 홈페이지예요. 아래 메뉴에서 원하는 곳으로 이동하세요.</p>
+      <p class="home-tagline">한 팀, 한 코트, 하나의 혼(Spirit)</p>
+      <p class="hint">여기는 혼(Spirit)의 혼페이지예요. 전술부터 팀 편성, 일정까지 — 필요한 건 아래에서 다 찾을 수 있어요.</p>
       <div class="home-menu">
         ${HOME_MENU.map(homeCardHTML).join("")}
       </div>
