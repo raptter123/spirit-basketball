@@ -22,6 +22,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Cache-bust JS/CSS references
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
+          sed -i -E "s#src=\"js/app\.js\"#src=\"js/app.js?v=${SHA_SHORT}\"#" index.html
+          sed -i -E "s#href=\"css/style\.css\"#href=\"css/style.css?v=${SHA_SHORT}\"#" index.html
+          find js -name "*.js" -exec sed -i -E "s#from \"(\./[a-zA-Z]+\.js)\"#from \"\1?v=${SHA_SHORT}\"#g" {} \;
       - uses: actions/configure-pages@v5
         with:
           enablement: true
