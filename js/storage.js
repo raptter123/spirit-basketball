@@ -114,3 +114,30 @@ export function removeCustomTeamHistoryEntry(id) {
   }
   return list;
 }
+
+const NEW_TACTIC_DRAFT_KEY = "spirit-new-tactic-draft";
+
+export function getNewTacticDraft() {
+  try {
+    const raw = localStorage.getItem(NEW_TACTIC_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveNewTacticDraft(draft) {
+  try {
+    localStorage.setItem(NEW_TACTIC_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearNewTacticDraft() {
+  try {
+    localStorage.removeItem(NEW_TACTIC_DRAFT_KEY);
+  } catch {
+    // no-op
+  }
+}

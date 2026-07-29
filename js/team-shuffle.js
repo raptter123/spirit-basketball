@@ -135,7 +135,7 @@ function showHistoryExportModal(entries) {
   backdrop.innerHTML = `
     <div class="modal">
       <h3>팀 편성 기록 내보내기</h3>
-      <p class="hint">아래 내용을 복사해서 채팅으로 보내주시면 실제 사이트에 반영해드릴게요.</p>
+      <p class="hint">아래 내용을 복사해서 <strong>황규철</strong>에게 보내주세요. 확인 후 실제 사이트에 반영할게요.</p>
       <textarea class="export-textarea" readonly>${text}</textarea>
       <div class="modal-actions">
         <button type="button" class="btn" id="history-modal-close">닫기</button>

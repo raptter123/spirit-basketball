@@ -992,3 +992,88 @@ body {
 .editor-local-notice strong {
   color: var(--accent);
 }
+
+.home-view h1 {
+  margin: 8px 0 4px;
+}
+
+.home-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.home-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 20px;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.home-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.home-card-icon {
+  font-size: 1.5rem;
+}
+
+.home-card h2 {
+  margin: 10px 0 6px;
+  font-size: 1.1rem;
+}
+
+.home-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.list-header h1 {
+  margin: 8px 0 4px;
+}
+
+.new-tactic-form {
+  display: grid;
+  gap: 14px;
+  max-width: 520px;
+  margin-bottom: 16px;
+}
+
+.new-tactic-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.new-tactic-form input,
+.new-tactic-form select,
+.new-tactic-form textarea {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.preview-controls {
+  margin-bottom: 12px;
+}
