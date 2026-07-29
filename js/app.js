@@ -2,27 +2,135 @@ import { TACTICS, getTacticById } from "./data.js";
 import { mountCourt } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
-import { getOverride, saveOverride, clearOverride } from "./storage.js";
+import { mountShuffle } from "./team-shuffle.js";
+import { ROSTER } from "./roster.js";
+import { getOverride, saveOverride, clearOverride, getFavorites, toggleFavorite } from "./storage.js";
 
 const app = document.getElementById("app");
+const CATEGORIES = ["전체", "오펜스", "디펜스"];
+
+function tacticCardHTML(t, isFav) {
+  return `
+    <div class="tactic-card-wrap">
+      <a class="tactic-card" href="#/tactic/${t.id}">
+        <span class="badge badge-${t.category === "디펜스" ? "defense" : "offense"}">${t.category}</span>
+        <h2>${t.name}</h2>
+        <p>${t.summary}</p>
+      </a>
+      <button type="button" class="fav-btn ${isFav ? "is-fav" : ""}" data-id="${t.id}" aria-label="즐겨찾기">${
+    isFav ? "★" : "☆"
+  }</button>
+    </div>
+  `;
+}
 
 function renderList() {
+  let query = "";
+  let category = "전체";
+
+  function render() {
+    const favorites = new Set(getFavorites());
+    const q = query.trim().toLowerCase();
+    const filtered = TACTICS.filter((t) => {
+      const inCategory = category === "전체" || t.category === category;
+      const inQuery = !q || t.name.toLowerCase().includes(q) || t.summary.toLowerCase().includes(q);
+      return inCategory && inQuery;
+    });
+    const favTactics = filtered.filter((t) => favorites.has(t.id));
+    const restTactics = filtered.filter((t) => !favorites.has(t.id));
+
+    app.innerHTML = `
+      <section class="list-view">
+        <h1>전술 목록</h1>
+        <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
+        <div class="list-controls">
+          <input type="text" id="tactic-search" class="search-input" placeholder="전술 이름/설명 검색" value="${query}" />
+          <div class="category-filter">
+            ${CATEGORIES.map(
+              (c) => `<button type="button" class="chip ${category === c ? "chip-active" : ""}" data-category="${c}">${c}</button>`
+            ).join("")}
+          </div>
+        </div>
+        ${
+          favTactics.length
+            ? `<h2 class="section-title">⭐ 즐겨찾기</h2><div class="card-grid">${favTactics
+                .map((t) => tacticCardHTML(t, true))
+                .join("")}</div>`
+            : ""
+        }
+        ${favTactics.length && restTactics.length ? `<h2 class="section-title">전체 전술</h2>` : ""}
+        ${
+          restTactics.length
+            ? `<div class="card-grid">${restTactics.map((t) => tacticCardHTML(t, false)).join("")}</div>`
+            : filtered.length === 0
+            ? `<p class="hint">검색 결과가 없어요.</p>`
+            : ""
+        }
+      </section>
+    `;
+
+    const searchInput = document.getElementById("tactic-search");
+    searchInput.addEventListener("input", (e) => {
+      query = e.target.value;
+      const caret = e.target.selectionStart;
+      render();
+      const newInput = document.getElementById("tactic-search");
+      newInput.focus();
+      newInput.setSelectionRange(caret, caret);
+    });
+
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        category = chip.dataset.category;
+        render();
+      });
+    });
+
+    document.querySelectorAll(".fav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        toggleFavorite(btn.dataset.id);
+        render();
+      });
+    });
+  }
+
+  render();
+}
+
+function renderRoster() {
   app.innerHTML = `
-    <section class="list-view">
-      <h1>전술 목록</h1>
-      <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
-      <div class="card-grid">
-        ${TACTICS.map(
-          (t) => `
-          <a class="tactic-card" href="#/tactic/${t.id}">
-            <span class="badge badge-${t.category === "디펜스" ? "defense" : "offense"}">${t.category}</span>
-            <h2>${t.name}</h2>
-            <p>${t.summary}</p>
-          </a>`
-        ).join("")}
-      </div>
+    <section class="roster-view">
+      <h1>팀 로스터</h1>
+      <p class="hint">혼(Spirit) 소속 선수 명단입니다.</p>
+      ${
+        ROSTER.length
+          ? `<div class="roster-grid">
+              ${ROSTER.map(
+                (p) => `
+                <div class="roster-card">
+                  <div class="roster-number">${p.number}</div>
+                  <div class="roster-info">
+                    <div class="roster-name">${p.name}</div>
+                    ${p.position ? `<div class="roster-position">${p.position}</div>` : ""}
+                  </div>
+                </div>`
+              ).join("")}
+            </div>`
+          : `<p class="hint">아직 등록된 선수 정보가 없어요. 곧 채워질 예정입니다.</p>`
+      }
     </section>
   `;
+}
+
+function renderTeamShuffle() {
+  app.innerHTML = `
+    <section class="shuffle-view">
+      <h1>자체전 팀 편성</h1>
+      <p class="hint">참석자 이름을 입력하고 팀 나누기를 누르면 랜덤으로 두 팀을 나눠줘요.</p>
+      <div id="shuffle-container"></div>
+    </section>
+  `;
+  mountShuffle(document.getElementById("shuffle-container"));
 }
 
 function renderSchedule() {
@@ -221,6 +329,10 @@ function router() {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
   } else if (hash === "#/schedule") {
     renderSchedule();
+  } else if (hash === "#/roster") {
+    renderRoster();
+  } else if (hash === "#/team-shuffle") {
+    renderTeamShuffle();
   } else {
     renderList();
   }
