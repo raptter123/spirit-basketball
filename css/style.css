@@ -23,6 +23,11 @@ body {
 }
 
 .site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--surface-2);
 }
@@ -32,6 +37,26 @@ body {
   text-decoration: none;
   font-size: 1.25rem;
   font-weight: 700;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.site-nav a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.site-nav a:hover {
+  color: var(--text);
+  background: var(--surface);
 }
 
 #app {
@@ -204,5 +229,127 @@ body {
 
 .description {
   line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.schedule-view {
+  display: grid;
+  gap: 20px;
+}
+
+.calendar {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.calendar-title {
+  font-weight: 700;
+  min-width: 110px;
+  text-align: center;
+}
+
+.calendar-nav {
+  padding: 6px 12px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-weekdays {
+  margin-bottom: 6px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.calendar-day {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.calendar-day.empty {
+  cursor: default;
+}
+
+.calendar-day:not(.empty):hover {
+  border-color: var(--accent);
+}
+
+.calendar-day.is-today {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.calendar-day.is-selected {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+
+.event-dot {
+  position: absolute;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.day-detail,
+.upcoming-list {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.day-detail h3,
+.upcoming-list h3 {
+  margin-top: 0;
+}
+
+.event-card {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.event-card strong {
+  display: block;
+  margin: 6px 0 2px;
+}
+
+.event-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.event-note {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
   color: var(--text-muted);
 }
