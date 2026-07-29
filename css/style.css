@@ -95,14 +95,14 @@ body {
   background: var(--surface);
 }
 
-.utility-bar a:first-child {
+.utility-bar a.is-active {
   color: var(--accent);
   border-color: rgba(249, 115, 22, 0.35);
   background: rgba(249, 115, 22, 0.1);
   font-weight: 600;
 }
 
-.utility-bar a:first-child:hover {
+.utility-bar a.is-active:hover {
   background: rgba(249, 115, 22, 0.18);
 }
 

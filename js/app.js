@@ -658,8 +658,27 @@ function renderDetail(id) {
   renderShell();
 }
 
+function updateNavActive() {
+  const hash = location.hash;
+  let active = null;
+  if (hash.startsWith("#/tactic/") || hash === "#/tactics" || hash === "#/new-tactic") {
+    active = "tactics";
+  } else if (hash === "#/roster") {
+    active = "roster";
+  } else if (hash === "#/team-shuffle") {
+    active = "team-shuffle";
+  } else if (hash === "#/schedule") {
+    active = "schedule";
+  }
+
+  document.querySelectorAll(".utility-bar a[data-nav]").forEach((a) => {
+    a.classList.toggle("is-active", a.dataset.nav === active);
+  });
+}
+
 function router() {
   const hash = location.hash;
+  updateNavActive();
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
   } else if (hash === "#/new-tactic") {
