@@ -1,0 +1,208 @@
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #273449;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #f97316;
+  --offense: #3b82f6;
+  --defense: #ef4444;
+  --court-fill: #7c4a2d;
+  --court-line: #f1f5f9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.site-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.brand {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+#app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.list-view h1,
+.detail-view h1 {
+  margin: 8px 0 4px;
+}
+
+.hint {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.tactic-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 18px;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.tactic-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.tactic-card h2 {
+  margin: 10px 0 6px;
+  font-size: 1.1rem;
+}
+
+.tactic-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.badge-offense {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.badge-defense {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.summary {
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.court-wrap {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.court-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.court-boundary {
+  fill: var(--court-fill);
+  stroke: var(--court-line);
+  stroke-width: 2;
+}
+
+.court-line {
+  fill: none;
+  stroke: var(--court-line);
+  stroke-width: 2;
+}
+
+.rim {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.arrow-path {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.85;
+}
+
+.player-dot {
+  stroke: #0f172a;
+  stroke-width: 2;
+}
+
+.player-offense {
+  fill: var(--offense);
+}
+
+.player-defense {
+  fill: var(--defense);
+}
+
+.player-number {
+  fill: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.btn {
+  border: 1px solid var(--surface-2);
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.description {
+  line-height: 1.6;
+  color: var(--text-muted);
+}
