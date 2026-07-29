@@ -1,42 +1,63 @@
-// 대회/경기 일정 데이터. date는 YYYY-MM-DD, type은 대회/경기/훈련 등 자유롭게 사용.
+// 대회/경기 일정 데이터.
+// EVENTS: 특정 날짜 하루짜리 일정 (date는 YYYY-MM-DD).
+// RECURRING_EVENTS: 매주 반복되는 일정 (weekday: 0=일요일 ~ 6=토요일).
 export const EVENTS = [
   {
-    date: "2026-08-02",
-    title: "정기 리그 3라운드",
-    type: "경기",
-    location: "잠실체육관",
-    note: "오후 7시 집합, 유니폼 지참",
-  },
-  {
-    date: "2026-08-16",
-    title: "팀 내 3x3 미니게임",
-    type: "훈련",
-    location: "혼 홈코트",
-    note: "팀 내 친선전, 참가 신청은 밴드에서",
-  },
-  {
-    date: "2026-09-05",
-    title: "추계 동호인 대회 예선",
+    date: "2026-08-08",
+    title: "스타터스 리그 대회",
     type: "대회",
-    location: "송파구민체육관",
+    location: "",
     note: "",
   },
   {
-    date: "2026-09-20",
-    title: "추계 동호인 대회 본선",
+    date: "2026-08-22",
+    title: "S리그 대회",
     type: "대회",
-    location: "송파구민체육관",
-    note: "예선 통과 시 진행",
-  },
-  {
-    date: "2026-10-10",
-    title: "정기 리그 플레이오프",
-    type: "경기",
-    location: "잠실체육관",
+    location: "",
     note: "",
   },
 ];
 
+export const RECURRING_EVENTS = [
+  {
+    weekday: 0,
+    title: "자체전",
+    type: "자체전",
+    location: "신당초",
+    startTime: "12:00",
+    endTime: "15:00",
+  },
+];
+
+export const EVENT_TYPE_COLOR = {
+  자체전: "var(--offense)",
+  대회: "var(--defense)",
+};
+
+function recurringEventsOn(dateStr) {
+  const weekday = new Date(`${dateStr}T00:00:00`).getDay();
+  return RECURRING_EVENTS.filter((e) => e.weekday === weekday).map((e) => ({
+    date: dateStr,
+    title: e.title,
+    type: e.type,
+    location: e.location,
+    note: `${e.startTime} ~ ${e.endTime}`,
+  }));
+}
+
 export function getEventsOn(dateStr) {
-  return EVENTS.filter((e) => e.date === dateStr);
+  return [...recurringEventsOn(dateStr), ...EVENTS.filter((e) => e.date === dateStr)];
+}
+
+// fromDateStr 기준 windowDays 일 안의 모든 일정(반복 + 단발성)을 날짜순으로 반환.
+export function getUpcomingEvents(fromDateStr, windowDays = 60) {
+  const from = new Date(`${fromDateStr}T00:00:00`);
+  const result = [];
+  for (let i = 0; i < windowDays; i++) {
+    const d = new Date(from);
+    d.setDate(from.getDate() + i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    result.push(...getEventsOn(dateStr));
+  }
+  return result.sort((a, b) => a.date.localeCompare(b.date));
 }

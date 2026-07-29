@@ -1,3 +1,5 @@
+import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR } from "./events.js";
+
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function pad(n) {
@@ -8,11 +10,11 @@ function toDateStr(y, m, d) {
   return `${y}-${pad(m + 1)}-${pad(d)}`;
 }
 
-function eventsOn(events, dateStr) {
-  return events.filter((e) => e.date === dateStr);
+function dotColor(type) {
+  return EVENT_TYPE_COLOR[type] || "var(--accent)";
 }
 
-export function mountCalendar(container, events) {
+export function mountCalendar(container) {
   const today = new Date();
   let year = today.getFullYear();
   let month = today.getMonth();
@@ -29,18 +31,22 @@ export function mountCalendar(container, events) {
     }
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = toDateStr(year, month, d);
-      const hasEvent = eventsOn(events, dateStr).length > 0;
+      const dayEvents = getEventsOn(dateStr);
+      const types = [...new Set(dayEvents.map((e) => e.type))];
       const classes = ["calendar-day"];
       if (dateStr === todayStr) classes.push("is-today");
       if (dateStr === selected) classes.push("is-selected");
-      if (hasEvent) classes.push("has-event");
-      cells += `<button type="button" class="${classes.join(" ")}" data-date="${dateStr}">${d}${hasEvent ? '<span class="event-dot"></span>' : ""}</button>`;
+      if (types.length) classes.push("has-event");
+      const dots = types
+        .map((t) => `<span class="event-dot" style="background:${dotColor(t)}"></span>`)
+        .join("");
+      cells += `<button type="button" class="${classes.join(" ")}" data-date="${dateStr}">${d}${
+        types.length ? `<span class="event-dots">${dots}</span>` : ""
+      }</button>`;
     }
 
-    const selectedEvents = eventsOn(events, selected);
-    const upcoming = events
-      .filter((e) => e.date >= todayStr)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const selectedEvents = getEventsOn(selected);
+    const upcoming = getUpcomingEvents(todayStr);
 
     container.innerHTML = `
       <div class="calendar">
@@ -53,6 +59,10 @@ export function mountCalendar(container, events) {
           ${WEEKDAYS.map((w) => `<div class="calendar-weekday">${w}</div>`).join("")}
         </div>
         <div class="calendar-grid">${cells}</div>
+        <div class="calendar-legend">
+          <span><span class="legend-dot" style="background:${dotColor("자체전")}"></span>자체전</span>
+          <span><span class="legend-dot" style="background:${dotColor("대회")}"></span>대회</span>
+        </div>
       </div>
       <div class="day-detail">
         <h3>${selected} 일정</h3>
@@ -94,9 +104,10 @@ export function mountCalendar(container, events) {
   }
 
   function eventCardHTML(e) {
+    const badgeClass = e.type === "대회" ? "badge-defense" : "badge-offense";
     return `
       <div class="event-card">
-        <span class="badge badge-${e.type === "대회" ? "defense" : "offense"}">${e.type}</span>
+        <span class="badge ${badgeClass}">${e.type}</span>
         <strong>${e.title}</strong>
         <div class="event-meta">${e.date}${e.location ? ` · ${e.location}` : ""}</div>
         ${e.note ? `<p class="event-note">${e.note}</p>` : ""}
