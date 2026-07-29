@@ -848,3 +848,133 @@ body {
   padding: 6px 10px;
   font-size: 0.9rem;
 }
+
+.team-count-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-form {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px;
+  max-width: 560px;
+  margin-bottom: 24px;
+}
+
+.history-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.history-form-row input[type="date"] {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.history-team-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.history-team-input label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.history-team-textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.history-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-list-header h3 {
+  margin: 0;
+}
+
+.history-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+
+.history-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.history-local-tag {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.history-teams {
+  display: grid;
+  gap: 8px;
+}
+
+.history-team-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.history-team-names {
+  font-size: 0.9rem;
+}
+
+.team-record {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.team-record h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.team-record-teams {
+  display: grid;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.team-record-team strong {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
