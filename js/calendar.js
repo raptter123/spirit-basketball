@@ -1,4 +1,5 @@
 import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR } from "./events.js";
+import { getHistoryOn } from "./team-history.js";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -12,6 +13,29 @@ function toDateStr(y, m, d) {
 
 function dotColor(type) {
   return EVENT_TYPE_COLOR[type] || "var(--accent)";
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function teamRecordHTML(rec) {
+  return `
+    <div class="team-record">
+      <h4>🏀 이날의 팀 편성</h4>
+      <div class="team-record-teams">
+        ${rec.teams
+          .map(
+            (team, i) => `
+          <div class="team-record-team">
+            <strong>${String.fromCharCode(65 + i)}팀 (${team.length}명)</strong>
+            <div>${team.map((n) => escapeHtml(n)).join(", ")}</div>
+          </div>`
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
 }
 
 export function mountCalendar(container) {
@@ -71,6 +95,9 @@ export function mountCalendar(container) {
             ? selectedEvents.map((e) => eventCardHTML(e)).join("")
             : `<p class="hint">이 날에는 등록된 일정이 없어요.</p>`
         }
+        ${getHistoryOn(selected)
+          .map((rec) => teamRecordHTML(rec))
+          .join("")}
       </div>
       <div class="upcoming-list">
         <h3>다가오는 일정</h3>
