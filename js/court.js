@@ -5,7 +5,8 @@ const TEAM_COLOR = {
 
 function courtMarkingsSVG() {
   return `
-    <rect class="court-boundary" x="10" y="10" width="480" height="450" />
+    <rect class="court-boundary" x="10" y="10" width="480" height="450" rx="18" />
+    <rect class="paint-fill" x="170" y="270" width="160" height="190" />
     <path class="court-line" d="M 190 10 A 60 60 0 0 0 310 10" />
     <rect class="court-line" x="170" y="270" width="160" height="190" />
     <circle class="court-line" cx="250" cy="270" r="60" />
@@ -55,7 +56,7 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
-const BALL_OFFSET = [13, -13];
+const BALL_OFFSET = [15, -15];
 const PASS_WINDOW = 0.05;
 
 function positionAtRaw(data, rawProgress) {
@@ -101,6 +102,15 @@ export function mountCourt(container, tactic, duration = 3200) {
     <marker id="arrow-defense" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${TEAM_COLOR.defense}" />
     </marker>
+    <radialGradient id="courtGradient" cx="50%" cy="32%" r="78%">
+      <stop offset="0%" stop-color="#202c49" />
+      <stop offset="100%" stop-color="#0e1526" />
+    </radialGradient>
+    <radialGradient id="ballGradient" cx="34%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#f8ab53" />
+      <stop offset="55%" stop-color="#e8730a" />
+      <stop offset="100%" stop-color="#a84800" />
+    </radialGradient>
   `;
   svg.appendChild(defs);
 
@@ -143,9 +153,12 @@ export function mountCourt(container, tactic, duration = 3200) {
   let ballEl = null;
   if (tactic.ball && tactic.ball.length) {
     ballEl = svgEl("g", { class: "ball" });
-    ballEl.appendChild(svgEl("circle", { r: 6, class: "ball-dot" }));
-    ballEl.appendChild(svgEl("path", { d: "M -6 0 Q 0 -4 6 0", class: "ball-seam" }));
-    ballEl.appendChild(svgEl("path", { d: "M -6 0 Q 0 4 6 0", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("circle", { r: 8, class: "ball-dot" }));
+    ballEl.appendChild(svgEl("path", { d: "M 0 -8 L 0 8", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("path", { d: "M -8 0 L 8 0", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("path", { d: "M -3.4 -7.4 Q 3 0 -3.4 7.4", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("path", { d: "M 3.4 -7.4 Q -3 0 3.4 7.4", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("circle", { r: 8, class: "ball-outline" }));
   }
 
   svg.appendChild(arrowGroup);

@@ -7,8 +7,7 @@
   --accent: #f97316;
   --offense: #3b82f6;
   --defense: #ef4444;
-  --court-fill: #7c4a2d;
-  --court-line: #f1f5f9;
+  --court-line: #e7ecf4;
 }
 
 * {
@@ -162,21 +161,28 @@ body {
 }
 
 .court-boundary {
-  fill: var(--court-fill);
+  fill: url(#courtGradient);
   stroke: var(--court-line);
-  stroke-width: 2;
+  stroke-width: 1.5;
+}
+
+.paint-fill {
+  fill: rgba(231, 236, 244, 0.05);
 }
 
 .court-line {
   fill: none;
   stroke: var(--court-line);
-  stroke-width: 2;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.85;
 }
 
 .rim {
   fill: none;
   stroke: var(--accent);
   stroke-width: 3;
+  filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.6));
 }
 
 .arrow-path {
@@ -206,16 +212,24 @@ body {
   pointer-events: none;
 }
 
+.ball {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
 .ball-dot {
-  fill: #d97706;
-  stroke: #1a1a1a;
+  fill: url(#ballGradient);
+}
+
+.ball-outline {
+  fill: none;
+  stroke: #3a1d02;
   stroke-width: 1;
 }
 
 .ball-seam {
   fill: none;
-  stroke: #1a1a1a;
-  stroke-width: 0.75;
+  stroke: #3a1d02;
+  stroke-width: 0.9;
 }
 
 .controls {
