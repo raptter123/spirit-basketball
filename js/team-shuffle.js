@@ -174,6 +174,7 @@ export function mountTeamHistory(container) {
 
     container.innerHTML = `
       <div class="history-form">
+        <p class="hint editor-local-notice">✎ 여기서 저장하는 기록은 <strong>이 브라우저에만</strong> 저장돼요. 팀 전체에 반영하려면 "내보내기"로 나온 내용을 전달해주세요.</p>
         <div class="history-form-row">
           <input type="date" id="history-date" value="${dateValue}" />
           <div class="team-count-select">
