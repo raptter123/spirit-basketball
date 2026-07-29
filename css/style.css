@@ -978,3 +978,17 @@ body {
   font-size: 0.8rem;
   margin-bottom: 2px;
 }
+
+.editor-local-notice {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.editor-local-notice strong {
+  color: var(--accent);
+}

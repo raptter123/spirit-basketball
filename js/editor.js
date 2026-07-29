@@ -41,6 +41,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
           </defs>
         </svg>
         <div class="editor-panel">
+          <p class="hint editor-local-notice">✎ 지금 여기서 고치는 내용은 <strong>이 브라우저에만</strong> 저장돼요. 팀 전체에 반영하려면 "내보내기"로 나온 내용을 전달해주세요.</p>
           <div class="editor-players"></div>
           <div class="editor-ball"></div>
           <div class="editor-actions">
