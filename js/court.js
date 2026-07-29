@@ -1,9 +1,9 @@
-const TEAM_COLOR = {
+export const TEAM_COLOR = {
   offense: "#3b82f6",
   defense: "#ef4444",
 };
 
-function courtMarkingsSVG() {
+export function courtMarkingsSVG() {
   return `
     <rect class="court-boundary" x="10" y="10" width="480" height="450" rx="18" />
     <rect class="paint-fill" x="170" y="270" width="160" height="190" />
@@ -50,7 +50,7 @@ function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
-function svgEl(tag, attrs = {}) {
+export function svgEl(tag, attrs = {}) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;

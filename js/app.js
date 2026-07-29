@@ -1,6 +1,8 @@
 import { TACTICS, getTacticById } from "./data.js";
 import { mountCourt } from "./court.js";
 import { mountCalendar } from "./calendar.js";
+import { mountEditor } from "./editor.js";
+import { getOverride, saveOverride, clearOverride } from "./storage.js";
 
 const app = document.getElementById("app");
 
@@ -43,51 +45,174 @@ function renderNotFound() {
   `;
 }
 
+function cloneTactic(t) {
+  return JSON.parse(JSON.stringify(t));
+}
+
+function closeModal() {
+  const modal = document.querySelector(".modal-backdrop");
+  if (modal) modal.remove();
+}
+
+function showExportModal(tactic) {
+  const payload = {
+    players: tactic.players,
+    ...(tactic.ball ? { ball: tactic.ball } : {}),
+  };
+  const text = JSON.stringify(payload, null, 2);
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>내보내기</h3>
+      <p class="hint">아래 내용을 복사해서 채팅으로 보내주시면 실제 사이트에 반영해드릴게요.</p>
+      <textarea class="export-textarea" readonly>${text}</textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modal-close">닫기</button>
+        <button type="button" class="btn btn-primary" id="modal-copy">복사하기</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("modal-copy").addEventListener("click", async () => {
+    const copyBtn = document.getElementById("modal-copy");
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = "복사됨!";
+    } catch {
+      copyBtn.textContent = "복사 실패, 직접 선택해주세요";
+    }
+    setTimeout(() => {
+      copyBtn.textContent = "복사하기";
+    }, 1500);
+  });
+}
+
 function renderDetail(id) {
-  const tactic = getTacticById(id);
-  if (!tactic) {
+  const base = getTacticById(id);
+  if (!base) {
     renderNotFound();
     return;
   }
 
-  app.innerHTML = `
-    <section class="detail-view">
-      <a class="back-link" href="#/">← 목록으로</a>
-      <span class="badge badge-${tactic.category === "디펜스" ? "defense" : "offense"}">${tactic.category}</span>
-      <h1>${tactic.name}</h1>
-      <p class="summary">${tactic.summary}</p>
-      <div class="court-wrap"><div id="court-container"></div></div>
-      <div class="controls">
-        <button id="play-btn" class="btn btn-primary">▶ 재생</button>
-        <button id="replay-btn" class="btn">⟲ 다시보기</button>
-      </div>
-      <p class="description">${tactic.description}</p>
-    </section>
-  `;
+  const override = getOverride(id);
+  const tactic = cloneTactic(base);
+  if (override) {
+    tactic.players = override.players;
+    if (override.ball) tactic.ball = override.ball;
+  }
 
-  const courtContainer = document.getElementById("court-container");
-  const controller = mountCourt(courtContainer, tactic);
+  let editing = false;
+  let controller = null;
 
-  const playBtn = document.getElementById("play-btn");
-  const replayBtn = document.getElementById("replay-btn");
+  function renderShell() {
+    app.innerHTML = `
+      <section class="detail-view">
+        <a class="back-link" href="#/">← 목록으로</a>
+        <span class="badge badge-${tactic.category === "디펜스" ? "defense" : "offense"}">${tactic.category}</span>
+        <h1>${tactic.name}</h1>
+        <p class="summary">${tactic.summary}</p>
+        ${
+          getOverride(id)
+            ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button></p>`
+            : ""
+        }
+        <div class="court-wrap" id="court-wrap"></div>
+        <div class="controls">
+          <button id="play-btn" class="btn btn-primary">▶ 재생</button>
+          <button id="replay-btn" class="btn">⟲ 다시보기</button>
+          <button id="edit-btn" class="btn">✎ 편집</button>
+        </div>
+        <p class="description">${tactic.description}</p>
+      </section>
+    `;
 
-  playBtn.addEventListener("click", () => {
-    if (controller.isPlaying()) {
-      controller.pause();
-      playBtn.textContent = "▶ 재생";
-    } else {
-      controller.play();
-      playBtn.textContent = "⏸ 일시정지";
+    const resetBtn = document.getElementById("reset-btn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        clearOverride(id);
+        renderDetail(id);
+      });
     }
-  });
 
-  replayBtn.addEventListener("click", () => {
-    controller.replay();
+    document.getElementById("edit-btn").addEventListener("click", () => {
+      editing = !editing;
+      renderMain();
+    });
+
+    renderMain();
+  }
+
+  function renderMain() {
+    const courtWrap = document.getElementById("court-wrap");
+    const playBtn = document.getElementById("play-btn");
+    const replayBtn = document.getElementById("replay-btn");
+    const editBtn = document.getElementById("edit-btn");
+
+    if (editing) {
+      playBtn.disabled = true;
+      replayBtn.disabled = true;
+      editBtn.textContent = "✕ 편집 종료";
+      mountEditor(courtWrap, tactic, {
+        onChange(updated) {
+          saveOverride(id, { players: updated.players, ball: updated.ball });
+          const hint = document.querySelector(".override-hint");
+          if (!hint) {
+            renderShell();
+          }
+        },
+        onReset() {
+          tactic.players = cloneTactic(base).players;
+          tactic.ball = cloneTactic(base).ball;
+          clearOverride(id);
+          renderMain();
+          const hint = document.querySelector(".override-hint");
+          if (hint) hint.remove();
+        },
+        onPreview() {
+          editing = false;
+          renderMain();
+          controller.play();
+          playBtn.textContent = "⏸ 일시정지";
+        },
+        onExport(current) {
+          showExportModal(current);
+        },
+      });
+      return;
+    }
+
+    playBtn.disabled = false;
+    replayBtn.disabled = false;
+    editBtn.textContent = "✎ 편집";
+    controller = mountCourt(courtWrap, tactic);
+
+    playBtn.addEventListener("click", () => {
+      if (controller.isPlaying()) {
+        controller.pause();
+        playBtn.textContent = "▶ 재생";
+      } else {
+        controller.play();
+        playBtn.textContent = "⏸ 일시정지";
+      }
+    });
+
+    replayBtn.addEventListener("click", () => {
+      controller.replay();
+      playBtn.textContent = "⏸ 일시정지";
+    });
+
+    controller.play();
     playBtn.textContent = "⏸ 일시정지";
-  });
+  }
 
-  controller.play();
-  playBtn.textContent = "⏸ 일시정지";
+  renderShell();
 }
 
 function router() {
