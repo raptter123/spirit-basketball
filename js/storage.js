@@ -24,3 +24,29 @@ export function clearOverride(id) {
     // no-op
   }
 }
+
+const FAVORITES_KEY = "spirit-tactic-favorites";
+
+export function getFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function toggleFavorite(id) {
+  const favorites = new Set(getFavorites());
+  if (favorites.has(id)) {
+    favorites.delete(id);
+  } else {
+    favorites.add(id);
+  }
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
+  } catch {
+    // no-op
+  }
+  return favorites.has(id);
+}
