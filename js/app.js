@@ -1,6 +1,5 @@
 import { TACTICS, getTacticById } from "./data.js";
 import { mountCourt } from "./court.js";
-import { EVENTS } from "./events.js";
 import { mountCalendar } from "./calendar.js";
 
 const app = document.getElementById("app");
@@ -32,7 +31,7 @@ function renderSchedule() {
       <div id="calendar-container"></div>
     </section>
   `;
-  mountCalendar(document.getElementById("calendar-container"), EVENTS);
+  mountCalendar(document.getElementById("calendar-container"));
 }
 
 function renderNotFound() {
