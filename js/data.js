@@ -1,6 +1,8 @@
 // 전술 데이터. 좌표는 하프코트 SVG 기준 (viewBox 0 0 500 470, 골대는 y=442 근처).
 // player.path 는 [x, y] 웨이포인트 배열이며, 애니메이션 시 이 경로를 따라 이동한다.
 // 웨이포인트가 1개뿐이면 해당 위치에 고정(움직이지 않음)된 선수를 뜻한다.
+// tactic.ball 은 공을 가진 선수가 바뀌는 시점을 [{ holder: 선수번호, at: 0~1 진행률 }] 로 나타낸다.
+// 순수 수비 전술처럼 공을 표시할 필요가 없으면 ball 필드를 생략한다.
 export const TACTICS = [
   {
     id: "pick-and-roll",
@@ -18,6 +20,7 @@ export const TACTICS = [
       { number: 3, team: "offense", path: [[100, 350], [90, 330]] },
       { number: 4, team: "offense", path: [[350, 260], [330, 240]] },
     ],
+    ball: [{ holder: 1, at: 0 }],
   },
   {
     id: "give-and-go",
@@ -33,6 +36,11 @@ export const TACTICS = [
       { number: 3, team: "offense", path: [[100, 350], [95, 340]] },
       { number: 4, team: "offense", path: [[350, 250], [335, 235]] },
       { number: 5, team: "offense", path: [[170, 420], [175, 400]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 2, at: 0.12 },
+      { holder: 1, at: 0.55 },
     ],
   },
   {
@@ -64,6 +72,10 @@ export const TACTICS = [
       { number: 2, team: "offense", path: [[400, 20], [400, 150], [380, 280], [300, 400]] },
       { number: 3, team: "offense", path: [[100, 20], [100, 150], [120, 280], [200, 400]] },
     ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 2, at: 0.75 },
+    ],
   },
   {
     id: "pistol-21-action",
@@ -81,6 +93,93 @@ export const TACTICS = [
       { number: 5, team: "offense", path: [[300, 225], [300, 225], [255, 215]] },
       { number: 3, team: "offense", path: [[110, 340], [100, 330]] },
       { number: 4, team: "offense", path: [[60, 420], [70, 410]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 2, at: 0.35 },
+      { holder: 1, at: 0.65 },
+    ],
+  },
+  {
+    id: "horns-set",
+    name: "혼스 세트 (Horns Set)",
+    category: "오펜스",
+    summary: "탑의 가드와 양쪽 엘보우 빅맨으로 시작하는 대표적인 세트 오펜스 대형",
+    description:
+      "혼스 세트는 포인트가드가 탑에, 두 명의 빅맨이 양쪽 엘보우에, 나머지 두 명이 양쪽 코너에 서는 " +
+      "대형입니다. 가드가 한쪽 엘보우 빅맨의 스크린을 활용해 픽앤롤을 시작하고, 스크린을 세운 빅맨은 " +
+      "곧바로 골밑으로 롤인합니다. 반대쪽 빅맨은 팝아웃하며 다음 옵션을 준비합니다.",
+    players: [
+      { number: 1, team: "offense", path: [[260, 230], [230, 245], [195, 275], [210, 340], [225, 395]] },
+      { number: 5, team: "offense", path: [[190, 270], [190, 270], [215, 350], [250, 420]] },
+      { number: 4, team: "offense", path: [[330, 270], [300, 255]] },
+      { number: 2, team: "offense", path: [[470, 420], [455, 405]] },
+      { number: 3, team: "offense", path: [[30, 420], [45, 405]] },
+    ],
+    ball: [{ holder: 1, at: 0 }],
+  },
+  {
+    id: "iverson-cut",
+    name: "아이버슨 컷 (Iverson Cut)",
+    category: "오펜스",
+    summary: "양쪽 엘보우 스크린을 연달아 타고 반대쪽 윙으로 가로지르는 유명한 오프더볼 컷",
+    description:
+      "아이버슨 컷은 탑의 가드가 양쪽 엘보우에 선 빅맨들의 스태거 스크린을 연달아 활용해 " +
+      "한쪽 윙에서 반대쪽 윙으로 가로질러 컷하는 오프더볼 액션입니다. 수비를 스크린에 걸리게 만들어 " +
+      "반대쪽에서 오픈 찬스를 만든 뒤 패스를 받습니다.",
+    players: [
+      { number: 1, team: "offense", path: [[260, 235], [270, 245]] },
+      { number: 2, team: "offense", path: [[400, 330], [330, 270], [250, 250], [170, 270], [110, 310]] },
+      { number: 4, team: "offense", path: [[330, 270], [335, 265]] },
+      { number: 5, team: "offense", path: [[170, 270], [165, 265]] },
+      { number: 3, team: "offense", path: [[430, 410], [420, 400]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 2, at: 0.75 },
+    ],
+  },
+  {
+    id: "elevator-screen",
+    name: "엘리베이터 스크린 (Elevator Screen)",
+    category: "오펜스",
+    summary: "두 스크리너 사이를 슈터가 통과하면 문이 닫히듯 스크린이 좁혀지는 유명한 세트 플레이",
+    description:
+      "엘리베이터 스크린은 두 명의 스크리너가 나란히 서서 그 사이로 슈터가 뛰어들어가게 한 뒤, " +
+      "슈터가 통과하자마자 양옆에서 좁혀 들어와 마치 엘리베이터 문이 닫히듯 뒤따라오는 수비를 " +
+      "완전히 차단하는 스크린입니다. 문이 닫힌 사이로 빠져나온 슈터는 오픈 3점 찬스를 잡습니다.",
+    players: [
+      { number: 1, team: "offense", path: [[250, 220], [255, 225]] },
+      { number: 2, team: "offense", path: [[290, 420], [270, 340], [255, 270], [255, 215]] },
+      { number: 5, team: "offense", path: [[220, 270], [215, 275]] },
+      { number: 4, team: "offense", path: [[290, 270], [295, 275]] },
+      { number: 3, team: "offense", path: [[430, 410], [420, 400]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 2, at: 0.85 },
+    ],
+  },
+  {
+    id: "spain-pick-and-roll",
+    name: "스페인 픽앤롤 (Spain Pick and Roll)",
+    category: "오펜스",
+    summary: "롤맨에게 백스크린을 더해 수비를 이중으로 봉쇄하는 3인 픽앤롤 변형",
+    description:
+      "스페인 픽앤롤은 기본 픽앤롤에 '스크린 더 스크리너' 동작을 더한 3인 조합 플레이입니다. " +
+      "빅맨(5)이 볼 핸들러(1)를 위해 온볼 스크린을 세운 뒤 골밑으로 롤인하는데, 이때 슈터(2)가 " +
+      "롤맨을 쫓는 수비수를 백스크린으로 걸어 완전히 열어줍니다. 수비가 스크린에 걸리면 1번이 " +
+      "활짝 열린 5번에게 패스를 연결합니다.",
+    players: [
+      { number: 1, team: "offense", path: [[260, 250], [220, 270], [195, 310], [210, 340]] },
+      { number: 5, team: "offense", path: [[190, 270], [190, 270], [230, 360], [265, 420]] },
+      { number: 2, team: "offense", path: [[400, 340], [320, 380], [350, 410]] },
+      { number: 3, team: "offense", path: [[100, 340], [90, 330]] },
+      { number: 4, team: "offense", path: [[430, 410], [420, 400]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 5, at: 0.85 },
     ],
   },
 ];

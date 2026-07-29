@@ -55,6 +55,34 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
+const BALL_OFFSET = [13, -13];
+const PASS_WINDOW = 0.05;
+
+function positionAtRaw(data, rawProgress) {
+  const clamped = Math.min(Math.max(rawProgress, 0), 1);
+  const eased = easeInOutQuad(clamped);
+  return pointAt(data.path, eased * data.length);
+}
+
+function ballPositionAt(ballSeq, playersByNumber, rawProgress) {
+  let current = ballSeq[0];
+  let next = null;
+  for (const seg of ballSeq) {
+    if (seg.at <= rawProgress) current = seg;
+    else {
+      next = seg;
+      break;
+    }
+  }
+  if (next && rawProgress >= next.at - PASS_WINDOW) {
+    const t = Math.min(1, Math.max(0, (rawProgress - (next.at - PASS_WINDOW)) / PASS_WINDOW));
+    const p1 = positionAtRaw(playersByNumber[current.holder], next.at - PASS_WINDOW);
+    const p2 = positionAtRaw(playersByNumber[next.holder], next.at);
+    return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
+  }
+  return positionAtRaw(playersByNumber[current.holder], rawProgress);
+}
+
 export function mountCourt(container, tactic, duration = 3200) {
   container.innerHTML = "";
 
@@ -104,11 +132,25 @@ export function mountCourt(container, tactic, duration = 3200) {
     g.appendChild(text);
     playerGroup.appendChild(g);
 
-    return { el: g, path: p.path, length: pathLength(p.path) };
+    return { el: g, path: p.path, length: pathLength(p.path), number: p.number };
   });
+
+  const playersByNumber = {};
+  for (const player of players) {
+    playersByNumber[player.number] = { path: player.path, length: player.length };
+  }
+
+  let ballEl = null;
+  if (tactic.ball && tactic.ball.length) {
+    ballEl = svgEl("g", { class: "ball" });
+    ballEl.appendChild(svgEl("circle", { r: 6, class: "ball-dot" }));
+    ballEl.appendChild(svgEl("path", { d: "M -6 0 Q 0 -4 6 0", class: "ball-seam" }));
+    ballEl.appendChild(svgEl("path", { d: "M -6 0 Q 0 4 6 0", class: "ball-seam" }));
+  }
 
   svg.appendChild(arrowGroup);
   svg.appendChild(playerGroup);
+  if (ballEl) svg.appendChild(ballEl);
   container.appendChild(svg);
 
   let rafId = null;
@@ -121,6 +163,10 @@ export function mountCourt(container, tactic, duration = 3200) {
     for (const player of players) {
       const [x, y] = pointAt(player.path, eased * player.length);
       player.el.setAttribute("transform", `translate(${x},${y})`);
+    }
+    if (ballEl && tactic.ball) {
+      const [bx, by] = ballPositionAt(tactic.ball, playersByNumber, progress);
+      ballEl.setAttribute("transform", `translate(${bx + BALL_OFFSET[0]},${by + BALL_OFFSET[1]})`);
     }
   }
 
