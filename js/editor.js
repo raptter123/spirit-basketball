@@ -92,6 +92,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
             class: "editor-handle-label",
             "text-anchor": "middle",
             dy: "0.35em",
+            "data-player-label": playerIdx,
           });
           label.textContent = p.number;
           label.style.pointerEvents = "none";
@@ -119,6 +120,13 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
       tactic.players[dragging.playerIdx].path[dragging.index] = [x, y];
       dragging.handle.setAttribute("cx", x);
       dragging.handle.setAttribute("cy", y);
+      if (dragging.index === 0) {
+        const label = handleGroup.querySelector(`[data-player-label="${dragging.playerIdx}"]`);
+        if (label) {
+          label.setAttribute("x", x);
+          label.setAttribute("y", y);
+        }
+      }
       const pathEl = pathGroup.querySelector(`[data-player-path="${dragging.playerIdx}"]`);
       if (pathEl) pathEl.setAttribute("d", pathD(tactic.players[dragging.playerIdx].path));
       const row = container.querySelector(

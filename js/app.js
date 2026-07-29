@@ -155,6 +155,7 @@ function renderRoster() {
 
     app.innerHTML = `
       <section class="roster-view">
+        <a class="back-link" href="#/">← 전술 목록으로</a>
         <h1>팀 로스터</h1>
         <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
 
@@ -216,6 +217,7 @@ function renderRoster() {
 function renderTeamShuffle() {
   app.innerHTML = `
     <section class="shuffle-view">
+      <a class="back-link" href="#/">← 전술 목록으로</a>
       <h1>자체전 팀 편성</h1>
       <p class="hint">참석자 이름을 입력하고 팀 나누기를 누르면 랜덤으로 두 팀을 나눠줘요.</p>
       <div id="shuffle-container"></div>
@@ -227,6 +229,7 @@ function renderTeamShuffle() {
 function renderSchedule() {
   app.innerHTML = `
     <section class="schedule-view">
+      <a class="back-link" href="#/">← 전술 목록으로</a>
       <h1>대회 일정</h1>
       <p class="hint">날짜를 클릭하면 그 날의 일정을 볼 수 있어요.</p>
       <div id="calendar-container"></div>
