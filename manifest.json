@@ -1,7 +1,7 @@
 {
-  "name": "혼(Spirit) 농구 전술",
+  "name": "혼(Spirit)",
   "short_name": "혼 Spirit",
-  "description": "농구 동호회 혼(Spirit)의 전술 공유 페이지",
+  "description": "농구 동호회 혼(Spirit)의 홈페이지",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
