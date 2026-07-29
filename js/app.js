@@ -13,11 +13,23 @@ import {
   getCustomRoster,
   addCustomRosterEntry,
   removeCustomRosterEntry,
+  getNewTacticDraft,
+  saveNewTacticDraft,
+  clearNewTacticDraft,
 } from "./storage.js";
 
 const app = document.getElementById("app");
 const CATEGORIES = ["전체", "오펜스", "디펜스"];
 const HIGHLIGHT_MIN_GAMES = 25;
+
+const HOME_MENU = [
+  { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
+  { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
+  { icon: "🔀", title: "팀 편성", desc: "자체전 팀을 랜덤으로 나누고, 편성 기록을 남겨보세요.", href: "#/team-shuffle" },
+  { icon: "📅", title: "대회 일정", desc: "대회 일정과 팀 편성 기록을 달력으로 확인하세요.", href: "#/schedule" },
+  { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록을 모아둔 보관실이에요.", href: "https://kimjunseok.github.io/Spirit/", external: true },
+  { icon: "✅", title: "출석체크", desc: "자체전 출석체크는 여기서 해주세요.", href: "https://band.us/band/47755703", external: true },
+];
 
 function escapeHtml(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -38,6 +50,29 @@ function tacticCardHTML(t, isFav) {
   `;
 }
 
+function homeCardHTML(item) {
+  const attrs = item.external ? `target="_blank" rel="noopener"` : "";
+  return `
+    <a class="home-card" href="${item.href}" ${attrs}>
+      <span class="home-card-icon">${item.icon}</span>
+      <h2>${item.title}${item.external ? " ↗" : ""}</h2>
+      <p>${item.desc}</p>
+    </a>
+  `;
+}
+
+function renderHome() {
+  app.innerHTML = `
+    <section class="home-view">
+      <h1>혼(Spirit)</h1>
+      <p class="hint">농구 동호회 혼(Spirit)의 홈페이지예요. 아래 메뉴에서 원하는 곳으로 이동하세요.</p>
+      <div class="home-menu">
+        ${HOME_MENU.map(homeCardHTML).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderList() {
   let query = "";
   let category = "전체";
@@ -55,7 +90,11 @@ function renderList() {
 
     app.innerHTML = `
       <section class="list-view">
-        <h1>전술 목록</h1>
+        <a class="back-link" href="#/">← 홈으로</a>
+        <div class="list-header">
+          <h1>전술 목록</h1>
+          <a href="#/new-tactic" class="btn btn-primary">+ 전술 추가</a>
+        </div>
         <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
         <div class="list-controls">
           <input type="text" id="tactic-search" class="search-input" placeholder="전술 이름/설명 검색" value="${query}" />
@@ -155,7 +194,7 @@ function renderRoster() {
 
     app.innerHTML = `
       <section class="roster-view">
-        <a class="back-link" href="#/">← 전술 목록으로</a>
+        <a class="back-link" href="#/">← 홈으로</a>
         <h1>팀 로스터</h1>
         <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
 
@@ -217,7 +256,7 @@ function renderRoster() {
 function renderTeamShuffle() {
   app.innerHTML = `
     <section class="shuffle-view">
-      <a class="back-link" href="#/">← 전술 목록으로</a>
+      <a class="back-link" href="#/">← 홈으로</a>
       <h1>자체전 팀 편성</h1>
       <p class="hint">참석자 이름을 입력하고 팀 나누기를 누르면 랜덤으로 팀을 나눠줘요.</p>
 
@@ -236,7 +275,7 @@ function renderTeamShuffle() {
 function renderSchedule() {
   app.innerHTML = `
     <section class="schedule-view">
-      <a class="back-link" href="#/">← 전술 목록으로</a>
+      <a class="back-link" href="#/">← 홈으로</a>
       <h1>대회 일정</h1>
       <p class="hint">날짜를 클릭하면 그 날의 일정을 볼 수 있어요.</p>
       <div id="calendar-container"></div>
@@ -248,7 +287,7 @@ function renderSchedule() {
 function renderNotFound() {
   app.innerHTML = `
     <section class="detail-view">
-      <a class="back-link" href="#/">← 목록으로</a>
+      <a class="back-link" href="#/tactics">← 목록으로</a>
       <p>존재하지 않는 전술입니다.</p>
     </section>
   `;
@@ -275,7 +314,7 @@ function showExportModal(tactic) {
   backdrop.innerHTML = `
     <div class="modal">
       <h3>내보내기</h3>
-      <p class="hint">아래 내용을 복사해서 채팅으로 보내주시면 실제 사이트에 반영해드릴게요.</p>
+      <p class="hint">아래 내용을 복사해서 <strong>황규철</strong>에게 보내주세요. 확인 후 실제 사이트에 반영할게요.</p>
       <textarea class="export-textarea" readonly>${text}</textarea>
       <div class="modal-actions">
         <button type="button" class="btn" id="modal-close">닫기</button>
@@ -301,6 +340,179 @@ function showExportModal(tactic) {
       copyBtn.textContent = "복사하기";
     }, 1500);
   });
+}
+
+function showNewTacticExportModal(payload) {
+  const text = JSON.stringify(payload, null, 2);
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>새 전술 내보내기</h3>
+      <p class="hint">아래 내용을 복사해서 <strong>황규철</strong>에게 보내주세요. 확인 후 실제 사이트에 새 전술로 반영할게요.</p>
+      <textarea class="export-textarea" readonly>${text}</textarea>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modal-close">닫기</button>
+        <button type="button" class="btn btn-primary" id="modal-copy">복사하기</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+  document.getElementById("modal-close").addEventListener("click", closeModal);
+  document.getElementById("modal-copy").addEventListener("click", async () => {
+    const copyBtn = document.getElementById("modal-copy");
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = "복사됨!";
+    } catch {
+      copyBtn.textContent = "복사 실패, 직접 선택해주세요";
+    }
+    setTimeout(() => {
+      copyBtn.textContent = "복사하기";
+    }, 1500);
+  });
+}
+
+function defaultNewTacticPlayers(team) {
+  return [
+    { number: 1, team, path: [[250, 300]] },
+    { number: 2, team, path: [[400, 340]] },
+    { number: 3, team, path: [[100, 340]] },
+    { number: 4, team, path: [[350, 250]] },
+    { number: 5, team, path: [[170, 400]] },
+  ];
+}
+
+function renderNewTactic() {
+  const draft = getNewTacticDraft();
+  let name = draft?.name || "";
+  let category = draft?.category || "오펜스";
+  let summary = draft?.summary || "";
+  let description = draft?.description || "";
+  const tactic = {
+    name: name || "이름 없는 전술",
+    players: draft?.players || defaultNewTacticPlayers(category === "디펜스" ? "defense" : "offense"),
+    ...(draft?.ball ? { ball: draft.ball } : {}),
+  };
+
+  function persistDraft() {
+    saveNewTacticDraft({
+      name,
+      category,
+      summary,
+      description,
+      players: tactic.players,
+      ...(tactic.ball ? { ball: tactic.ball } : {}),
+    });
+  }
+
+  function renderShell() {
+    tactic.name = name || "이름 없는 전술";
+    app.innerHTML = `
+      <section class="detail-view new-tactic-view">
+        <a class="back-link" href="#/tactics">← 전술 목록으로</a>
+        <h1>+ 새 전술 추가</h1>
+        <p class="hint editor-local-notice">✎ 여기서 만드는 전술은 <strong>이 브라우저에만</strong> 저장돼요. 다 만들었으면 아래 코트의 "내보내기"로 나온 내용을 황규철에게 전달해주세요.</p>
+        <form class="new-tactic-form" id="new-tactic-form">
+          <label>전술명
+            <input type="text" id="nt-name" value="${escapeHtml(name)}" placeholder="예: 픽앤롤" />
+          </label>
+          <label>카테고리
+            <select id="nt-category">
+              <option value="오펜스" ${category === "오펜스" ? "selected" : ""}>오펜스</option>
+              <option value="디펜스" ${category === "디펜스" ? "selected" : ""}>디펜스</option>
+            </select>
+          </label>
+          <label>한줄 설명
+            <input type="text" id="nt-summary" value="${escapeHtml(summary)}" placeholder="목록에 보일 짧은 설명" />
+          </label>
+          <label>상세 설명
+            <textarea id="nt-description" rows="4" placeholder="전술 흐름을 자세히 설명해주세요">${escapeHtml(description)}</textarea>
+          </label>
+        </form>
+        <button type="button" class="link-btn" id="nt-clear-draft">이 초안 전체 삭제</button>
+        <div class="court-wrap" id="new-tactic-court"></div>
+      </section>
+    `;
+
+    document.getElementById("nt-name").addEventListener("input", (e) => {
+      name = e.target.value;
+      tactic.name = name || "이름 없는 전술";
+      persistDraft();
+    });
+    document.getElementById("nt-summary").addEventListener("input", (e) => {
+      summary = e.target.value;
+      persistDraft();
+    });
+    document.getElementById("nt-description").addEventListener("input", (e) => {
+      description = e.target.value;
+      persistDraft();
+    });
+    document.getElementById("nt-category").addEventListener("change", (e) => {
+      category = e.target.value;
+      const team = category === "디펜스" ? "defense" : "offense";
+      tactic.players.forEach((p) => (p.team = team));
+      persistDraft();
+      renderMain();
+    });
+    document.getElementById("nt-clear-draft").addEventListener("click", () => {
+      clearNewTacticDraft();
+      renderNewTactic();
+    });
+
+    renderMain();
+  }
+
+  function renderMain() {
+    const courtWrap = document.getElementById("new-tactic-court");
+    mountEditor(courtWrap, tactic, {
+      onChange(updated) {
+        tactic.players = updated.players;
+        tactic.ball = updated.ball;
+        persistDraft();
+      },
+      onReset() {
+        tactic.players = defaultNewTacticPlayers(category === "디펜스" ? "defense" : "offense");
+        delete tactic.ball;
+        persistDraft();
+        renderMain();
+      },
+      onPreview() {
+        renderPreview();
+      },
+      onExport(current) {
+        showNewTacticExportModal({
+          name: name.trim() || "이름 없는 전술",
+          category,
+          summary: summary.trim(),
+          description: description.trim(),
+          players: current.players,
+          ...(current.ball ? { ball: current.ball } : {}),
+        });
+      },
+      hideLocalNotice: true,
+    });
+  }
+
+  function renderPreview() {
+    const courtWrap = document.getElementById("new-tactic-court");
+    courtWrap.innerHTML = `
+      <div class="preview-controls">
+        <button type="button" class="btn" id="back-to-edit">✎ 편집으로 돌아가기</button>
+      </div>
+      <div id="new-tactic-preview"></div>
+    `;
+    const controller = mountCourt(document.getElementById("new-tactic-preview"), tactic);
+    controller.play();
+    document.getElementById("back-to-edit").addEventListener("click", renderMain);
+  }
+
+  renderShell();
 }
 
 function renderDetail(id) {
@@ -428,6 +640,10 @@ function router() {
   const hash = location.hash;
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
+  } else if (hash === "#/new-tactic") {
+    renderNewTactic();
+  } else if (hash === "#/tactics") {
+    renderList();
   } else if (hash === "#/schedule") {
     renderSchedule();
   } else if (hash === "#/roster") {
@@ -435,7 +651,7 @@ function router() {
   } else if (hash === "#/team-shuffle") {
     renderTeamShuffle();
   } else {
-    renderList();
+    renderHome();
   }
 }
 
