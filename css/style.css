@@ -24,45 +24,43 @@ body {
 
 .site-header {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--surface-2);
+  padding: 18px 24px 12px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--text);
   text-decoration: none;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
 }
 
 .brand-logo {
-  height: 36px;
+  height: 48px;
   width: auto;
 }
 
-.site-nav {
+.utility-bar {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 4px;
+  padding: 0 24px 12px;
+  border-bottom: 1px solid var(--surface-2);
 }
 
-.site-nav a {
+.utility-bar a {
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 8px;
+  font-size: 0.78rem;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
-.site-nav a:hover {
+.utility-bar a:hover {
   color: var(--text);
   background: var(--surface);
 }
