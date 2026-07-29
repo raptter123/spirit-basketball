@@ -1,5 +1,7 @@
 import { TACTICS, getTacticById } from "./data.js";
 import { mountCourt } from "./court.js";
+import { EVENTS } from "./events.js";
+import { mountCalendar } from "./calendar.js";
 
 const app = document.getElementById("app");
 
@@ -20,6 +22,17 @@ function renderList() {
       </div>
     </section>
   `;
+}
+
+function renderSchedule() {
+  app.innerHTML = `
+    <section class="schedule-view">
+      <h1>대회 일정</h1>
+      <p class="hint">날짜를 클릭하면 그 날의 일정을 볼 수 있어요.</p>
+      <div id="calendar-container"></div>
+    </section>
+  `;
+  mountCalendar(document.getElementById("calendar-container"), EVENTS);
 }
 
 function renderNotFound() {
@@ -82,6 +95,8 @@ function router() {
   const hash = location.hash;
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
+  } else if (hash === "#/schedule") {
+    renderSchedule();
   } else {
     renderList();
   }
