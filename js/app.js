@@ -70,6 +70,27 @@ function renderHome() {
       <div class="home-menu">
         ${HOME_MENU.map(homeCardHTML).join("")}
       </div>
+
+      <h2 class="section-title">📲 홈 화면에 앱처럼 추가하기</h2>
+      <p class="hint">한 번만 아래대로 추가해두면, 다음부터는 브라우저 없이 아이콘만 눌러서 바로 열 수 있어요.</p>
+      <div class="install-guide-grid">
+        <div class="install-guide-card">
+          <h3>🍎 아이폰 (Safari)</h3>
+          <ol>
+            <li>이 페이지를 <strong>Safari</strong>로 열기</li>
+            <li>하단 공유 버튼(⬆️) 탭</li>
+            <li>"홈 화면에 추가" 선택</li>
+          </ol>
+        </div>
+        <div class="install-guide-card">
+          <h3>🤖 안드로이드 (Chrome)</h3>
+          <ol>
+            <li>이 페이지를 <strong>Chrome</strong>으로 열기</li>
+            <li>오른쪽 위 점 3개(⋮) 메뉴 탭</li>
+            <li>"앱 설치" 또는 "홈 화면에 추가" 선택</li>
+          </ol>
+        </div>
+      </div>
     </section>
   `;
 }

@@ -1059,6 +1059,37 @@ body {
   margin: 0 0 10px;
 }
 
+.install-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.install-guide-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.install-guide-card h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.install-guide-card ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 4px;
+}
+
+.install-guide-card strong {
+  color: var(--text);
+}
+
 .home-menu {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
