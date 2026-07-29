@@ -4,10 +4,24 @@ import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountShuffle } from "./team-shuffle.js";
 import { ROSTER } from "./roster.js";
-import { getOverride, saveOverride, clearOverride, getFavorites, toggleFavorite } from "./storage.js";
+import {
+  getOverride,
+  saveOverride,
+  clearOverride,
+  getFavorites,
+  toggleFavorite,
+  getCustomRoster,
+  addCustomRosterEntry,
+  removeCustomRosterEntry,
+} from "./storage.js";
 
 const app = document.getElementById("app");
 const CATEGORIES = ["전체", "오펜스", "디펜스"];
+const HIGHLIGHT_MIN_GAMES = 25;
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
 function tacticCardHTML(t, isFav) {
   return `
@@ -97,29 +111,106 @@ function renderList() {
   render();
 }
 
-function renderRoster() {
-  app.innerHTML = `
-    <section class="roster-view">
-      <h1>팀 로스터</h1>
-      <p class="hint">혼(Spirit) 소속 선수 명단입니다.</p>
-      ${
-        ROSTER.length
-          ? `<div class="roster-grid">
-              ${ROSTER.map(
-                (p) => `
-                <div class="roster-card">
-                  <div class="roster-number">${p.number}</div>
-                  <div class="roster-info">
-                    <div class="roster-name">${p.name}</div>
-                    ${p.position ? `<div class="roster-position">${p.position}</div>` : ""}
-                  </div>
-                </div>`
-              ).join("")}
-            </div>`
-          : `<p class="hint">아직 등록된 선수 정보가 없어요. 곧 채워질 예정입니다.</p>`
-      }
-    </section>
+function computeHighlights() {
+  const qualified = ROSTER.filter((p) => p.games >= HIGHLIGHT_MIN_GAMES);
+  const pool = qualified.length ? qualified : ROSTER;
+  const topBy = (key) => [...pool].sort((a, b) => b[key] - a[key])[0];
+  return [
+    { label: "🏀 득점왕", player: topBy("ppg"), value: (p) => `${p.ppg.toFixed(1)} PPG` },
+    { label: "🧱 리바운드왕", player: topBy("rpg"), value: (p) => `${p.rpg.toFixed(1)} RPG` },
+    { label: "🎯 어시스트왕", player: topBy("apg"), value: (p) => `${p.apg.toFixed(1)} APG` },
+    { label: "🏆 승률왕", player: topBy("winRate"), value: (p) => `${Math.round(p.winRate * 100)}%` },
+  ];
+}
+
+function rosterCardHTML(p, isCustom) {
+  const hasStats = typeof p.games === "number";
+  return `
+    <div class="roster-card">
+      <div class="roster-info">
+        <div class="roster-name">
+          ${escapeHtml(p.name)}
+          ${p.position ? `<span class="roster-position">${escapeHtml(p.position)}</span>` : ""}
+        </div>
+        ${
+          hasStats
+            ? `<div class="roster-stats">
+                <span>${p.games}경기</span>
+                <span>${p.ppg.toFixed(1)} PPG</span>
+                <span>${p.rpg.toFixed(1)} RPG</span>
+                <span>${p.apg.toFixed(1)} APG</span>
+              </div>`
+            : `<div class="roster-stats hint">기록 데이터 없음 (직접 추가됨)</div>`
+        }
+      </div>
+      ${isCustom ? `<button type="button" class="btn-icon roster-remove-btn" data-id="${p.id}" aria-label="삭제">×</button>` : ""}
+    </div>
   `;
+}
+
+function renderRoster() {
+  function render() {
+    const custom = getCustomRoster();
+    const highlights = computeHighlights();
+
+    app.innerHTML = `
+      <section class="roster-view">
+        <h1>팀 로스터</h1>
+        <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
+
+        <div class="highlight-grid">
+          ${highlights
+            .map(
+              (h) => `
+              <div class="highlight-card">
+                <span class="highlight-label">${h.label}</span>
+                <strong>${escapeHtml(h.player.name)}</strong>
+                <span class="highlight-value">${h.value(h.player)}</span>
+              </div>`
+            )
+            .join("")}
+        </div>
+
+        ${
+          ROSTER.length || custom.length
+            ? `<div class="roster-grid">
+                ${ROSTER.map((p) => rosterCardHTML(p, false)).join("")}
+                ${custom.map((p) => rosterCardHTML(p, true)).join("")}
+              </div>`
+            : `<p class="hint">아직 등록된 선수 정보가 없어요.</p>`
+        }
+
+        <div class="roster-add">
+          <h2 class="section-title">+ 선수 추가</h2>
+          <p class="hint">위 목록에 없는 선수는 이름만 입력해도 추가할 수 있어요 (이 브라우저에만 저장돼요).</p>
+          <form id="add-player-form" class="add-player-form">
+            <input type="text" id="new-player-name" placeholder="이름" required />
+            <input type="text" id="new-player-position" placeholder="포지션 (선택)" />
+            <button type="submit" class="btn btn-primary">추가</button>
+          </form>
+        </div>
+      </section>
+    `;
+
+    document.getElementById("add-player-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById("new-player-name");
+      const positionInput = document.getElementById("new-player-position");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      addCustomRosterEntry({ name, position: positionInput.value.trim() });
+      render();
+    });
+
+    document.querySelectorAll(".roster-remove-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        removeCustomRosterEntry(btn.dataset.id);
+        render();
+      });
+    });
+  }
+
+  render();
 }
 
 function renderTeamShuffle() {

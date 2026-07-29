@@ -50,3 +50,35 @@ export function toggleFavorite(id) {
   }
   return favorites.has(id);
 }
+
+const CUSTOM_ROSTER_KEY = "spirit-custom-roster";
+
+export function getCustomRoster() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ROSTER_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addCustomRosterEntry(entry) {
+  const list = getCustomRoster();
+  list.push({ ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
+  try {
+    localStorage.setItem(CUSTOM_ROSTER_KEY, JSON.stringify(list));
+  } catch {
+    // no-op
+  }
+  return list;
+}
+
+export function removeCustomRosterEntry(id) {
+  const list = getCustomRoster().filter((p) => p.id !== id);
+  try {
+    localStorage.setItem(CUSTOM_ROSTER_KEY, JSON.stringify(list));
+  } catch {
+    // no-op
+  }
+  return list;
+}

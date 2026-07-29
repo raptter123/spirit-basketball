@@ -700,15 +700,48 @@ body {
   color: var(--accent);
 }
 
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.highlight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.highlight-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.highlight-card strong {
+  font-size: 1.05rem;
+}
+
+.highlight-value {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .roster-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
 
 .roster-card {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
@@ -716,26 +749,49 @@ body {
   padding: 14px;
 }
 
-.roster-number {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--accent);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .roster-name {
   font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .roster-position {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.roster-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.roster-add {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--surface-2);
+}
+
+.add-player-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 480px;
+}
+
+.add-player-form input {
+  flex: 1 1 160px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 0.9rem;
 }
 
 .shuffle-input {
