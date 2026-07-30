@@ -39,30 +39,37 @@ function getAllPlayers() {
   return [...ROSTER, ...getCustomRoster()];
 }
 
-// 팀 총합은 각 선수의 개인 평균(ppg 등)을 그대로 더한 값을 쓴다 — 이 개인 평균 자체가
-// 실제 로테이션이 있는 경기에서 나온 수치라 raw sum이 실제 팀 득점(보통 40점 안팎)과 맞아떨어진다.
-// 인원수가 다른 두 팀을 그냥 합계로만 비교하면 인원 많은 쪽이 유리해 보이므로,
-// 인당 평균(ppgAvg)을 별도로 같이 보여줘서 밸런스를 판단하는 보조 지표로 쓴다.
+// 실제 경기에서는 한 팀에서 5명만 코트에 뛰기 때문에, 팀 인원이 늘어난다고 해서
+// 팀 득점이 그만큼 같이 늘어나는 건 아니다 — 오히려 잘하는 선수가 뛰는 시간이
+// 줄어들어서 개인 기록이 팀 득점에 기여하는 비중이 작아진다. 그래서 각 선수의
+// 개인 평균(ppg 등)을 그대로 더한 값(rawSum)에 TYPICAL_TEAM_SIZE(우리 동호회 평균
+// 팀 규모로 추정한 값) / 실제 인원수 비율을 곱해서, 인원이 기준보다 많으면 할인하고
+// 적으면 할증한다. 기준 인원일 때는 기존 raw sum(실제 팀 득점 40점 안팎)과 값이 같다.
+// 인당 평균(ppgAvg 등)은 이 보정과 무관하게 순수 평균을 그대로 보여준다.
+const TYPICAL_TEAM_SIZE = 7;
+
 function computeProjection(playerNames, playersByName) {
   const players = playerNames.map((n) => playersByName[n]).filter((p) => p && typeof p.ppg === "number");
   if (!players.length) return null;
   const statCount = players.length;
+  const sizeAdjust = TYPICAL_TEAM_SIZE / statCount;
   const sum = (key) => players.reduce((acc, p) => acc + (typeof p[key] === "number" ? p[key] : 0), 0);
   const avgOf = (key) => {
     const withStat = players.filter((p) => typeof p[key] === "number");
     return withStat.length ? withStat.reduce((acc, p) => acc + p[key], 0) / withStat.length : null;
   };
   const topgPlayers = players.filter((p) => typeof p.topg === "number");
+  const topgSum = topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) : null;
   return {
     statCount,
-    ppg: sum("ppg"),
-    rpg: sum("rpg"),
-    apg: sum("apg"),
+    ppg: sum("ppg") * sizeAdjust,
+    rpg: sum("rpg") * sizeAdjust,
+    apg: sum("apg") * sizeAdjust,
     ppgAvg: sum("ppg") / statCount,
     rpgAvg: sum("rpg") / statCount,
     apgAvg: sum("apg") / statCount,
-    topg: topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) : null,
-    topgAvg: topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) / topgPlayers.length : null,
+    topg: topgSum != null ? topgSum * (TYPICAL_TEAM_SIZE / topgPlayers.length) : null,
+    topgAvg: topgSum != null ? topgSum / topgPlayers.length : null,
     topgCount: topgPlayers.length,
     fgPctAvg: avgOf("fgPct"),
   };
@@ -554,6 +561,7 @@ export function mountTeamBuilder(container) {
       </div>
 
       <h3 class="section-title">팀 구성 미리보기</h3>
+      <p class="hint ts-preview-hint">실제 경기는 5명만 코트에 뛰기 때문에, 인원이 많고 적음에 상관없이 공정하게 비교할 수 있도록 ${TYPICAL_TEAM_SIZE}인 팀 기준으로 환산한 예상치예요.</p>
       <div class="ts-preview-grid">
         ${Array.from({ length: teamCount }, (_, i) => {
           const teamNames = teamsPlayers[i];
