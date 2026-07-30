@@ -140,6 +140,11 @@ export function mountCourt(container, tactic, duration = 3200) {
     text.textContent = p.number;
     g.appendChild(circle);
     g.appendChild(text);
+    if (p.displayName) {
+      const nameLabel = svgEl("text", { class: "player-name-label", "text-anchor": "middle", dy: "26" });
+      nameLabel.textContent = p.displayName;
+      g.appendChild(nameLabel);
+    }
     playerGroup.appendChild(g);
 
     return { el: g, path: p.path, length: pathLength(p.path), number: p.number };
