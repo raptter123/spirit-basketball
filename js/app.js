@@ -16,6 +16,7 @@ import {
   getNewTacticDraft,
   saveNewTacticDraft,
   clearNewTacticDraft,
+  clearTeamBuilderDraft,
 } from "./storage.js";
 
 const app = document.getElementById("app");
@@ -672,8 +673,14 @@ function updateNavActive() {
   });
 }
 
+let previousHash = null;
+
 function router() {
   const hash = location.hash;
+  if (previousHash === "#/team-shuffle" && hash !== "#/team-shuffle") {
+    clearTeamBuilderDraft();
+  }
+  previousHash = hash;
   updateNavActive();
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
