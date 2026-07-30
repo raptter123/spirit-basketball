@@ -1149,6 +1149,42 @@ body {
   min-width: 0;
 }
 
+.scenario-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.chip-add {
+  border-style: dashed;
+  color: var(--accent);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.scenario-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.scenario-edit-row input[type="text"] {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  max-width: 220px;
+}
+
 .home-view h1 {
   margin: 8px 0 4px;
 }

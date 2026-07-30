@@ -325,18 +325,39 @@ function cloneTactic(t) {
   return JSON.parse(JSON.stringify(t));
 }
 
+// 시나리오: 같은 시작 배치에서 갈라지는 여러 흐름(예: 트리플 쓰렛에서 돌파/1번패스/2번패스).
+// scenarios[0]은 항상 "기본" 시나리오이며 tactic.players/ball 그 자체다.
+function scenariosOf(tactic) {
+  return [{ name: "기본", players: tactic.players, ball: tactic.ball }, ...(tactic.scenarios || [])];
+}
+
+function newScenarioFrom(baseScenario, name) {
+  const cloned = cloneTactic({ players: baseScenario.players, ...(baseScenario.ball ? { ball: baseScenario.ball } : {}) });
+  return { name, players: cloned.players, ...(cloned.ball ? { ball: cloned.ball } : {}) };
+}
+
+function scenarioChipsHTML(scenarios, activeIndex) {
+  return `
+    <div class="scenario-chips">
+      ${scenarios
+        .map(
+          (s, i) =>
+            `<button type="button" class="chip ${i === activeIndex ? "chip-active" : ""}" data-scenario="${i}">${escapeHtml(
+              s.name
+            )}</button>`
+        )
+        .join("")}
+      <button type="button" class="chip chip-add" id="scenario-add">+ 시나리오 추가</button>
+    </div>
+  `;
+}
+
 function closeModal() {
   const modal = document.querySelector(".modal-backdrop");
   if (modal) modal.remove();
 }
 
-function showExportModal(tactic) {
-  const payload = {
-    id: tactic.id,
-    name: tactic.name,
-    players: tactic.players,
-    ...(tactic.ball ? { ball: tactic.ball } : {}),
-  };
+function showExportModal(payload) {
   const text = JSON.stringify(payload, null, 2);
 
   const backdrop = document.createElement("div");
@@ -424,11 +445,17 @@ function renderNewTactic() {
   let category = draft?.category || "패턴";
   let summary = draft?.summary || "";
   let description = draft?.description || "";
+  let activeScenario = 0;
   const tactic = {
     name: name || "이름 없는 전술",
     players: draft?.players || defaultNewTacticPlayers(category === "디펜스" ? "defense" : "offense"),
     ...(draft?.ball ? { ball: draft.ball } : {}),
+    ...(draft?.scenarios && draft.scenarios.length ? { scenarios: draft.scenarios } : {}),
   };
+
+  function activeTarget() {
+    return activeScenario === 0 ? tactic : tactic.scenarios[activeScenario - 1];
+  }
 
   function persistDraft() {
     saveNewTacticDraft({
@@ -438,6 +465,7 @@ function renderNewTactic() {
       description,
       players: tactic.players,
       ...(tactic.ball ? { ball: tactic.ball } : {}),
+      ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
     });
   }
 
@@ -467,6 +495,8 @@ function renderNewTactic() {
           </label>
         </form>
         <button type="button" class="link-btn" id="nt-clear-draft">이 초안 전체 삭제</button>
+        <p class="hint">한 전술 안에서 여러 상황(예: 돌파 / 1번 패스 / 2번 패스)을 각각 만들고 싶으면 아래 "+ 시나리오 추가"를 눌러주세요. 같은 시작 배치에서 시작해서, 각 시나리오의 흐름만 따로 그리면 돼요.</p>
+        <div id="scenario-toolbar"></div>
         <div class="court-wrap" id="new-tactic-court"></div>
       </section>
     `;
@@ -487,7 +517,7 @@ function renderNewTactic() {
     document.getElementById("nt-category").addEventListener("change", (e) => {
       category = e.target.value;
       const team = category === "디펜스" ? "defense" : "offense";
-      tactic.players.forEach((p) => (p.team = team));
+      scenariosOf(tactic).forEach((scenario) => scenario.players.forEach((p) => (p.team = team)));
       persistDraft();
       renderMain();
     });
@@ -499,31 +529,87 @@ function renderNewTactic() {
     renderMain();
   }
 
+  function renderScenarioToolbar() {
+    const toolbar = document.getElementById("scenario-toolbar");
+    const scenarios = scenariosOf(tactic);
+    toolbar.innerHTML = `
+      ${scenarioChipsHTML(scenarios, activeScenario)}
+      ${
+        activeScenario > 0
+          ? `<div class="scenario-edit-row">
+               <input type="text" id="scenario-name-input" value="${escapeHtml(scenarios[activeScenario].name)}" placeholder="시나리오 이름" />
+               <button type="button" class="link-btn" id="scenario-delete">🗑 이 시나리오 삭제</button>
+             </div>`
+          : ""
+      }
+    `;
+
+    toolbar.querySelectorAll("[data-scenario]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeScenario = Number(btn.dataset.scenario);
+        renderMain();
+      });
+    });
+
+    toolbar.querySelector("#scenario-add").addEventListener("click", () => {
+      const current = scenariosOf(tactic);
+      const newScenario = newScenarioFrom(current[activeScenario], `시나리오 ${current.length}`);
+      if (!tactic.scenarios) tactic.scenarios = [];
+      tactic.scenarios.push(newScenario);
+      activeScenario = scenariosOf(tactic).length - 1;
+      persistDraft();
+      renderMain();
+    });
+
+    const nameInput = toolbar.querySelector("#scenario-name-input");
+    if (nameInput) {
+      nameInput.addEventListener("input", (e) => {
+        const value = e.target.value || `시나리오 ${activeScenario + 1}`;
+        tactic.scenarios[activeScenario - 1].name = value;
+        persistDraft();
+        const chip = toolbar.querySelector(`[data-scenario="${activeScenario}"]`);
+        if (chip) chip.textContent = value;
+      });
+    }
+
+    const deleteBtn = toolbar.querySelector("#scenario-delete");
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", () => {
+        tactic.scenarios.splice(activeScenario - 1, 1);
+        activeScenario = 0;
+        persistDraft();
+        renderMain();
+      });
+    }
+  }
+
   function renderMain() {
+    renderScenarioToolbar();
     const courtWrap = document.getElementById("new-tactic-court");
-    mountEditor(courtWrap, tactic, {
-      onChange(updated) {
-        tactic.players = updated.players;
-        tactic.ball = updated.ball;
+    mountEditor(courtWrap, activeTarget(), {
+      onChange() {
         persistDraft();
       },
       onReset() {
         tactic.players = defaultNewTacticPlayers(category === "디펜스" ? "defense" : "offense");
         delete tactic.ball;
+        delete tactic.scenarios;
+        activeScenario = 0;
         persistDraft();
-        renderMain();
+        renderShell();
       },
       onPreview() {
         renderPreview();
       },
-      onExport(current) {
+      onExport() {
         showNewTacticExportModal({
           name: name.trim() || "이름 없는 전술",
           category,
           summary: summary.trim(),
           description: description.trim(),
-          players: current.players,
-          ...(current.ball ? { ball: current.ball } : {}),
+          players: tactic.players,
+          ...(tactic.ball ? { ball: tactic.ball } : {}),
+          ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
         });
       },
       hideLocalNotice: true,
@@ -538,7 +624,7 @@ function renderNewTactic() {
       </div>
       <div id="new-tactic-preview"></div>
     `;
-    const controller = mountCourt(document.getElementById("new-tactic-preview"), tactic);
+    const controller = mountCourt(document.getElementById("new-tactic-preview"), activeTarget());
     controller.play();
     document.getElementById("back-to-edit").addEventListener("click", renderMain);
   }
@@ -558,20 +644,36 @@ function renderDetail(id) {
   if (override) {
     tactic.players = override.players;
     if (override.ball) tactic.ball = override.ball;
+    if (override.scenarios) tactic.scenarios = override.scenarios;
   }
 
   let editing = false;
+  let activeScenario = 0;
   let controller = null;
   let simAssignment = getTacticSimAssignment();
 
+  function activeTarget() {
+    return activeScenario === 0 ? tactic : tactic.scenarios[activeScenario - 1];
+  }
+
+  function persistOverride() {
+    saveOverride(id, {
+      players: tactic.players,
+      ball: tactic.ball,
+      ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
+    });
+  }
+
   function applySimNames() {
-    tactic.players.forEach((p) => {
-      const name = simAssignment[p.number];
-      if (name) {
-        p.displayName = name;
-      } else {
-        delete p.displayName;
-      }
+    scenariosOf(tactic).forEach((scenario) => {
+      scenario.players.forEach((p) => {
+        const name = simAssignment[p.number];
+        if (name) {
+          p.displayName = name;
+        } else {
+          delete p.displayName;
+        }
+      });
     });
   }
   applySimNames();
@@ -624,6 +726,7 @@ function renderDetail(id) {
             : ""
         }
         ${simPanelHTML()}
+        <div id="scenario-toolbar"></div>
         <div class="court-wrap" id="court-wrap"></div>
         <div class="controls">
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
@@ -671,7 +774,65 @@ function renderDetail(id) {
     renderMain();
   }
 
+  function renderScenarioToolbar() {
+    const toolbar = document.getElementById("scenario-toolbar");
+    const scenarios = scenariosOf(tactic);
+    toolbar.innerHTML = `
+      ${scenarioChipsHTML(scenarios, activeScenario)}
+      ${
+        editing && activeScenario > 0
+          ? `<div class="scenario-edit-row">
+               <input type="text" id="scenario-name-input" value="${escapeHtml(scenarios[activeScenario].name)}" placeholder="시나리오 이름" />
+               <button type="button" class="link-btn" id="scenario-delete">🗑 이 시나리오 삭제</button>
+             </div>`
+          : ""
+      }
+    `;
+
+    toolbar.querySelectorAll("[data-scenario]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeScenario = Number(btn.dataset.scenario);
+        renderMain();
+      });
+    });
+
+    toolbar.querySelector("#scenario-add").addEventListener("click", () => {
+      const current = scenariosOf(tactic);
+      const newScenario = newScenarioFrom(current[activeScenario], `시나리오 ${current.length}`);
+      if (!tactic.scenarios) tactic.scenarios = [];
+      tactic.scenarios.push(newScenario);
+      activeScenario = scenariosOf(tactic).length - 1;
+      editing = true;
+      applySimNames();
+      persistOverride();
+      renderShell();
+    });
+
+    const nameInput = toolbar.querySelector("#scenario-name-input");
+    if (nameInput) {
+      nameInput.addEventListener("input", (e) => {
+        const value = e.target.value || `시나리오 ${activeScenario + 1}`;
+        tactic.scenarios[activeScenario - 1].name = value;
+        persistOverride();
+        const chip = toolbar.querySelector(`[data-scenario="${activeScenario}"]`);
+        if (chip) chip.textContent = value;
+      });
+    }
+
+    const deleteBtn = toolbar.querySelector("#scenario-delete");
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", () => {
+        tactic.scenarios.splice(activeScenario - 1, 1);
+        activeScenario = 0;
+        editing = false;
+        persistOverride();
+        renderShell();
+      });
+    }
+  }
+
   function renderMain() {
+    renderScenarioToolbar();
     const courtWrap = document.getElementById("court-wrap");
     const playBtn = document.getElementById("play-btn");
     const replayBtn = document.getElementById("replay-btn");
@@ -681,19 +842,24 @@ function renderDetail(id) {
       playBtn.disabled = true;
       replayBtn.disabled = true;
       editBtn.textContent = "✕ 편집 종료";
-      mountEditor(courtWrap, tactic, {
-        onChange(updated) {
-          saveOverride(id, { players: updated.players, ball: updated.ball });
+      mountEditor(courtWrap, activeTarget(), {
+        onChange() {
+          persistOverride();
           const hint = document.querySelector(".override-hint");
           if (!hint) {
             renderShell();
           }
         },
         onReset() {
-          tactic.players = cloneTactic(base).players;
-          tactic.ball = cloneTactic(base).ball;
+          const freshBase = cloneTactic(base);
+          tactic.players = freshBase.players;
+          tactic.ball = freshBase.ball;
+          tactic.scenarios = freshBase.scenarios;
           clearOverride(id);
-          renderMain();
+          activeScenario = 0;
+          editing = false;
+          applySimNames();
+          renderShell();
           const hint = document.querySelector(".override-hint");
           if (hint) hint.remove();
         },
@@ -703,8 +869,14 @@ function renderDetail(id) {
           controller.play();
           playBtn.textContent = "⏸ 일시정지";
         },
-        onExport(current) {
-          showExportModal(current);
+        onExport() {
+          showExportModal({
+            id: tactic.id,
+            name: tactic.name,
+            players: tactic.players,
+            ...(tactic.ball ? { ball: tactic.ball } : {}),
+            ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
+          });
         },
       });
       return;
@@ -713,7 +885,7 @@ function renderDetail(id) {
     playBtn.disabled = false;
     replayBtn.disabled = false;
     editBtn.textContent = "✎ 편집";
-    controller = mountCourt(courtWrap, tactic);
+    controller = mountCourt(courtWrap, activeTarget());
 
     playBtn.addEventListener("click", () => {
       if (controller.isPlaying()) {
