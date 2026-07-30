@@ -194,7 +194,7 @@ function rosterCardHTML(p, isCustom) {
     <div class="roster-card">
       <div class="roster-info">
         <div class="roster-name">
-          ${escapeHtml(p.name)}
+          ${escapeHtml(p.name)}${p.captain ? ` <span class="captain-tag">(C)</span>` : ""}
           ${p.position ? `<span class="roster-position">${escapeHtml(p.position)}</span>` : ""}
         </div>
         ${

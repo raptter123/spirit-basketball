@@ -10,6 +10,11 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function nameWithCaptain(p) {
+  if (!p) return "";
+  return p.captain ? `${p.name}(C)` : p.name;
+}
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -506,7 +511,7 @@ export function mountTeamBuilder(container) {
                   (p) => `
           <label class="ts-roster-chip ${selected.has(p.name) ? "is-checked" : ""}">
             <input type="checkbox" data-name="${escapeHtml(p.name)}" ${selected.has(p.name) ? "checked" : ""} />
-            ${escapeHtml(p.name)}
+            ${escapeHtml(nameWithCaptain(p))}
           </label>`
                 )
                 .join("")
@@ -528,7 +533,7 @@ export function mountTeamBuilder(container) {
                 .map(
                   (name) => `
           <div class="ts-assign-row">
-            <span class="ts-assign-name">${escapeHtml(name)}</span>
+            <span class="ts-assign-name">${escapeHtml(nameWithCaptain(playersByName[name]))}</span>
             <div class="ts-team-buttons">
               ${Array.from(
                 { length: teamCount },
@@ -553,7 +558,9 @@ export function mountTeamBuilder(container) {
           return `
           <div class="ts-preview-card" style="--team-color:${TEAM_ACCENT[i]}">
             <h4>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h4>
-            <div class="ts-preview-names">${teamNames.length ? teamNames.map((n) => escapeHtml(n)).join(", ") : "아직 없음"}</div>
+            <div class="ts-preview-names">${
+              teamNames.length ? teamNames.map((n) => escapeHtml(nameWithCaptain(playersByName[n]))).join(", ") : "아직 없음"
+            }</div>
             ${
               proj
                 ? `<div class="ts-preview-stats">예상 득점 <strong>${proj.ppg.toFixed(1)}</strong>점 (인당 평균 ${proj.ppgAvg.toFixed(
@@ -658,7 +665,7 @@ export function mountTeamBuilder(container) {
     document.getElementById("ts-image-btn").addEventListener("click", () => {
       const rows = Array.from({ length: teamCount }, (_, i) => ({
         letter: TEAM_LETTERS[i],
-        players: teamsPlayers[i],
+        players: teamsPlayers[i].map((n) => nameWithCaptain(playersByName[n])),
       })).filter((t) => t.players.length > 0);
       if (!rows.length) return;
       showTeamImageModal(rows, gameDate, teamCount);

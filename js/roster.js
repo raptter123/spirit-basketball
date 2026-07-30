@@ -6,7 +6,7 @@ export const ROSTER = [
   { name: "김도여", games: 30, winRate: 0.367, ppg: 2.933, rpg: 2.533, apg: 2.8, spg: 0.433, fgPct: 0.192, topg: 1.5, ts: 0.234 },
   { name: "김동현", games: 3, winRate: 0.333, ppg: 6.333, rpg: 1.667, apg: 1.667, spg: 0.667, fgPct: 0.45, topg: 2, ts: 0.475 },
   { name: "김산", games: 16, winRate: 0.438, ppg: 3.125, rpg: 1.562, apg: 2.938, spg: 0.625, fgPct: 0.288, topg: 2, ts: 0.364 },
-  { name: "김성훈", games: 37, winRate: 0.676, ppg: 4.189, rpg: 5.189, apg: 2.405, spg: 0.595, fgPct: 0.308, topg: 0.432, ts: 0.373 },
+  { name: "김성훈", games: 37, winRate: 0.676, ppg: 4.189, rpg: 5.189, apg: 2.405, spg: 0.595, fgPct: 0.308, topg: 0.432, ts: 0.373, captain: true },
   { name: "김웅기", games: 38, winRate: 0.368, ppg: 6.921, rpg: 3.184, apg: 2.237, spg: 0.526, fgPct: 0.338, topg: 1.421, ts: 0.384 },
   { name: "김준석", games: 34, winRate: 0.529, ppg: 8.176, rpg: 4.735, apg: 1.971, spg: 0.176, fgPct: 0.391, topg: 1.324, ts: 0.42 },
   { name: "김창범", games: 39, winRate: 0.59, ppg: 2.667, rpg: 5.436, apg: 3.795, spg: 1.205, fgPct: 0.251, topg: 1.615, ts: 0.309 },
