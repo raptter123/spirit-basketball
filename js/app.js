@@ -332,6 +332,8 @@ function closeModal() {
 
 function showExportModal(tactic) {
   const payload = {
+    id: tactic.id,
+    name: tactic.name,
     players: tactic.players,
     ...(tactic.ball ? { ball: tactic.ball } : {}),
   };
