@@ -83,38 +83,6 @@ export function removeCustomRosterEntry(id) {
   return list;
 }
 
-const CUSTOM_TEAM_HISTORY_KEY = "spirit-custom-team-history";
-
-export function getCustomTeamHistory() {
-  try {
-    const raw = localStorage.getItem(CUSTOM_TEAM_HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function addCustomTeamHistoryEntry(entry) {
-  const list = getCustomTeamHistory();
-  list.push({ ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
-  try {
-    localStorage.setItem(CUSTOM_TEAM_HISTORY_KEY, JSON.stringify(list));
-  } catch {
-    // no-op
-  }
-  return list;
-}
-
-export function removeCustomTeamHistoryEntry(id) {
-  const list = getCustomTeamHistory().filter((h) => h.id !== id);
-  try {
-    localStorage.setItem(CUSTOM_TEAM_HISTORY_KEY, JSON.stringify(list));
-  } catch {
-    // no-op
-  }
-  return list;
-}
-
 const NEW_TACTIC_DRAFT_KEY = "spirit-new-tactic-draft";
 
 export function getNewTacticDraft() {
@@ -137,6 +105,33 @@ export function saveNewTacticDraft(draft) {
 export function clearNewTacticDraft() {
   try {
     localStorage.removeItem(NEW_TACTIC_DRAFT_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+const TEAM_BUILDER_DRAFT_KEY = "spirit-team-builder-draft";
+
+export function getTeamBuilderDraft() {
+  try {
+    const raw = localStorage.getItem(TEAM_BUILDER_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTeamBuilderDraft(draft) {
+  try {
+    localStorage.setItem(TEAM_BUILDER_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearTeamBuilderDraft() {
+  try {
+    localStorage.removeItem(TEAM_BUILDER_DRAFT_KEY);
   } catch {
     // no-op
   }
