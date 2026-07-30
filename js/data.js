@@ -73,7 +73,7 @@ export const TACTICS = [
   },
   {
     id: "pistol-21-action",
-    name: "피스톨 액션 (Pistol Action)",
+    name: "[규철] 피스톨 액션 (Pistol Action)",
     category: "패턴",
     summary: "속공 이후 바로 이어지는 얼리 오펜스, 핸드오프로 2대2를 빠르게 세팅",
     description:
