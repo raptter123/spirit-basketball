@@ -142,16 +142,15 @@ export const TACTICS = [
       "스크린을 받습니다. 하이 포스트에서 볼을 잡은 5번은 스윙돈 1번에게 패스하거나, 스크린을 " +
       "걸어주고 로우로 컷인하는 4번에게 패스를 연결합니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 157], [168, 383], [357, 433], [479, 405]] },
-      { number: 2, team: "offense", path: [[416, 199], [417, 198], [421, 196], [421, 207]] },
-      { number: 3, team: "offense", path: [[83, 191]] },
-      { number: 4, team: "offense", path: [[381, 412], [384, 413], [381, 409], [302, 436]] },
-      { number: 5, team: "offense", path: [[148, 422], [174, 306], [177, 303], [178, 306]] },
+      { number: 1, team: "offense", path: [[250, 157], [176, 275], [226, 394], [336, 444], [478, 432]] },
+      { number: 2, team: "offense", path: [[424, 239], [382, 231], [395, 261]] },
+      { number: 3, team: "offense", path: [[83, 230]] },
+      { number: 4, team: "offense", path: [[329, 266], [343, 367], [326, 450], [224, 414]] },
+      { number: 5, team: "offense", path: [[180, 436], [184, 292], [239, 269], [295, 303]] },
     ],
     ball: [
-      { holder: 1, at: 0.01 },
-      { holder: 2, at: 0.03 },
-      { holder: 5, at: 0.65 },
+      { holder: 1, at: 0.02 },
+      { holder: 2, at: 0.08 },
       { holder: 1, at: 1 },
     ],
   },
