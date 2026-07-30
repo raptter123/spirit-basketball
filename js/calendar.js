@@ -116,7 +116,24 @@ export function mountCalendar(container) {
         <span class="badge ${badgeClass}">${e.type}</span>
         <strong>${e.title}</strong>
         <div class="event-meta">${e.date}${e.location ? ` · ${e.location}` : ""}</div>
-        ${e.note ? `<p class="event-note">${e.note}</p>` : ""}
+        ${e.address ? `<div class="event-address">${e.address}</div>` : ""}
+        <div class="event-details">
+          ${e.note ? `<div><span class="event-detail-label">시간</span>${e.note}</div>` : ""}
+          ${e.format ? `<div><span class="event-detail-label">방식</span>${e.format}</div>` : ""}
+          ${e.fee ? `<div><span class="event-detail-label">참가비</span>${e.fee}</div>` : ""}
+          ${e.gameTime ? `<div><span class="event-detail-label">경기</span>${e.gameTime}</div>` : ""}
+          ${e.ball ? `<div><span class="event-detail-label">경기구</span>${e.ball}</div>` : ""}
+        </div>
+        ${
+          e.rules && e.rules.length
+            ? `<ol class="event-rules">${e.rules.map((r) => `<li>${r}</li>`).join("")}</ol>`
+            : ""
+        }
+        ${
+          e.notes && e.notes.length
+            ? `<ul class="event-subnotes">${e.notes.map((n) => `<li>${n}</li>`).join("")}</ul>`
+            : ""
+        }
       </div>
     `;
   }
