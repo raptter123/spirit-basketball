@@ -645,6 +645,9 @@ function renderDetail(id) {
     tactic.players = override.players;
     if (override.ball) tactic.ball = override.ball;
     if (override.scenarios) tactic.scenarios = override.scenarios;
+    if (override.name) tactic.name = override.name;
+    if (override.summary != null) tactic.summary = override.summary;
+    if (override.description != null) tactic.description = override.description;
   }
 
   let editing = false;
@@ -656,10 +659,26 @@ function renderDetail(id) {
     return activeScenario === 0 ? tactic : tactic.scenarios[activeScenario - 1];
   }
 
+  function ensureOverrideHintVisible() {
+    if (document.querySelector(".override-hint")) return;
+    const anchor = document.getElementById("tactic-summary-display");
+    const hintEl = document.createElement("p");
+    hintEl.className = "hint override-hint";
+    hintEl.innerHTML = `이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button>`;
+    anchor.insertAdjacentElement("afterend", hintEl);
+    document.getElementById("reset-btn").addEventListener("click", () => {
+      clearOverride(id);
+      renderDetail(id);
+    });
+  }
+
   function persistOverride() {
     saveOverride(id, {
       players: tactic.players,
       ball: tactic.ball,
+      name: tactic.name,
+      summary: tactic.summary,
+      description: tactic.description,
       ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
     });
   }
@@ -719,8 +738,8 @@ function renderDetail(id) {
       <section class="detail-view">
         <a class="back-link" href="#/">← 목록으로</a>
         <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
-        <h1>${tactic.name}</h1>
-        <p class="summary">${tactic.summary}</p>
+        <h1 id="tactic-name-display">${tactic.name}</h1>
+        <p class="summary" id="tactic-summary-display">${tactic.summary}</p>
         ${
           getOverride(id)
             ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button></p>`
@@ -728,13 +747,14 @@ function renderDetail(id) {
         }
         ${simPanelHTML()}
         <div id="scenario-toolbar"></div>
+        <div id="meta-editor"></div>
         <div class="court-wrap" id="court-wrap"></div>
         <div class="controls">
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
           <button id="replay-btn" class="btn">⟲ 다시보기</button>
           <button id="edit-btn" class="btn">✎ 편집</button>
         </div>
-        <p class="description">${tactic.description}</p>
+        <p class="description" id="tactic-description-display">${tactic.description}</p>
       </section>
     `;
 
@@ -832,8 +852,49 @@ function renderDetail(id) {
     }
   }
 
+  function renderMetaEditor() {
+    const metaEditor = document.getElementById("meta-editor");
+    if (!editing) {
+      metaEditor.innerHTML = "";
+      return;
+    }
+    metaEditor.innerHTML = `
+      <div class="new-tactic-form meta-edit-form">
+        <label>전술명
+          <input type="text" id="meta-name" value="${escapeHtml(tactic.name)}" />
+        </label>
+        <label>한줄 설명
+          <input type="text" id="meta-summary" value="${escapeHtml(tactic.summary || "")}" />
+        </label>
+        <label>상세 설명
+          <textarea id="meta-description" rows="4">${escapeHtml(tactic.description || "")}</textarea>
+        </label>
+      </div>
+    `;
+
+    document.getElementById("meta-name").addEventListener("input", (e) => {
+      tactic.name = e.target.value || "이름 없는 전술";
+      document.getElementById("tactic-name-display").textContent = tactic.name;
+      persistOverride();
+      ensureOverrideHintVisible();
+    });
+    document.getElementById("meta-summary").addEventListener("input", (e) => {
+      tactic.summary = e.target.value;
+      document.getElementById("tactic-summary-display").textContent = tactic.summary;
+      persistOverride();
+      ensureOverrideHintVisible();
+    });
+    document.getElementById("meta-description").addEventListener("input", (e) => {
+      tactic.description = e.target.value;
+      document.getElementById("tactic-description-display").textContent = tactic.description;
+      persistOverride();
+      ensureOverrideHintVisible();
+    });
+  }
+
   function renderMain() {
     renderScenarioToolbar();
+    renderMetaEditor();
     const courtWrap = document.getElementById("court-wrap");
     const playBtn = document.getElementById("play-btn");
     const replayBtn = document.getElementById("replay-btn");
@@ -856,6 +917,9 @@ function renderDetail(id) {
           tactic.players = freshBase.players;
           tactic.ball = freshBase.ball;
           tactic.scenarios = freshBase.scenarios;
+          tactic.name = freshBase.name;
+          tactic.summary = freshBase.summary;
+          tactic.description = freshBase.description;
           clearOverride(id);
           activeScenario = 0;
           editing = false;
@@ -874,6 +938,8 @@ function renderDetail(id) {
           showExportModal({
             id: tactic.id,
             name: tactic.name,
+            summary: tactic.summary,
+            description: tactic.description,
             players: tactic.players,
             ...(tactic.ball ? { ball: tactic.ball } : {}),
             ...(tactic.scenarios && tactic.scenarios.length ? { scenarios: tactic.scenarios } : {}),
