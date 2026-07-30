@@ -7,6 +7,7 @@
   --accent: #f97316;
   --offense: #3b82f6;
   --defense: #ef4444;
+  --holiday: #fb7185;
   --court-line: #e7ecf4;
 }
 
@@ -397,6 +398,10 @@ body {
   border-color: var(--accent);
 }
 
+.calendar-day.is-holiday {
+  color: var(--holiday);
+}
+
 .event-dots {
   position: absolute;
   bottom: 6px;
@@ -429,6 +434,17 @@ body {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+}
+
+.legend-holiday {
+  color: var(--holiday);
+  font-weight: 600;
+}
+
+.holiday-label {
+  color: var(--holiday);
+  font-weight: 600;
+  margin: 0 0 8px;
 }
 
 .day-detail,
