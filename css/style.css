@@ -643,6 +643,12 @@ body {
   margin-left: 6px;
 }
 
+.editor-add-opponent-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .editor-points {
   display: grid;
   gap: 6px;
