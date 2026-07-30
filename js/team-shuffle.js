@@ -42,6 +42,10 @@ function computeProjection(playerNames, playersByName) {
   if (!players.length) return null;
   const statCount = players.length;
   const sum = (key) => players.reduce((acc, p) => acc + (typeof p[key] === "number" ? p[key] : 0), 0);
+  const avgOf = (key) => {
+    const withStat = players.filter((p) => typeof p[key] === "number");
+    return withStat.length ? withStat.reduce((acc, p) => acc + p[key], 0) / withStat.length : null;
+  };
   const topgPlayers = players.filter((p) => typeof p.topg === "number");
   return {
     statCount,
@@ -51,6 +55,7 @@ function computeProjection(playerNames, playersByName) {
     ppgAvg: sum("ppg") / statCount,
     topg: topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) : null,
     topgCount: topgPlayers.length,
+    fgPctAvg: avgOf("fgPct"),
   };
 }
 
@@ -555,7 +560,7 @@ export function mountTeamBuilder(container) {
                   )})</div>
                    <div class="ts-preview-stats">리바운드 ${proj.rpg.toFixed(1)} · 어시스트 ${proj.apg.toFixed(1)}${
                     proj.topg != null ? ` · 턴오버 ${proj.topg.toFixed(1)}` : ""
-                  }</div>`
+                  }${proj.fgPctAvg != null ? ` · 야투율 ${Math.round(proj.fgPctAvg * 100)}%` : ""}</div>`
                 : ""
             }
             ${
