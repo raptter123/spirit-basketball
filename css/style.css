@@ -863,6 +863,12 @@ body {
   font-weight: 400;
 }
 
+.captain-tag {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .roster-stats {
   display: flex;
   flex-wrap: wrap;
