@@ -74,15 +74,16 @@ export const TACTICS = [
       "센터(5)가 세워주는 스크린을 타고 미들로 돌파합니다. 나머지 세 명은 반대쪽 코트를 넓게 벌려 " +
       "공간을 만듭니다.",
     players: [
-      { number: 1, team: "offense", path: [[280, 270], [350, 300], [380, 320], [320, 280]] },
-      { number: 2, team: "offense", path: [[400, 330], [380, 320], [330, 290], [280, 340], [240, 390]] },
-      { number: 5, team: "offense", path: [[300, 250], [320, 280], [320, 280], [260, 340]] },
-      { number: 3, team: "offense", path: [[100, 340], [95, 330]] },
-      { number: 4, team: "offense", path: [[70, 430], [75, 420]] },
+      { number: 1, team: "offense", path: [[181, 31], [89, 189], [120, 318], [197, 433]] },
+      { number: 2, team: "offense", path: [[263, 176], [102, 208]] },
+      { number: 5, team: "offense", path: [[323, 450], [358, 363], [340, 266]] },
+      { number: 3, team: "offense", path: [[423, 235], [259, 174]] },
+      { number: 4, team: "offense", path: [[145, 441], [284, 451], [443, 445]] },
     ],
     ball: [
       { holder: 1, at: 0 },
-      { holder: 2, at: 0.32 },
+      { holder: 2, at: 0.39 },
+      { holder: 1, at: 0.52 },
     ],
   },
   {
