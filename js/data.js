@@ -332,6 +332,71 @@ export const TACTICS = [
       { number: 5, team: "defense", path: [[250, 350], [280, 300]] },
     ],
   },
+  {
+    id: "shooter-pattern",
+    name: "슛터 패턴",
+    category: "세트 오펜스",
+    summary: "빅맨의 로우 포스트 셋업을 미끼로, 슛터가 반대편에서 컷하다 방향을 바꿔 스크린을 받는 오프더볼 패턴",
+    description:
+      "공격팀 빅맨이 로우 포스트 자리를 잡는거처럼 행동을 시작할때 슛터가 포스트 잡는 빅맨 반대쪽 컷을 도는거처럼 들어가다가 순간적으로 방향을 바꿔 스크린을 받는 슛 찬스\n" +
+      "(추가 패턴은 이때 슛체크를 상대팀 3번이 나오면 슛터를 주는것이 아닌 로우포스트에 있는 빅맨 컷인 찬스 봐주기)",
+    players: [
+      { number: 1, team: "offense", path: [[238, 147], [72, 224]] },
+      { number: 2, team: "offense", path: [[59, 249], [201, 367], [24, 372]] },
+      { number: 3, team: "offense", path: [[424, 240], [256, 147]] },
+      { number: 4, team: "offense", path: [[100, 365]] },
+      { number: 5, team: "offense", path: [[374, 321]] },
+      { number: "X1", team: "defense", opponent: true, path: [[200, 230]] },
+      { number: "X2", team: "defense", opponent: true, path: [[306, 230]] },
+      { number: "X3", team: "defense", opponent: true, path: [[170, 363]] },
+      { number: "X4", team: "defense", opponent: true, path: [[344, 356]] },
+      { number: "X5", team: "defense", opponent: true, path: [[257, 359]] },
+    ],
+    ball: [
+      { holder: 1, at: 0.88 },
+      { holder: 2, at: 1 },
+    ],
+    scenarios: [
+      {
+        name: "시나리오 1",
+        players: [
+          { number: 1, team: "offense", path: [[238, 147], [72, 224]] },
+          { number: 2, team: "offense", path: [[59, 249], [201, 367], [28, 365]] },
+          { number: 3, team: "offense", path: [[424, 240], [256, 147]] },
+          { number: 4, team: "offense", path: [[122, 332], [98, 374]] },
+          { number: 5, team: "offense", path: [[374, 321]] },
+          { number: "X1", team: "defense", opponent: true, path: [[200, 230], [143, 250]] },
+          { number: "X2", team: "defense", opponent: true, path: [[306, 230], [249, 241]] },
+          { number: "X3", team: "defense", opponent: true, path: [[144, 371]] },
+          { number: "X4", team: "defense", opponent: true, path: [[344, 356]] },
+          { number: "X5", team: "defense", opponent: true, path: [[257, 359]] },
+        ],
+        ball: [
+          { holder: 1, at: 0.88 },
+          { holder: 2, at: 1 },
+        ],
+      },
+      {
+        name: "시나리오 2",
+        players: [
+          { number: 1, team: "offense", path: [[238, 147], [72, 224]] },
+          { number: 2, team: "offense", path: [[59, 249], [201, 367], [28, 365]] },
+          { number: 3, team: "offense", path: [[424, 240], [256, 147]] },
+          { number: 4, team: "offense", path: [[122, 332], [98, 374]] },
+          { number: 5, team: "offense", path: [[374, 321]] },
+          { number: "X1", team: "defense", opponent: true, path: [[200, 230], [143, 250]] },
+          { number: "X2", team: "defense", opponent: true, path: [[306, 230], [249, 241]] },
+          { number: "X3", team: "defense", opponent: true, path: [[144, 371], [52, 360]] },
+          { number: "X4", team: "defense", opponent: true, path: [[344, 356]] },
+          { number: "X5", team: "defense", opponent: true, path: [[257, 359]] },
+        ],
+        ball: [
+          { holder: 1, at: 0.88 },
+          { holder: 4, at: 1 },
+        ],
+      },
+    ],
+  },
 ];
 
 export function getTacticById(id) {
