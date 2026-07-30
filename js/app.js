@@ -25,9 +25,9 @@ const HIGHLIGHT_MIN_GAMES = 25;
 
 const HOME_MENU = [
   { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
-  { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
-  { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
   { icon: "📅", title: "일정", desc: "대회·자체전 일정과 공휴일을 달력으로 확인하세요.", href: "#/schedule" },
+  { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
+  { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
   { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록을 모아둔 보관실이에요.", href: "https://kimjunseok.github.io/Spirit/", external: true },
   { icon: "✅", title: "출석체크", desc: "자체전 출석체크는 여기서 해주세요.", href: "https://band.us/band/47755703", external: true },
 ];
