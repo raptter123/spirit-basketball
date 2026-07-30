@@ -94,3 +94,9 @@ export function getUpcomingEvents(fromDateStr, windowDays = 60) {
     return true;
   });
 }
+
+// fromDateStr 이후 가장 가까운 title 일정의 날짜. 없으면 null.
+export function getNextEventDate(title, fromDateStr, windowDays = 14) {
+  const match = getUpcomingEvents(fromDateStr, windowDays).find((e) => e.title === title);
+  return match ? match.date : null;
+}

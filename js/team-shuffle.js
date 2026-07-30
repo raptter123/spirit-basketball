@@ -1,5 +1,6 @@
 import { ROSTER } from "./roster.js";
 import { getCustomRoster, getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
+import { getNextEventDate } from "./events.js";
 
 const TEAM_LETTERS = ["A", "B", "C"];
 const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6"];
@@ -460,7 +461,7 @@ export function mountTeamBuilder(container) {
   const knownNames = new Set(getAllPlayers().map((p) => p.name));
 
   let teamCount = draft?.teamCount === 3 ? 3 : 2;
-  let gameDate = draft?.gameDate || todayStr();
+  let gameDate = draft?.gameDate || getNextEventDate("자체전", todayStr()) || todayStr();
   let search = "";
   let selected = new Set((draft?.selected || []).filter((n) => knownNames.has(n)));
   let assignments = {};
