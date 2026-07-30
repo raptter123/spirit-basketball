@@ -382,7 +382,7 @@ export const TACTICS = [
           { number: 1, team: "offense", path: [[238, 147], [72, 224]] },
           { number: 2, team: "offense", path: [[59, 249], [201, 367], [28, 365]] },
           { number: 3, team: "offense", path: [[424, 240], [256, 147]] },
-          { number: 4, team: "offense", path: [[122, 332], [98, 374]] },
+          { number: 4, team: "offense", path: [[122, 332], [113, 368]] },
           { number: 5, team: "offense", path: [[374, 321]] },
           { number: "X1", team: "defense", opponent: true, path: [[200, 230], [143, 250]] },
           { number: "X2", team: "defense", opponent: true, path: [[306, 230], [249, 241]] },
