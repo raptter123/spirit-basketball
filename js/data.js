@@ -8,7 +8,7 @@ export const TACTICS = [
   {
     id: "pick-and-roll",
     name: "픽앤롤 (Pick and Roll)",
-    category: "오펜스",
+    category: "패턴",
     summary: "센터의 스크린을 활용해 가드가 골밑을 파고드는 2대2 기본 전술",
     description:
       "포인트가드(1)가 볼을 몰고 오면 센터(5)가 스크린을 세워 수비를 지연시키고, " +
@@ -26,7 +26,7 @@ export const TACTICS = [
   {
     id: "give-and-go",
     name: "기브 앤 고 (Give and Go)",
-    category: "오펜스",
+    category: "패턴",
     summary: "패스 후 즉시 골밑으로 컷인하는 기본 2인 연계 플레이",
     description:
       "포인트가드(1)가 윙에 있는 슈팅가드(2)에게 패스한 뒤, 수비가 볼에 시선을 빼앗긴 틈을 타 " +
@@ -48,7 +48,7 @@ export const TACTICS = [
   {
     id: "fast-break",
     name: "속공 (Fast Break)",
-    category: "오펜스",
+    category: "패턴",
     summary: "리바운드 후 3인이 빠르게 골밑으로 전개하는 속공 전술",
     description:
       "리바운드를 잡은 직후, 세 명의 선수가 각자 레인을 나눠 빠르게 전개하는 3인 속공(3-lane break)입니다. " +
@@ -66,7 +66,7 @@ export const TACTICS = [
   {
     id: "pistol-21-action",
     name: "피스톨 액션 (Pistol Action)",
-    category: "오펜스",
+    category: "패턴",
     summary: "속공 이후 바로 이어지는 얼리 오펜스, 핸드오프로 2대2를 빠르게 세팅",
     description:
       "피스톨 액션은 트랜지션 직후 곧바로 이어지는 얼리 오펜스 세트입니다. 포인트가드(1)가 볼을 몰고 " +
@@ -88,7 +88,7 @@ export const TACTICS = [
   {
     id: "horns-set",
     name: "혼스 세트 (Horns Set)",
-    category: "오펜스",
+    category: "세트 오펜스",
     summary: "탑의 가드와 양쪽 엘보우 빅맨으로 시작하는 대표적인 세트 오펜스 대형",
     description:
       "혼스 세트는 포인트가드가 탑에, 두 명의 빅맨이 양쪽 엘보우에, 나머지 두 명이 양쪽 코너에 서는 " +
@@ -105,9 +105,34 @@ export const TACTICS = [
     ball: [{ holder: 1, at: 0 }],
   },
   {
+    id: "flex-offense",
+    name: "플렉스 오펜스 (Flex Offense)",
+    category: "세트 오펜스",
+    summary: "다섯 명이 자리를 순환하며 스크린을 이어가는 대표적인 연속(모션) 세트 오펜스",
+    description:
+      "플렉스 오펜스는 선수 다섯 명이 계속 자리를 바꿔가며 순환하는 대표적인 연속 오펜스입니다. " +
+      "하이 포스트(5)가 패스를 받으면, 반대쪽 베이스라인에 있는 3번이 같은 편 베이스라인 선수(2)의 " +
+      "크로스 스크린(플렉스 스크린)을 타고 골밑 쪽으로 컷인해 패스를 받습니다. 스크린을 세운 2번은 " +
+      "곧이어 1번의 다운 스크린을 받아 반대쪽 탑으로 팝아웃하며 다음 사이클을 준비합니다. " +
+      "'스크린 후 그 스크리너를 다시 스크린해주는' 패턴이 계속 반복되는 것이 특징으로, 선수 교체 " +
+      "없이도 오픈 찬스를 계속 만들어낼 수 있어 아마추어·고교 농구에서 특히 선호됩니다.",
+    players: [
+      { number: 1, team: "offense", path: [[250, 220], [250, 220], [230, 270], [210, 320]] },
+      { number: 5, team: "offense", path: [[320, 270], [320, 270]] },
+      { number: 2, team: "offense", path: [[200, 420], [200, 420], [220, 380], [250, 300]] },
+      { number: 3, team: "offense", path: [[300, 420], [220, 410], [180, 380]] },
+      { number: 4, team: "offense", path: [[180, 270], [170, 260]] },
+    ],
+    ball: [
+      { holder: 1, at: 0 },
+      { holder: 5, at: 0.3 },
+      { holder: 3, at: 0.7 },
+    ],
+  },
+  {
     id: "iverson-cut",
     name: "아이버슨 컷 (Iverson Cut)",
-    category: "오펜스",
+    category: "패턴",
     summary: "양쪽 엘보우 스크린을 연달아 타고 반대쪽 윙으로 가로지르는 유명한 오프더볼 컷",
     description:
       "아이버슨 컷은 탑의 가드가 양쪽 엘보우에 선 빅맨들의 스태거 스크린을 연달아 활용해 " +
@@ -129,7 +154,7 @@ export const TACTICS = [
   {
     id: "elevator-screen",
     name: "엘리베이터 스크린 (Elevator Screen)",
-    category: "오펜스",
+    category: "패턴",
     summary: "두 스크리너 사이를 슈터가 통과하면 문이 닫히듯 스크린이 좁혀지는 유명한 세트 플레이",
     description:
       "엘리베이터 스크린은 두 명의 스크리너가 나란히 서서 그 사이로 슈터가 뛰어들어가게 한 뒤, " +
@@ -151,7 +176,7 @@ export const TACTICS = [
   {
     id: "spain-pick-and-roll",
     name: "스페인 픽앤롤 (Spain Pick and Roll)",
-    category: "오펜스",
+    category: "패턴",
     summary: "롤맨에게 백스크린을 더해 수비를 이중으로 봉쇄하는 3인 픽앤롤 변형",
     description:
       "스페인 픽앤롤은 기본 픽앤롤에 '스크린 더 스크리너' 동작을 더한 3인 조합 플레이입니다. " +

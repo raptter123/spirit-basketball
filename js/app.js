@@ -17,11 +17,20 @@ import {
   saveNewTacticDraft,
   clearNewTacticDraft,
   clearTeamBuilderDraft,
+  getTacticSimAssignment,
+  saveTacticSimAssignment,
+  clearTacticSimAssignment,
 } from "./storage.js";
 
 const app = document.getElementById("app");
-const CATEGORIES = ["전체", "오펜스", "디펜스"];
+const CATEGORIES = ["전체", "패턴", "세트 오펜스", "디펜스"];
 const HIGHLIGHT_MIN_GAMES = 25;
+
+function badgeClassFor(category) {
+  if (category === "디펜스") return "badge-defense";
+  if (category === "세트 오펜스") return "badge-set";
+  return "badge-offense";
+}
 
 const HOME_MENU = [
   { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
@@ -40,7 +49,7 @@ function tacticCardHTML(t, isFav) {
   return `
     <div class="tactic-card-wrap">
       <a class="tactic-card" href="#/tactic/${t.id}">
-        <span class="badge badge-${t.category === "디펜스" ? "defense" : "offense"}">${t.category}</span>
+        <span class="badge ${badgeClassFor(t.category)}">${t.category}</span>
         <h2>${t.name}</h2>
         <p>${t.summary}</p>
       </a>
@@ -410,7 +419,7 @@ function defaultNewTacticPlayers(team) {
 function renderNewTactic() {
   const draft = getNewTacticDraft();
   let name = draft?.name || "";
-  let category = draft?.category || "오펜스";
+  let category = draft?.category || "패턴";
   let summary = draft?.summary || "";
   let description = draft?.description || "";
   const tactic = {
@@ -443,7 +452,8 @@ function renderNewTactic() {
           </label>
           <label>카테고리
             <select id="nt-category">
-              <option value="오펜스" ${category === "오펜스" ? "selected" : ""}>오펜스</option>
+              <option value="패턴" ${category === "패턴" ? "selected" : ""}>패턴</option>
+              <option value="세트 오펜스" ${category === "세트 오펜스" ? "selected" : ""}>세트 오펜스</option>
               <option value="디펜스" ${category === "디펜스" ? "selected" : ""}>디펜스</option>
             </select>
           </label>
@@ -550,12 +560,60 @@ function renderDetail(id) {
 
   let editing = false;
   let controller = null;
+  let simAssignment = getTacticSimAssignment();
+
+  function applySimNames() {
+    tactic.players.forEach((p) => {
+      const name = simAssignment[p.number];
+      if (name) {
+        p.displayName = name;
+      } else {
+        delete p.displayName;
+      }
+    });
+  }
+  applySimNames();
+
+  function simPanelHTML() {
+    const allNames = [...ROSTER, ...getCustomRoster()].map((p) => p.name);
+    return `
+      <div class="tactic-sim-panel">
+        <p class="hint editor-local-notice">✎ 아래에서 로스터 인원을 번호에 넣어 시뮬레이션해볼 수 있어요. <strong>이 화면에 있는 동안만</strong> 적용되고, 페이지를 나가면 자동으로 초기화돼요.</p>
+        <div class="tactic-sim-grid">
+          ${tactic.players
+            .map((p) => {
+              const usedElsewhere = new Set(
+                Object.entries(simAssignment)
+                  .filter(([num]) => Number(num) !== p.number)
+                  .map(([, name]) => name)
+              );
+              const options = allNames.filter((n) => !usedElsewhere.has(n));
+              return `
+            <label class="tactic-sim-row">
+              <span class="tactic-sim-number">${p.number}번</span>
+              <select data-number="${p.number}">
+                <option value="">이름 선택 안 함</option>
+                ${options
+                  .map(
+                    (n) =>
+                      `<option value="${escapeHtml(n)}" ${simAssignment[p.number] === n ? "selected" : ""}>${escapeHtml(n)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </label>`;
+            })
+            .join("")}
+        </div>
+        <button type="button" class="link-btn" id="sim-clear">배정 초기화</button>
+      </div>
+    `;
+  }
 
   function renderShell() {
     app.innerHTML = `
       <section class="detail-view">
         <a class="back-link" href="#/">← 목록으로</a>
-        <span class="badge badge-${tactic.category === "디펜스" ? "defense" : "offense"}">${tactic.category}</span>
+        <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
         <h1>${tactic.name}</h1>
         <p class="summary">${tactic.summary}</p>
         ${
@@ -563,6 +621,7 @@ function renderDetail(id) {
             ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button></p>`
             : ""
         }
+        ${simPanelHTML()}
         <div class="court-wrap" id="court-wrap"></div>
         <div class="controls">
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
@@ -580,6 +639,27 @@ function renderDetail(id) {
         renderDetail(id);
       });
     }
+
+    document.querySelectorAll(".tactic-sim-grid select").forEach((select) => {
+      select.addEventListener("change", (e) => {
+        const number = Number(e.target.dataset.number);
+        if (e.target.value) {
+          simAssignment[number] = e.target.value;
+        } else {
+          delete simAssignment[number];
+        }
+        saveTacticSimAssignment(simAssignment);
+        applySimNames();
+        renderShell();
+      });
+    });
+
+    document.getElementById("sim-clear").addEventListener("click", () => {
+      simAssignment = {};
+      saveTacticSimAssignment(simAssignment);
+      applySimNames();
+      renderShell();
+    });
 
     document.getElementById("edit-btn").addEventListener("click", () => {
       editing = !editing;
@@ -679,6 +759,9 @@ function router() {
   const hash = location.hash;
   if (previousHash === "#/team-shuffle" && hash !== "#/team-shuffle") {
     clearTeamBuilderDraft();
+  }
+  if (previousHash && previousHash.startsWith("#/tactic/") && previousHash !== hash) {
+    clearTacticSimAssignment();
   }
   previousHash = hash;
   updateNavActive();

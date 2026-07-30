@@ -136,3 +136,30 @@ export function clearTeamBuilderDraft() {
     // no-op
   }
 }
+
+const TACTIC_SIM_KEY = "spirit-tactic-sim-assignment";
+
+export function getTacticSimAssignment() {
+  try {
+    const raw = localStorage.getItem(TACTIC_SIM_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveTacticSimAssignment(assignment) {
+  try {
+    localStorage.setItem(TACTIC_SIM_KEY, JSON.stringify(assignment));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearTacticSimAssignment() {
+  try {
+    localStorage.removeItem(TACTIC_SIM_KEY);
+  } catch {
+    // no-op
+  }
+}

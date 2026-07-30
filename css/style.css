@@ -187,6 +187,11 @@ body {
   color: #fca5a5;
 }
 
+.badge-set {
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 12px;
@@ -265,6 +270,16 @@ body {
   fill: #fff;
   font-size: 13px;
   font-weight: 700;
+  pointer-events: none;
+}
+
+.player-name-label {
+  fill: #f8fafc;
+  font-size: 11px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #0f172a;
+  stroke-width: 3px;
   pointer-events: none;
 }
 
@@ -1094,6 +1109,44 @@ body {
 
 .editor-local-notice strong {
   color: var(--accent);
+}
+
+.tactic-sim-panel {
+  margin-bottom: 16px;
+}
+
+.tactic-sim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tactic-sim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.tactic-sim-number {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.tactic-sim-row select {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 6px;
+  font-size: 0.85rem;
+  min-width: 0;
 }
 
 .home-view h1 {
