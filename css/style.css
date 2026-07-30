@@ -637,6 +637,12 @@ body {
   margin-bottom: 8px;
 }
 
+.editor-opponent-tag {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-left: 6px;
+}
+
 .editor-points {
   display: grid;
   gap: 6px;
