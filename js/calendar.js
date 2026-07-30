@@ -1,4 +1,5 @@
 import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR } from "./events.js";
+import { getHolidayOn } from "./holidays.js";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -33,19 +34,22 @@ export function mountCalendar(container) {
       const dateStr = toDateStr(year, month, d);
       const dayEvents = getEventsOn(dateStr);
       const types = [...new Set(dayEvents.map((e) => e.type))];
+      const holiday = getHolidayOn(dateStr);
       const classes = ["calendar-day"];
       if (dateStr === todayStr) classes.push("is-today");
       if (dateStr === selected) classes.push("is-selected");
       if (types.length) classes.push("has-event");
+      if (holiday) classes.push("is-holiday");
       const dots = types
         .map((t) => `<span class="event-dot" style="background:${dotColor(t)}"></span>`)
         .join("");
-      cells += `<button type="button" class="${classes.join(" ")}" data-date="${dateStr}">${d}${
-        types.length ? `<span class="event-dots">${dots}</span>` : ""
-      }</button>`;
+      cells += `<button type="button" class="${classes.join(" ")}" data-date="${dateStr}" ${
+        holiday ? `title="${holiday.name}"` : ""
+      }>${d}${types.length ? `<span class="event-dots">${dots}</span>` : ""}</button>`;
     }
 
     const selectedEvents = getEventsOn(selected);
+    const selectedHoliday = getHolidayOn(selected);
     const upcoming = getUpcomingEvents(todayStr);
 
     container.innerHTML = `
@@ -62,10 +66,12 @@ export function mountCalendar(container) {
         <div class="calendar-legend">
           <span><span class="legend-dot" style="background:${dotColor("자체전")}"></span>자체전</span>
           <span><span class="legend-dot" style="background:${dotColor("대회")}"></span>대회</span>
+          <span class="legend-holiday">공휴일</span>
         </div>
       </div>
       <div class="day-detail">
         <h3>${selected} 일정</h3>
+        ${selectedHoliday ? `<p class="holiday-label">${selectedHoliday.name}</p>` : ""}
         ${
           selectedEvents.length
             ? selectedEvents.map((e) => eventCardHTML(e)).join("")

@@ -42,6 +42,7 @@ function recurringEventsOn(dateStr) {
     type: e.type,
     location: e.location,
     note: `${e.startTime} ~ ${e.endTime}`,
+    recurring: true,
   }));
 }
 
@@ -50,6 +51,8 @@ export function getEventsOn(dateStr) {
 }
 
 // fromDateStr 기준 windowDays 일 안의 모든 일정(반복 + 단발성)을 날짜순으로 반환.
+// 자체전처럼 매주 반복되는 일정은 매번 나열하면 목록만 길어지고 정보가 없으므로,
+// 가장 가까운 한 번만 남기고 나머지는 걸러낸다. 대회처럼 반복이 아닌 일정은 전부 그대로 보여준다.
 export function getUpcomingEvents(fromDateStr, windowDays = 60) {
   const from = new Date(`${fromDateStr}T00:00:00`);
   const result = [];
@@ -59,5 +62,13 @@ export function getUpcomingEvents(fromDateStr, windowDays = 60) {
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     result.push(...getEventsOn(dateStr));
   }
-  return result.sort((a, b) => a.date.localeCompare(b.date));
+  result.sort((a, b) => a.date.localeCompare(b.date));
+
+  const seenRecurring = new Set();
+  return result.filter((e) => {
+    if (!e.recurring) return true;
+    if (seenRecurring.has(e.title)) return false;
+    seenRecurring.add(e.title);
+    return true;
+  });
 }
