@@ -1,5 +1,13 @@
-import { getAllHistory } from "./team-history.js";
-import { getCustomTeamHistory, addCustomTeamHistoryEntry, removeCustomTeamHistoryEntry } from "./storage.js";
+import { ROSTER } from "./roster.js";
+import { getCustomRoster, getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
+
+const TEAM_LETTERS = ["A", "B", "C"];
+const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6"];
+const TEAM_IMAGE_BG = ["#fbe0c4", "#d9f0dc", "#d7e6f7"];
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -10,19 +18,9 @@ function shuffle(arr) {
   return a;
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function teamLabel(i) {
-  return `${String.fromCharCode(65 + i)}팀`;
-}
-
-function splitIntoTeams(list, teamCount) {
-  const shuffled = shuffle(list);
-  const teams = Array.from({ length: teamCount }, () => []);
-  shuffled.forEach((name, i) => teams[i % teamCount].push(name));
-  return teams;
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function teamCountChipsHTML(current) {
@@ -31,115 +29,127 @@ function teamCountChipsHTML(current) {
     .join("");
 }
 
-export function mountShuffle(container) {
-  let namesText = "";
-  let names = [];
-  let teamCount = 2;
+function getAllPlayers() {
+  return [...ROSTER, ...getCustomRoster()];
+}
 
-  function render() {
-    container.innerHTML = `
-      <div class="shuffle-input">
-        <textarea id="shuffle-names" class="shuffle-textarea" placeholder="참석자 이름을 한 줄에 한 명씩 입력하세요" rows="8">${escapeHtml(
-          namesText
-        )}</textarea>
-        <div class="team-count-select">
-          <span>팀 수:</span>
-          ${teamCountChipsHTML(teamCount)}
-        </div>
-        <button type="button" class="btn btn-primary" id="shuffle-btn">🔀 팀 나누기</button>
-      </div>
-      <div class="shuffle-result" id="shuffle-result"></div>
-    `;
+function computeProjection(playerNames, playersByName) {
+  const players = playerNames.map((n) => playersByName[n]).filter((p) => p && typeof p.ppg === "number");
+  if (!players.length) return null;
+  const statCount = players.length;
+  const sum = (key) => players.reduce((acc, p) => acc + p[key], 0);
+  return {
+    statCount,
+    ppg: (sum("ppg") / statCount) * 5,
+    rpg: (sum("rpg") / statCount) * 5,
+    apg: (sum("apg") / statCount) * 5,
+  };
+}
 
-    document.getElementById("shuffle-names").addEventListener("input", (e) => {
-      namesText = e.target.value;
+function generateTeamCanvas(teamsRows, gameDate, teamCount) {
+  const cellW = 132;
+  const cellH = 56;
+  const labelW = 64;
+  const padding = 24;
+  const titleH = 56;
+  const maxCols = Math.max(1, ...teamsRows.map((t) => t.players.length));
+  const width = padding * 2 + labelW + maxCols * cellW;
+  const height = padding * 2 + titleH + teamsRows.length * cellH;
+
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
+  ctx.fillStyle = "#3b5bdb";
+  ctx.font = "bold 24px 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(`[${dateLabel}_자체${teamCount}파전 팀공지]`, padding, padding + 28);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.strokeStyle = "#c9c9c9";
+  ctx.lineWidth = 1;
+
+  teamsRows.forEach((team, r) => {
+    const y = padding + titleH + r * cellH;
+
+    ctx.fillStyle = team.bg;
+    ctx.fillRect(padding, y, labelW, cellH);
+    ctx.strokeRect(padding, y, labelW, cellH);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = "bold 20px 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+    ctx.fillText(team.letter, padding + labelW / 2, y + cellH / 2 + 1);
+
+    team.players.forEach((name, i) => {
+      const x = padding + labelW + i * cellW;
+      ctx.fillStyle = team.bg;
+      ctx.fillRect(x, y, cellW, cellH);
+      ctx.strokeRect(x, y, cellW, cellH);
+      ctx.fillStyle = "#1a1a1a";
+      ctx.font = "20px 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+      ctx.fillText(name, x + cellW / 2, y + cellH / 2 + 1);
     });
+  });
 
-    container.querySelectorAll(".team-count-select .chip").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        teamCount = Number(btn.dataset.count);
-        render();
-      });
-    });
+  return canvas;
+}
 
-    document.getElementById("shuffle-btn").addEventListener("click", () => {
-      names = namesText
-        .split("\n")
-        .map((n) => n.trim())
-        .filter(Boolean);
-      doShuffle();
-    });
-  }
+function downloadCanvas(canvas, filename) {
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
 
-  function doShuffle() {
-    const resultEl = document.getElementById("shuffle-result");
-    if (names.length < teamCount) {
-      resultEl.innerHTML = `<p class="hint">최소 ${teamCount}명 이상 입력해주세요.</p>`;
+function copyCanvasToClipboard(canvas) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      reject(new Error("clipboard image write unsupported"));
       return;
     }
-    const teams = splitIntoTeams(names, teamCount);
-    resultEl.innerHTML = `
-      <div class="shuffle-teams">
-        ${teams
-          .map(
-            (team, i) => `
-          <div class="shuffle-team">
-            <h3>${teamLabel(i)} (${team.length}명)</h3>
-            <ul>${team.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>
-          </div>`
-          )
-          .join("")}
-      </div>
-      <button type="button" class="btn" id="reshuffle-btn">↻ 다시 섞기</button>
-    `;
-    document.getElementById("reshuffle-btn").addEventListener("click", doShuffle);
-  }
-
-  render();
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        reject(new Error("no blob"));
+        return;
+      }
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    }, "image/png");
+  });
 }
 
-function historyCardHTML(rec) {
-  const isCustom = Boolean(rec.id);
-  return `
-    <div class="history-card">
-      <div class="history-card-header">
-        <strong>${rec.date}</strong>
-        ${isCustom ? `<span class="history-local-tag">이 브라우저에만 저장됨</span>` : ""}
-        ${
-          isCustom
-            ? `<button type="button" class="btn-icon history-remove-btn" data-id="${rec.id}" aria-label="삭제">×</button>`
-            : ""
-        }
-      </div>
-      <div class="history-teams">
-        ${rec.teams
-          .map(
-            (team, i) => `
-          <div class="history-team">
-            <span class="history-team-label">${teamLabel(i)} (${team.length}명)</span>
-            <div class="history-team-names">${team.map((n) => escapeHtml(n)).join(", ")}</div>
-          </div>`
-          )
-          .join("")}
-      </div>
-    </div>
-  `;
-}
-
-function showHistoryExportModal(entries) {
-  const payload = entries.map(({ id, ...rest }) => rest);
-  const text = JSON.stringify(payload, null, 2);
-
+function showTeamImageModal(canvas, filename) {
+  const dataUrl = canvas.toDataURL("image/png");
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
-    <div class="modal">
-      <h3>팀 편성 기록 내보내기</h3>
-      <p class="hint">아래 내용을 복사해서 <strong>황규철</strong>에게 보내주세요. 확인 후 실제 사이트에 반영할게요.</p>
-      <textarea class="export-textarea" readonly>${text}</textarea>
+    <div class="modal ts-image-modal">
+      <h3>팀 공지 이미지</h3>
+      <p class="hint">이미지를 길게 눌러 저장하거나, 아래 버튼으로 복사/다운로드해서 밴드나 카톡에 붙여넣어주세요.</p>
+      <div class="ts-image-preview"><img src="${dataUrl}" alt="팀 공지 이미지" /></div>
       <div class="modal-actions">
-        <button type="button" class="btn" id="history-modal-close">닫기</button>
-        <button type="button" class="btn btn-primary" id="history-modal-copy">복사하기</button>
+        <button type="button" class="btn" id="ts-image-close">닫기</button>
+        <button type="button" class="btn" id="ts-image-download">다운로드</button>
+        <button type="button" class="btn btn-primary" id="ts-image-copy">클립보드에 복사</button>
       </div>
     </div>
   `;
@@ -148,120 +158,227 @@ function showHistoryExportModal(entries) {
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) backdrop.remove();
   });
-  document.getElementById("history-modal-close").addEventListener("click", () => backdrop.remove());
-  document.getElementById("history-modal-copy").addEventListener("click", async () => {
-    const btn = document.getElementById("history-modal-copy");
+  document.getElementById("ts-image-close").addEventListener("click", () => backdrop.remove());
+  document.getElementById("ts-image-download").addEventListener("click", () => downloadCanvas(canvas, filename));
+  document.getElementById("ts-image-copy").addEventListener("click", async () => {
+    const btn = document.getElementById("ts-image-copy");
     try {
-      await navigator.clipboard.writeText(text);
+      await copyCanvasToClipboard(canvas);
       btn.textContent = "복사됨!";
     } catch {
-      btn.textContent = "복사 실패, 직접 선택해주세요";
+      btn.textContent = "복사 실패, 다운로드를 이용해주세요";
     }
     setTimeout(() => {
-      btn.textContent = "복사하기";
-    }, 1500);
+      btn.textContent = "클립보드에 복사";
+    }, 1800);
   });
 }
 
-export function mountTeamHistory(container) {
-  let formTeamCount = 2;
-  let dateValue = "";
-  let teamTexts = ["", ""];
+export function mountTeamBuilder(container) {
+  const draft = getTeamBuilderDraft();
+  const knownNames = new Set(getAllPlayers().map((p) => p.name));
+
+  let teamCount = draft?.teamCount === 3 ? 3 : 2;
+  let gameDate = draft?.gameDate || todayStr();
+  let search = "";
+  let selected = new Set((draft?.selected || []).filter((n) => knownNames.has(n)));
+  let assignments = {};
+  if (draft?.assignments) {
+    Object.entries(draft.assignments).forEach(([name, team]) => {
+      if (selected.has(name) && Number.isInteger(team) && team < teamCount) assignments[name] = team;
+    });
+  }
+
+  function persist() {
+    saveTeamBuilderDraft({ teamCount, gameDate, selected: [...selected], assignments });
+  }
 
   function render() {
-    const history = getAllHistory();
-    const customCount = getCustomTeamHistory().length;
+    const players = getAllPlayers();
+    const playersByName = Object.fromEntries(players.map((p) => [p.name, p]));
+    const q = search.trim();
+    const filtered = q ? players.filter((p) => p.name.includes(q)) : players;
+    const selectedNames = [...selected];
+
+    const teamsPlayers = Array.from({ length: teamCount }, (_, i) => selectedNames.filter((n) => assignments[n] === i));
+    const anyAssigned = teamsPlayers.some((t) => t.length > 0);
 
     container.innerHTML = `
-      <div class="history-form">
-        <p class="hint editor-local-notice">✎ 여기서 저장하는 기록은 <strong>이 브라우저에만</strong> 저장돼요. 팀 전체에 반영하려면 "내보내기"로 나온 내용을 전달해주세요.</p>
-        <div class="history-form-row">
-          <input type="date" id="history-date" value="${dateValue}" />
-          <div class="team-count-select">
-            <span>팀 수:</span>
-            ${teamCountChipsHTML(formTeamCount)}
-          </div>
+      <div class="ts-toprow">
+        <label class="ts-date-label">경기 날짜
+          <input type="date" id="ts-date" value="${gameDate}" />
+        </label>
+        <div class="team-count-select">
+          <span>팀 수:</span>
+          ${teamCountChipsHTML(teamCount)}
         </div>
-        <div class="history-team-inputs">
-          ${Array.from(
-            { length: formTeamCount },
-            (_, i) => `
-            <div class="history-team-input">
-              <label>${teamLabel(i)}</label>
-              <textarea class="history-team-textarea" data-team="${i}" rows="4" placeholder="이름을 한 줄에 한 명씩">${escapeHtml(
-              teamTexts[i] || ""
-            )}</textarea>
-            </div>`
-          ).join("")}
-        </div>
-        <p class="hint" id="history-form-error"></p>
-        <button type="button" class="btn btn-primary" id="save-history-btn">기록 저장</button>
       </div>
-      <div class="history-list">
-        <div class="history-list-header">
-          <h3>편성 기록</h3>
-          ${customCount ? `<button type="button" class="btn btn-sm" id="export-history-btn">내보내기</button>` : ""}
-        </div>
+
+      <h3 class="section-title">참석자 선택 (${selected.size}명)</h3>
+      <input type="text" id="ts-search" class="search-input" placeholder="이름 검색" value="${escapeHtml(search)}" />
+      <div class="ts-roster-grid">
         ${
-          history.length
-            ? history.map((rec) => historyCardHTML(rec)).join("")
-            : `<p class="hint">아직 기록된 팀 편성이 없어요.</p>`
+          filtered.length
+            ? filtered
+                .map(
+                  (p) => `
+          <label class="ts-roster-chip ${selected.has(p.name) ? "is-checked" : ""}">
+            <input type="checkbox" data-name="${escapeHtml(p.name)}" ${selected.has(p.name) ? "checked" : ""} />
+            ${escapeHtml(p.name)}
+          </label>`
+                )
+                .join("")
+            : `<p class="hint">검색 결과가 없어요.</p>`
         }
       </div>
+
+      <h3 class="section-title">팀 배정</h3>
+      <p class="hint">이름 옆 팀 글자를 눌러 배정해주세요.</p>
+      <div class="ts-assign-toolbar">
+        <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
+        <button type="button" class="link-btn" id="ts-clear-assign">배정 초기화</button>
+        <button type="button" class="link-btn" id="ts-clear-all">전체 초기화</button>
+      </div>
+      <div class="ts-assign-list">
+        ${
+          selectedNames.length
+            ? selectedNames
+                .map(
+                  (name) => `
+          <div class="ts-assign-row">
+            <span class="ts-assign-name">${escapeHtml(name)}</span>
+            <div class="ts-team-buttons">
+              ${Array.from(
+                { length: teamCount },
+                (_, i) => `
+                <button type="button" class="ts-team-btn ${assignments[name] === i ? "is-active" : ""}" style="--team-color:${
+                  TEAM_ACCENT[i]
+                }" data-name="${escapeHtml(name)}" data-team="${i}">${TEAM_LETTERS[i]}</button>`
+              ).join("")}
+            </div>
+          </div>`
+                )
+                .join("")
+            : `<p class="hint">위에서 참석자를 먼저 선택해주세요.</p>`
+        }
+      </div>
+
+      <h3 class="section-title">팀 구성 미리보기</h3>
+      <div class="ts-preview-grid">
+        ${Array.from({ length: teamCount }, (_, i) => {
+          const teamNames = teamsPlayers[i];
+          const proj = computeProjection(teamNames, playersByName);
+          return `
+          <div class="ts-preview-card" style="--team-color:${TEAM_ACCENT[i]}">
+            <h4>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h4>
+            <div class="ts-preview-names">${teamNames.length ? teamNames.map((n) => escapeHtml(n)).join(", ") : "아직 없음"}</div>
+            ${
+              proj
+                ? `<div class="ts-preview-stats">5인 환산 예상 · 득점 ${proj.ppg.toFixed(1)} · 리바운드 ${proj.rpg.toFixed(
+                    1
+                  )} · 어시스트 ${proj.apg.toFixed(1)}</div>`
+                : ""
+            }
+            ${
+              proj && proj.statCount < teamNames.length
+                ? `<div class="hint ts-preview-note">${teamNames.length - proj.statCount}명은 기록 데이터가 없어 통계에서 제외했어요.</div>`
+                : ""
+            }
+          </div>`;
+        }).join("")}
+      </div>
+
+      <button type="button" class="btn btn-primary" id="ts-image-btn" ${anyAssigned ? "" : "disabled"}>🖼 공지 이미지 만들기</button>
     `;
 
-    document.getElementById("history-date").addEventListener("input", (e) => {
-      dateValue = e.target.value;
+    document.getElementById("ts-date").addEventListener("input", (e) => {
+      gameDate = e.target.value;
+      persist();
     });
 
-    container.querySelectorAll(".history-team-textarea").forEach((ta) => {
-      ta.addEventListener("input", (e) => {
-        teamTexts[Number(e.target.dataset.team)] = e.target.value;
-      });
-    });
-
-    container.querySelectorAll(".history-form .team-count-select .chip").forEach((btn) => {
+    container.querySelectorAll(".team-count-select .chip").forEach((btn) => {
       btn.addEventListener("click", () => {
-        formTeamCount = Number(btn.dataset.count);
-        while (teamTexts.length < formTeamCount) teamTexts.push("");
+        teamCount = Number(btn.dataset.count);
+        Object.keys(assignments).forEach((name) => {
+          if (assignments[name] >= teamCount) delete assignments[name];
+        });
+        persist();
         render();
       });
     });
 
-    document.getElementById("save-history-btn").addEventListener("click", () => {
-      const teams = teamTexts
-        .slice(0, formTeamCount)
-        .map((t) =>
-          t
-            .split("\n")
-            .map((n) => n.trim())
-            .filter(Boolean)
-        );
-      const errorEl = document.getElementById("history-form-error");
-      if (!dateValue) {
-        errorEl.textContent = "날짜를 선택해주세요.";
-        return;
-      }
-      if (teams.every((t) => t.length === 0)) {
-        errorEl.textContent = "최소 한 팀 이상 이름을 입력해주세요.";
-        return;
-      }
-      addCustomTeamHistoryEntry({ date: dateValue, teams });
-      dateValue = "";
-      teamTexts = Array(formTeamCount).fill("");
+    const searchInput = document.getElementById("ts-search");
+    searchInput.addEventListener("input", (e) => {
+      search = e.target.value;
+      const caret = e.target.selectionStart;
+      render();
+      const el = document.getElementById("ts-search");
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    });
+
+    container.querySelectorAll(".ts-roster-chip input").forEach((input) => {
+      input.addEventListener("change", (e) => {
+        const name = e.target.dataset.name;
+        if (e.target.checked) {
+          selected.add(name);
+        } else {
+          selected.delete(name);
+          delete assignments[name];
+        }
+        persist();
+        render();
+      });
+    });
+
+    container.querySelectorAll(".ts-team-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const name = btn.dataset.name;
+        const team = Number(btn.dataset.team);
+        if (assignments[name] === team) {
+          delete assignments[name];
+        } else {
+          assignments[name] = team;
+        }
+        persist();
+        render();
+      });
+    });
+
+    document.getElementById("ts-auto-assign").addEventListener("click", () => {
+      const unassigned = shuffle(selectedNames.filter((n) => !(n in assignments)));
+      unassigned.forEach((name) => {
+        const counts = Array.from({ length: teamCount }, (_, i) => Object.values(assignments).filter((t) => t === i).length);
+        let minTeam = 0;
+        for (let i = 1; i < teamCount; i++) if (counts[i] < counts[minTeam]) minTeam = i;
+        assignments[name] = minTeam;
+      });
+      persist();
       render();
     });
 
-    const exportBtn = document.getElementById("export-history-btn");
-    if (exportBtn) {
-      exportBtn.addEventListener("click", () => showHistoryExportModal(getCustomTeamHistory()));
-    }
+    document.getElementById("ts-clear-assign").addEventListener("click", () => {
+      assignments = {};
+      persist();
+      render();
+    });
 
-    container.querySelectorAll(".history-remove-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        removeCustomTeamHistoryEntry(btn.dataset.id);
-        render();
-      });
+    document.getElementById("ts-clear-all").addEventListener("click", () => {
+      selected = new Set();
+      assignments = {};
+      clearTeamBuilderDraft();
+      render();
+    });
+
+    document.getElementById("ts-image-btn").addEventListener("click", () => {
+      const rows = Array.from({ length: teamCount }, (_, i) => ({
+        letter: TEAM_LETTERS[i],
+        bg: TEAM_IMAGE_BG[i],
+        players: teamsPlayers[i],
+      })).filter((t) => t.players.length > 0);
+      if (!rows.length) return;
+      const canvas = generateTeamCanvas(rows, gameDate, teamCount);
+      showTeamImageModal(canvas, `spirit-team-${gameDate || "today"}.png`);
     });
   }
 

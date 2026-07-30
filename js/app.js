@@ -2,7 +2,7 @@ import { TACTICS, getTacticById } from "./data.js";
 import { mountCourt } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
-import { mountShuffle, mountTeamHistory } from "./team-shuffle.js";
+import { mountTeamBuilder } from "./team-shuffle.js";
 import { ROSTER } from "./roster.js";
 import {
   getOverride,
@@ -283,18 +283,11 @@ function renderTeamShuffle() {
     <section class="shuffle-view">
       <a class="back-link" href="#/">← 홈으로</a>
       <h1>자체전 팀 편성</h1>
-      <p class="hint">참석자 이름을 입력하고 팀 나누기를 누르면 랜덤으로 팀을 나눠줘요.</p>
-
-      <h2 class="section-title">🔀 랜덤 팀 나누기</h2>
-      <div id="shuffle-container"></div>
-
-      <h2 class="section-title">📋 팀 편성 기록</h2>
-      <p class="hint">실제로 자체전 날 팀이 어떻게 짜였는지 날짜별로 남겨두면 나중에 찾아볼 수 있어요. 대회 일정 달력에서 그 날짜를 클릭해도 같이 보여요.</p>
-      <div id="history-container"></div>
+      <p class="hint">참석자를 로스터에서 선택하고, 이름 옆 팀 글자를 눌러 배정해주세요.</p>
+      <div id="team-builder-container"></div>
     </section>
   `;
-  mountShuffle(document.getElementById("shuffle-container"));
-  mountTeamHistory(document.getElementById("history-container"));
+  mountTeamBuilder(document.getElementById("team-builder-container"));
 }
 
 function renderSchedule() {
