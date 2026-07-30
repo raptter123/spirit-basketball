@@ -10,8 +10,17 @@ function pathD(path) {
 
 function playerOptionsHTML(players, selected) {
   return players
+    .filter((p) => !p.opponent)
     .map((p) => `<option value="${p.number}" ${p.number === selected ? "selected" : ""}>${p.number}번</option>`)
     .join("");
+}
+
+// 상대 수비수는 우리 로스터 선수가 아니므로 등번호 대신 X1, X2... 로 표기한다.
+function nextOpponentLabel(players) {
+  const used = new Set(players.filter((p) => p.opponent).map((p) => p.number));
+  let n = 1;
+  while (used.has(`X${n}`)) n++;
+  return `X${n}`;
 }
 
 // tactic은 호출부에서 미리 깊은 복사한 것을 전달받아 그대로 변형(mutate)한다.
@@ -153,12 +162,16 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
     });
 
     const playersPanel = container.querySelector(".editor-players");
-    playersPanel.innerHTML = tactic.players
-      .map(
-        (p, playerIdx) => `
+    playersPanel.innerHTML =
+      tactic.players
+        .map(
+          (p, playerIdx) => `
         <div class="editor-player-card">
           <div class="editor-player-title">
-            <span class="badge ${p.team === "defense" ? "badge-defense" : "badge-offense"}">${p.number}번</span>
+            <span class="badge ${p.team === "defense" ? "badge-defense" : "badge-offense"}">${
+              p.opponent ? p.number : `${p.number}번`
+            }</span>
+            ${p.opponent ? `<span class="editor-opponent-tag">상대 수비</span>` : ""}
           </div>
           <div class="editor-points">
             ${p.path
@@ -177,10 +190,16 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
               .join("")}
           </div>
           <button type="button" class="btn btn-sm" data-action="add-point" data-player="${playerIdx}">+ 점 추가</button>
+          ${
+            p.opponent
+              ? `<button type="button" class="btn btn-sm" data-action="remove-player" data-player="${playerIdx}">🗑 이 수비수 삭제</button>`
+              : ""
+          }
         </div>
       `
-      )
-      .join("");
+        )
+        .join("") +
+      `<button type="button" class="btn" data-action="add-defender">+ 수비수 추가</button>`;
 
     playersPanel.querySelectorAll(".pt-x, .pt-y").forEach((input) => {
       input.addEventListener("change", (e) => {
@@ -216,6 +235,26 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         render();
         commit();
       });
+    });
+
+    playersPanel.querySelectorAll('[data-action="remove-player"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const playerIdx = Number(btn.dataset.player);
+        tactic.players.splice(playerIdx, 1);
+        render();
+        commit();
+      });
+    });
+
+    playersPanel.querySelector('[data-action="add-defender"]').addEventListener("click", () => {
+      tactic.players.push({
+        number: nextOpponentLabel(tactic.players),
+        team: "defense",
+        opponent: true,
+        path: [[250, 350]],
+      });
+      render();
+      commit();
     });
 
     const ballPanel = container.querySelector(".editor-ball");

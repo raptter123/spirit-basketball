@@ -685,6 +685,7 @@ function renderDetail(id) {
         <p class="hint editor-local-notice">✎ 아래에서 로스터 인원을 번호에 넣어 시뮬레이션해볼 수 있어요. <strong>이 화면에 있는 동안만</strong> 적용되고, 페이지를 나가면 자동으로 초기화돼요.</p>
         <div class="tactic-sim-grid">
           ${tactic.players
+            .filter((p) => !p.opponent)
             .map((p) => {
               const usedElsewhere = new Set(
                 Object.entries(simAssignment)
