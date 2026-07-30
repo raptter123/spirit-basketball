@@ -59,7 +59,10 @@ function computeProjection(playerNames, playersByName) {
     rpg: sum("rpg"),
     apg: sum("apg"),
     ppgAvg: sum("ppg") / statCount,
+    rpgAvg: sum("rpg") / statCount,
+    apgAvg: sum("apg") / statCount,
     topg: topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) : null,
+    topgAvg: topgPlayers.length ? topgPlayers.reduce((acc, p) => acc + p.topg, 0) / topgPlayers.length : null,
     topgCount: topgPlayers.length,
     fgPctAvg: avgOf("fgPct"),
   };
@@ -566,8 +569,10 @@ export function mountTeamBuilder(container) {
                 ? `<div class="ts-preview-stats">예상 득점 <strong>${proj.ppg.toFixed(1)}</strong>점 (인당 평균 ${proj.ppgAvg.toFixed(
                     1
                   )})</div>
-                   <div class="ts-preview-stats">리바운드 ${proj.rpg.toFixed(1)} · 어시스트 ${proj.apg.toFixed(1)}${
-                    proj.topg != null ? ` · 턴오버 ${proj.topg.toFixed(1)}` : ""
+                   <div class="ts-preview-stats">리바운드 ${proj.rpg.toFixed(1)} (평균 ${proj.rpgAvg.toFixed(
+                    1
+                  )}) · 어시스트 ${proj.apg.toFixed(1)} (평균 ${proj.apgAvg.toFixed(1)})${
+                    proj.topg != null ? ` · 턴오버 ${proj.topg.toFixed(1)} (평균 ${proj.topgAvg.toFixed(1)})` : ""
                   }${proj.fgPctAvg != null ? ` · 야투율 ${Math.round(proj.fgPctAvg * 100)}%` : ""}</div>`
                 : ""
             }
