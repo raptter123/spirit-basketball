@@ -680,6 +680,7 @@ body {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 12px;
@@ -988,6 +989,11 @@ body {
   color: var(--text);
 }
 
+.ts-preview-stats strong {
+  color: var(--team-color);
+  font-size: 0.95rem;
+}
+
 .ts-preview-note {
   margin: 6px 0 0;
   font-size: 0.75rem;
@@ -1010,6 +1016,19 @@ body {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+.ts-image-theme-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .editor-local-notice {
