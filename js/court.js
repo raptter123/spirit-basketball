@@ -255,7 +255,26 @@ const EXPORT_SVG_STYLE = `
   .ball-seam { fill: none; stroke: #3a1d02; stroke-width: 0.9; }
 `;
 
-export function exportCourtImage(svg, title, filename) {
+const EXPORT_FONT_FAMILY = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+
+// 제목이 길어도 잘리거나 삐져나오지 않도록, 폭에 안 맞으면 폰트 크기를 줄이고
+// 그래도 안 맞으면 말줄임표로 자른다. 휴대폰에서 봤을 때 제목 줄이 안 맞아
+// 코트 이미지 쪽으로 밀려 보이는 문제를 막기 위함.
+function fitTitleFont(ctx, title, maxWidth) {
+  let fontSize = 22;
+  ctx.font = `bold ${fontSize}px ${EXPORT_FONT_FAMILY}`;
+  while (fontSize > 14 && ctx.measureText(title).width > maxWidth) {
+    fontSize -= 1;
+    ctx.font = `bold ${fontSize}px ${EXPORT_FONT_FAMILY}`;
+  }
+  let text = title;
+  while (text.length > 1 && ctx.measureText(text + "…").width > maxWidth) {
+    text = text.slice(0, -1);
+  }
+  return text.length < title.length ? `${text}…` : title;
+}
+
+function buildCourtCanvas(svg, title) {
   const clone = svg.cloneNode(true);
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
@@ -266,37 +285,66 @@ export function exportCourtImage(svg, title, filename) {
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const svgUrl = URL.createObjectURL(svgBlob);
 
-  const titleH = 56;
+  const titleH = 64;
   const courtW = 500;
   const courtH = 470;
   const scale = 2;
 
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = courtW * scale;
-    canvas.height = (courtH + titleH) * scale;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(scale, scale);
-    ctx.fillStyle = "#0e1526";
-    ctx.fillRect(0, 0, courtW, courtH + titleH);
-    ctx.fillStyle = "#f8fafc";
-    ctx.font = "bold 22px 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
-    ctx.textBaseline = "middle";
-    ctx.fillText(title, 20, titleH / 2 + 2);
-    ctx.drawImage(img, 0, titleH, courtW, courtH);
-    URL.revokeObjectURL(svgUrl);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = courtW * scale;
+      canvas.height = (courtH + titleH) * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "#0e1526";
+      ctx.fillRect(0, 0, courtW, courtH + titleH);
+      ctx.fillStyle = "#f8fafc";
+      ctx.textBaseline = "middle";
+      const fitted = fitTitleFont(ctx, title, courtW - 40);
+      ctx.fillText(fitted, 20, titleH / 2 + 1);
+      ctx.drawImage(img, 0, titleH, courtW, courtH);
+      URL.revokeObjectURL(svgUrl);
+      resolve(canvas);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(svgUrl);
+      reject(new Error("svg image load failed"));
+    };
+    img.src = svgUrl;
+  });
+}
 
-    canvas.toBlob((pngBlob) => {
-      const pngUrl = URL.createObjectURL(pngBlob);
+function downloadCanvas(canvas, filename) {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = pngUrl;
-      a.download = filename || `${title}.png`;
+      a.href = url;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(pngUrl);
+      URL.revokeObjectURL(url);
+      resolve();
     }, "image/png");
-  };
-  img.src = svgUrl;
+  });
+}
+
+// 클립보드에 이미지로 복사한다. 지원 안 되는 환경이면 파일 다운로드로 대신한다.
+export async function copyCourtImage(svg, title, filename) {
+  const canvas = await buildCourtCanvas(svg, title);
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    await downloadCanvas(canvas, filename);
+    return "downloaded";
+  }
+  try {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return "copied";
+  } catch {
+    await downloadCanvas(canvas, filename);
+    return "downloaded";
+  }
 }
