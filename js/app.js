@@ -1,5 +1,5 @@
 import { TACTICS, getTacticById } from "./data.js";
-import { mountCourt, copyCourtImage } from "./court.js";
+import { mountCourt } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
@@ -778,7 +778,10 @@ function renderDetail(id) {
     app.innerHTML = `
       <section class="detail-view">
         <a class="back-link" href="#/">← 목록으로</a>
-        <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
+        <div class="detail-top-row">
+          <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
+          <button type="button" class="link-btn" id="copy-link-btn">🔗 링크 복사</button>
+        </div>
         <h1 id="tactic-name-display">${tactic.name}</h1>
         <p class="summary" id="tactic-summary-display">${tactic.summary}</p>
         ${
@@ -794,7 +797,6 @@ function renderDetail(id) {
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
           <button id="replay-btn" class="btn">⟲ 다시보기</button>
           <button id="edit-btn" class="btn">✎ 편집</button>
-          <button id="image-export-btn" class="btn">🖼 이미지로 복사</button>
         </div>
         <p class="description" id="tactic-description-display">${tactic.description}</p>
       </section>
@@ -807,6 +809,20 @@ function renderDetail(id) {
         renderDetail(id);
       });
     }
+
+    document.getElementById("copy-link-btn").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      const url = `${location.origin}${location.pathname}#/tactic/${id}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        btn.textContent = "복사됨!";
+      } catch {
+        btn.textContent = "복사 실패";
+      }
+      setTimeout(() => {
+        btn.textContent = "🔗 링크 복사";
+      }, 1500);
+    });
 
     document.querySelectorAll(".tactic-sim-grid select").forEach((select) => {
       select.addEventListener("change", (e) => {
@@ -941,12 +957,10 @@ function renderDetail(id) {
     const playBtn = document.getElementById("play-btn");
     const replayBtn = document.getElementById("replay-btn");
     const editBtn = document.getElementById("edit-btn");
-    const imageExportBtn = document.getElementById("image-export-btn");
 
     if (editing) {
       playBtn.disabled = true;
       replayBtn.disabled = true;
-      imageExportBtn.disabled = true;
       editBtn.textContent = "✕ 편집 종료";
       mountEditor(courtWrap, activeTarget(), {
         onChange() {
@@ -995,26 +1009,8 @@ function renderDetail(id) {
 
     playBtn.disabled = false;
     replayBtn.disabled = false;
-    imageExportBtn.disabled = false;
     editBtn.textContent = "✎ 편집";
     controller = mountCourt(courtWrap, activeTarget());
-
-    imageExportBtn.addEventListener("click", async () => {
-      controller.resetToStart();
-      playBtn.textContent = "▶ 재생";
-      const scenarios = scenariosOf(tactic);
-      const scenarioName = scenarios[activeScenario].name;
-      const title = activeScenario === 0 ? tactic.name : `${tactic.name} - ${scenarioName}`;
-      // 파일명은 한글이 일부 환경에서 깨질 수 있어 영문 id 기반으로 안전하게 만들고,
-      // 실제 전술명(한글)은 이미지 안 제목으로만 넣는다.
-      const filename = activeScenario === 0 ? `${tactic.id}.png` : `${tactic.id}-${activeScenario}.png`;
-      const originalLabel = imageExportBtn.textContent;
-      const result = await copyCourtImage(controller.getSvg(), title, filename);
-      imageExportBtn.textContent = result === "copied" ? "복사됨!" : "클립보드 미지원, 다운로드함";
-      setTimeout(() => {
-        imageExportBtn.textContent = originalLabel;
-      }, 1800);
-    });
 
     playBtn.addEventListener("click", () => {
       if (controller.isPlaying()) {
