@@ -84,7 +84,7 @@ function ballPositionAt(ballSeq, playersByNumber, rawProgress) {
   return positionAtRaw(playersByNumber[current.holder], rawProgress);
 }
 
-export function mountCourt(container, tactic, duration = 4200) {
+export function mountCourt(container, tactic, duration = 4800) {
   container.innerHTML = "";
 
   const svg = svgEl("svg", {

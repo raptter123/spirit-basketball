@@ -333,6 +333,7 @@ body {
 .description {
   line-height: 1.6;
   color: var(--text-muted);
+  white-space: pre-line;
 }
 
 .schedule-view {
