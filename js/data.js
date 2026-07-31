@@ -397,6 +397,56 @@ export const TACTICS = [
       },
     ],
   },
+  {
+    id: "beat-3-2-zone",
+    name: "[규철] 3-2 파훼법",
+    category: "세트 오펜스",
+    summary: "3-2일때 대응이 잘안되는것 같아서 제가 일반적으로 선호하는 방법 공유드립니다.",
+    description:
+      "1. 양쪽 코너에 가드를 세워두고 공을 한쪽으로 보내서 앞선 가드가 한쪽으로 쏠리게 만든 다음 바로 반대쪽 가드에게 공을 전달하면 반대쪽은 포워드가 무조건 3점라인까지 나가서 막아야되서 거기서 3점던지거나 역동작 걸어서 돌파를 하든 미스매치 공략\n" +
+      "2. 탑에서 강제로 가드와 센터가 매치를 먹으면 수비 센터 한명이 하이로 끌려 나오면 골대에서 나머지 포워드와 1:1 상황 혹은 컷인같은 유리하고 넓은 상황에서 공격이 가능합니다. (도움수비 오면 그쪽으로 패스)",
+    players: [
+      { number: 1, team: "offense", path: [[197, 52], [224, 151], [238, 165]] },
+      { number: 2, team: "offense", path: [[472, 305], [479, 374], [332, 439]] },
+      { number: 3, team: "offense", path: [[25, 429], [25, 378], [36, 395]] },
+      { number: 4, team: "offense", path: [[70, 194]] },
+      { number: 5, team: "offense", path: [[302, 272], [210, 263], [211, 325]] },
+      { number: "X1", team: "defense", opponent: true, path: [[242, 182], [167, 202], [104, 218]] },
+      { number: "X2", team: "defense", opponent: true, path: [[391, 222], [315, 190], [260, 192]] },
+      { number: "X3", team: "defense", opponent: true, path: [[107, 245], [50, 318], [47, 377]] },
+      { number: "X4", team: "defense", opponent: true, path: [[166, 395], [194, 310]] },
+      { number: "X5", team: "defense", opponent: true, path: [[320, 423], [441, 351], [420, 410]] },
+    ],
+    ball: [
+      { holder: 1, at: 0.04 },
+      { holder: 4, at: 0.05 },
+      { holder: 3, at: 0.24 },
+      { holder: 5, at: 0.35 },
+      { holder: 2, at: 0.42 },
+    ],
+    scenarios: [
+      {
+        name: "하이로우게임",
+        players: [
+          { number: 1, team: "offense", path: [[246, 54], [236, 134], [163, 194]] },
+          { number: 2, team: "offense", path: [[427, 224], [386, 204], [362, 198]] },
+          { number: 3, team: "offense", path: [[73, 226], [45, 274], [29, 301]] },
+          { number: 4, team: "offense", path: [[185, 361], [220, 376], [255, 391]] },
+          { number: 5, team: "offense", path: [[240, 154]] },
+          { number: "X1", team: "defense", opponent: true, path: [[253, 95], [244, 186], [232, 170]] },
+          { number: "X2", team: "defense", opponent: true, path: [[418, 253], [388, 233], [376, 224]] },
+          { number: "X3", team: "defense", opponent: true, path: [[107, 245], [82, 276], [64, 305]] },
+          { number: "X4", team: "defense", opponent: true, path: [[179, 389], [208, 396], [230, 406], [249, 416]] },
+          { number: "X5", team: "defense", opponent: true, path: [[308, 328], [239, 227]] },
+        ],
+        ball: [
+          { holder: 1, at: 0.04 },
+          { holder: 5, at: 0.05 },
+          { holder: 4, at: 0.37 },
+        ],
+      },
+    ],
+  },
 ];
 
 export function getTacticById(id) {
