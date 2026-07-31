@@ -1,5 +1,5 @@
 import { TACTICS, getTacticById } from "./data.js";
-import { mountCourt, exportCourtImage } from "./court.js";
+import { mountCourt, copyCourtImage } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
@@ -35,7 +35,6 @@ function badgeClassFor(category) {
 
 const HOME_MENU = [
   { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
-  { icon: "📅", title: "일정", desc: "대회·자체전 일정과 공휴일을 달력으로 확인하세요.", href: "#/schedule" },
   { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
   { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
   { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록을 모아둔 보관실이에요.", href: "https://kimjunseok.github.io/Spirit/", external: true },
@@ -795,7 +794,7 @@ function renderDetail(id) {
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
           <button id="replay-btn" class="btn">⟲ 다시보기</button>
           <button id="edit-btn" class="btn">✎ 편집</button>
-          <button id="image-export-btn" class="btn">🖼 이미지로 내보내기</button>
+          <button id="image-export-btn" class="btn">🖼 이미지로 복사</button>
         </div>
         <p class="description" id="tactic-description-display">${tactic.description}</p>
       </section>
@@ -1000,16 +999,21 @@ function renderDetail(id) {
     editBtn.textContent = "✎ 편집";
     controller = mountCourt(courtWrap, activeTarget());
 
-    imageExportBtn.addEventListener("click", () => {
+    imageExportBtn.addEventListener("click", async () => {
       controller.resetToStart();
+      playBtn.textContent = "▶ 재생";
       const scenarios = scenariosOf(tactic);
       const scenarioName = scenarios[activeScenario].name;
       const title = activeScenario === 0 ? tactic.name : `${tactic.name} - ${scenarioName}`;
       // 파일명은 한글이 일부 환경에서 깨질 수 있어 영문 id 기반으로 안전하게 만들고,
       // 실제 전술명(한글)은 이미지 안 제목으로만 넣는다.
       const filename = activeScenario === 0 ? `${tactic.id}.png` : `${tactic.id}-${activeScenario}.png`;
-      exportCourtImage(controller.getSvg(), title, filename);
-      playBtn.textContent = "▶ 재생";
+      const originalLabel = imageExportBtn.textContent;
+      const result = await copyCourtImage(controller.getSvg(), title, filename);
+      imageExportBtn.textContent = result === "copied" ? "복사됨!" : "클립보드 미지원, 다운로드함";
+      setTimeout(() => {
+        imageExportBtn.textContent = originalLabel;
+      }, 1800);
     });
 
     playBtn.addEventListener("click", () => {
