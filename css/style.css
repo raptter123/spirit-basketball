@@ -131,6 +131,17 @@ body {
   margin: 8px 0 4px;
 }
 
+.detail-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.detail-top-row .link-btn {
+  font-size: 0.8rem;
+}
+
 .hint {
   color: var(--text-muted);
   margin-bottom: 24px;
