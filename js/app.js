@@ -1,9 +1,10 @@
 import { TACTICS, getTacticById } from "./data.js";
-import { mountCourt } from "./court.js";
+import { mountCourt, exportCourtImage } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { ROSTER } from "./roster.js";
+import { getUpcomingEvents } from "./events.js";
 import {
   getOverride,
   saveOverride,
@@ -60,6 +61,46 @@ function tacticCardHTML(t, isFav) {
   `;
 }
 
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function dDayLabel(dateStr) {
+  const today = new Date(`${todayStr()}T00:00:00`);
+  const target = new Date(`${dateStr}T00:00:00`);
+  const diff = Math.round((target - today) / 86400000);
+  if (diff === 0) return "D-Day";
+  if (diff > 0) return `D-${diff}`;
+  return `D+${-diff}`;
+}
+
+function homeUpcomingHTML() {
+  const upcoming = getUpcomingEvents(todayStr(), 60).slice(0, 3);
+  if (!upcoming.length) return "";
+  return `
+    <a class="home-upcoming" href="#/schedule">
+      <div class="home-upcoming-head">
+        <span class="home-upcoming-label">📅 다가오는 일정</span>
+        <span class="home-upcoming-more">전체 일정 보기 →</span>
+      </div>
+      <div class="home-upcoming-list">
+        ${upcoming
+          .map(
+            (e) => `
+          <div class="home-upcoming-item">
+            <span class="home-upcoming-dday">${dDayLabel(e.date)}</span>
+            <span class="badge ${e.type === "대회" ? "badge-defense" : "badge-offense"}">${e.type}</span>
+            <span class="home-upcoming-title">${escapeHtml(e.title)}</span>
+            <span class="home-upcoming-date">${e.date}</span>
+          </div>`
+          )
+          .join("")}
+      </div>
+    </a>
+  `;
+}
+
 function homeCardHTML(item) {
   const attrs = item.external ? `target="_blank" rel="noopener"` : "";
   return `
@@ -77,6 +118,7 @@ function renderHome() {
       <h1>혼(Spirit)</h1>
       <p class="home-tagline">한 팀, 한 코트, 하나의 혼(Spirit)</p>
       <p class="hint">여기는 혼(Spirit)의 혼페이지예요. 전술부터 팀 편성, 일정까지 — 필요한 건 아래에서 다 찾을 수 있어요.</p>
+      ${homeUpcomingHTML()}
       <div class="home-menu">
         ${HOME_MENU.map(homeCardHTML).join("")}
       </div>
@@ -753,6 +795,7 @@ function renderDetail(id) {
           <button id="play-btn" class="btn btn-primary">▶ 재생</button>
           <button id="replay-btn" class="btn">⟲ 다시보기</button>
           <button id="edit-btn" class="btn">✎ 편집</button>
+          <button id="image-export-btn" class="btn">🖼 이미지로 내보내기</button>
         </div>
         <p class="description" id="tactic-description-display">${tactic.description}</p>
       </section>
@@ -899,10 +942,12 @@ function renderDetail(id) {
     const playBtn = document.getElementById("play-btn");
     const replayBtn = document.getElementById("replay-btn");
     const editBtn = document.getElementById("edit-btn");
+    const imageExportBtn = document.getElementById("image-export-btn");
 
     if (editing) {
       playBtn.disabled = true;
       replayBtn.disabled = true;
+      imageExportBtn.disabled = true;
       editBtn.textContent = "✕ 편집 종료";
       mountEditor(courtWrap, activeTarget(), {
         onChange() {
@@ -951,8 +996,21 @@ function renderDetail(id) {
 
     playBtn.disabled = false;
     replayBtn.disabled = false;
+    imageExportBtn.disabled = false;
     editBtn.textContent = "✎ 편집";
     controller = mountCourt(courtWrap, activeTarget());
+
+    imageExportBtn.addEventListener("click", () => {
+      controller.resetToStart();
+      const scenarios = scenariosOf(tactic);
+      const scenarioName = scenarios[activeScenario].name;
+      const title = activeScenario === 0 ? tactic.name : `${tactic.name} - ${scenarioName}`;
+      // 파일명은 한글이 일부 환경에서 깨질 수 있어 영문 id 기반으로 안전하게 만들고,
+      // 실제 전술명(한글)은 이미지 안 제목으로만 넣는다.
+      const filename = activeScenario === 0 ? `${tactic.id}.png` : `${tactic.id}-${activeScenario}.png`;
+      exportCourtImage(controller.getSvg(), title, filename);
+      playBtn.textContent = "▶ 재생";
+    });
 
     playBtn.addEventListener("click", () => {
       if (controller.isPlaying()) {

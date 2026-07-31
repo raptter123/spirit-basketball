@@ -222,8 +222,81 @@ export function mountCourt(container, tactic, duration = 4800) {
       render(0);
       this.play();
     },
+    resetToStart() {
+      this.pause();
+      elapsed = 0;
+      render(0);
+    },
     isPlaying() {
       return playing;
     },
+    getSvg() {
+      return svg;
+    },
   };
+}
+
+// 코트 SVG는 색상을 style.css의 클래스(CSS 변수)에 의존하는데, 이미지로 내보낼 때는
+// <img>가 별도 문서로 SVG를 파싱해서 페이지 스타일시트를 못 읽는다.
+// 그래서 복제본에 실제 색상 값을 그대로 박아넣은 <style>을 주입해 독립적으로 렌더링되게 한다.
+const EXPORT_SVG_STYLE = `
+  .court-boundary { fill: url(#courtGradient); stroke: #e7ecf4; stroke-width: 1.5; }
+  .paint-fill { fill: rgba(231, 236, 244, 0.05); }
+  .court-line { fill: none; stroke: #e7ecf4; stroke-width: 1.5; stroke-linecap: round; opacity: 0.85; }
+  .rim { fill: none; stroke: #f97316; stroke-width: 3; }
+  .arrow-path { fill: none; stroke-width: 2.5; stroke-dasharray: 6 5; opacity: 0.85; }
+  .player-dot { stroke: #0f172a; stroke-width: 2; }
+  .player-offense { fill: #3b82f6; }
+  .player-defense { fill: #ef4444; }
+  .player-number { fill: #fff; font-size: 13px; font-weight: 700; }
+  .player-name-label { fill: #f8fafc; font-size: 11px; font-weight: 700; paint-order: stroke; stroke: #0f172a; stroke-width: 3px; }
+  .ball-dot { fill: url(#ballGradient); }
+  .ball-outline { fill: none; stroke: #3a1d02; stroke-width: 1; }
+  .ball-seam { fill: none; stroke: #3a1d02; stroke-width: 0.9; }
+`;
+
+export function exportCourtImage(svg, title, filename) {
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  styleEl.textContent = EXPORT_SVG_STYLE;
+  clone.insertBefore(styleEl, clone.firstChild);
+
+  const svgString = new XMLSerializer().serializeToString(clone);
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const svgUrl = URL.createObjectURL(svgBlob);
+
+  const titleH = 56;
+  const courtW = 500;
+  const courtH = 470;
+  const scale = 2;
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = courtW * scale;
+    canvas.height = (courtH + titleH) * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#0e1526";
+    ctx.fillRect(0, 0, courtW, courtH + titleH);
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 22px 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.fillText(title, 20, titleH / 2 + 2);
+    ctx.drawImage(img, 0, titleH, courtW, courtH);
+    URL.revokeObjectURL(svgUrl);
+
+    canvas.toBlob((pngBlob) => {
+      const pngUrl = URL.createObjectURL(pngBlob);
+      const a = document.createElement("a");
+      a.href = pngUrl;
+      a.download = filename || `${title}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(pngUrl);
+    }, "image/png");
+  };
+  img.src = svgUrl;
 }

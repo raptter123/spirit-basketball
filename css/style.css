@@ -1266,6 +1266,71 @@ body {
   color: var(--text);
 }
 
+.home-upcoming {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-decoration: none;
+  color: var(--text);
+  margin-top: 20px;
+  transition: border-color 0.15s ease;
+}
+
+.home-upcoming:hover {
+  border-color: var(--accent);
+}
+
+.home-upcoming-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.home-upcoming-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.home-upcoming-more {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.home-upcoming-list {
+  display: grid;
+  gap: 8px;
+}
+
+.home-upcoming-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+}
+
+.home-upcoming-dday {
+  flex: 0 0 auto;
+  font-family: "SF Mono", "Menlo", ui-monospace, monospace;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 44px;
+}
+
+.home-upcoming-title {
+  font-weight: 600;
+}
+
+.home-upcoming-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .home-menu {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
