@@ -74,6 +74,13 @@ function dDayLabel(dateStr) {
   return `D+${-diff}`;
 }
 
+// 홈 카드에서는 한 줄에 다 들어가야 해서 날짜를 짧게 쓴다.
+// 올해 일정이면 MM-DD만, 해가 넘어가는 일정이면 연도까지 보여준다.
+function shortDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split("-");
+  return y === String(new Date().getFullYear()) ? `${m}-${d}` : `${y}-${m}-${d}`;
+}
+
 function homeUpcomingHTML() {
   const upcoming = getUpcomingEvents(todayStr(), 60).slice(0, 3);
   if (!upcoming.length) return "";
@@ -91,7 +98,7 @@ function homeUpcomingHTML() {
             <span class="home-upcoming-dday">${dDayLabel(e.date)}</span>
             <span class="badge ${e.type === "대회" ? "badge-defense" : "badge-offense"}">${e.type}</span>
             <span class="home-upcoming-title">${escapeHtml(e.title)}</span>
-            <span class="home-upcoming-date">${e.date}</span>
+            <span class="home-upcoming-date">${shortDateLabel(e.date)}</span>
           </div>`
           )
           .join("")}
