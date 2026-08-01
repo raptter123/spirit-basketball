@@ -1317,12 +1317,15 @@ body {
   gap: 8px;
 }
 
+/* 한 줄 고정. 좁은 화면에서 날짜가 아랫줄로 떨어지지 않도록 wrap을 쓰지 않고,
+   길이가 남으면 제목만 줄어들게 한다. */
 .home-upcoming-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   font-size: 0.88rem;
+  min-width: 0;
 }
 
 .home-upcoming-dday {
@@ -1333,11 +1336,23 @@ body {
   min-width: 44px;
 }
 
+.home-upcoming-item .badge {
+  flex: 0 0 auto;
+}
+
 .home-upcoming-title {
   font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-upcoming-date {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
   color: var(--text-muted);
   font-size: 0.8rem;
 }
