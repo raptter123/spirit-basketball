@@ -13,6 +13,24 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="혼 Spirit" />
   <link rel="stylesheet" href="css/style.css" />
+  <script>
+    // 첫 페인트 전에 테마를 정해야 밝은/어두운 화면이 번쩍이지 않는다.
+    // 저장된 선택이 없으면 기기 설정(prefers-color-scheme)을 따른다.
+    (function () {
+      var theme = "dark";
+      try {
+        var saved = localStorage.getItem("spirit-theme");
+        if (saved === "light" || saved === "dark") {
+          theme = saved;
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          theme = "light";
+        }
+      } catch (e) {
+        /* 프라이빗 모드 등 localStorage 접근 불가 — 기본 다크로 둔다 */
+      }
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +41,7 @@
         <span class="brand-tagline">PLAY WITH SPIRIT, PLAY WITH 혼(魂)</span>
       </span>
     </a>
+    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="밝은 화면으로 전환">☀️</button>
   </header>
   <div class="utility-bar">
     <a href="#/tactics" data-nav="tactics">전술</a>

@@ -1,8 +1,10 @@
 // 2026년 상반기(1~6월) 팀 기록지 기반 선수 평균 스탯. 출처: 팀 제공 기록 엑셀 '팀 요약' 시트.
-// number/position 정보는 원본 자료에 없어 비워둠 — 필요하면 직접 채워 넣거나 페이지의 '선수 추가'로 보완 가능.
+// number/position 정보는 원본 자료에 없어 비워둠.
 // topg(턴오버)/ts(TS%)는 팀 편성 미리보기 등에서 필요할 때만 선택적으로 쓴다 — 기본 카드 UI에는 노출하지 않는다.
+// 기록지에 아직 없는 선수는 name만 넣어두면 된다 — 로스터/팀 편성 목록에는 나오고, 스탯 계산에서는 자동으로 빠진다.
 export const ROSTER = [
   { name: "고성익", games: 41, winRate: 0.463, ppg: 8.927, rpg: 2.585, apg: 1.585, spg: 0.61, fgPct: 0.4, topg: 1.439, ts: 0.409 },
+  { name: "권혁남" },
   { name: "김도여", games: 30, winRate: 0.367, ppg: 2.933, rpg: 2.533, apg: 2.8, spg: 0.433, fgPct: 0.192, topg: 1.5, ts: 0.234 },
   { name: "김동현", games: 3, winRate: 0.333, ppg: 6.333, rpg: 1.667, apg: 1.667, spg: 0.667, fgPct: 0.45, topg: 2, ts: 0.475 },
   { name: "김산", games: 16, winRate: 0.438, ppg: 3.125, rpg: 1.562, apg: 2.938, spg: 0.625, fgPct: 0.288, topg: 2, ts: 0.364 },

@@ -45,8 +45,8 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         <svg viewBox="0 0 500 470" class="court-svg editor-svg">
           <defs>
             <radialGradient id="courtGradient" cx="50%" cy="32%" r="78%">
-              <stop offset="0%" stop-color="#202c49" />
-              <stop offset="100%" stop-color="#0e1526" />
+              <stop class="court-grad-a" offset="0%" />
+              <stop class="court-grad-b" offset="100%" />
             </radialGradient>
           </defs>
         </svg>

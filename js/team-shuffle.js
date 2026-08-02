@@ -1,5 +1,5 @@
 import { ROSTER } from "./roster.js";
-import { getCustomRoster, getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
+import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
 import { getNextEventDate } from "./events.js";
 
 const TEAM_LETTERS = ["A", "B", "C"];
@@ -36,7 +36,7 @@ function teamCountChipsHTML(current) {
 }
 
 function getAllPlayers() {
-  return [...ROSTER, ...getCustomRoster()];
+  return [...ROSTER];
 }
 
 // 실제 경기에서는 한 팀에서 5명만 코트에 뛰기 때문에, 팀 인원이 늘어난다고 해서
