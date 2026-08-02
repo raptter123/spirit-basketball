@@ -478,8 +478,41 @@ body {
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
+}
+
+/* 버튼이 가로로 늘어선 줄들. 좁은 화면에서 버튼끼리 서로를 찌부러뜨리면서
+   글자가 두 줄로 갈라지는 걸 막는다. 폭이 정 모자라면 글자를 쪼개는 대신
+   버튼 자체가 통째로 아랫줄로 내려간다(flex-wrap).
+   그 전에 좌우 여백부터 줄여서 웬만한 폰 폭에서는 한 줄에 들어가게 한다. */
+.controls .btn,
+.editor-actions .btn,
+.ts-assign-toolbar .btn,
+.ts-assign-toolbar .link-btn,
+.category-filter .chip {
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .controls,
+  .editor-actions {
+    gap: 8px;
+  }
+
+  .controls .btn,
+  .editor-actions .btn {
+    padding: 10px 12px;
+  }
+
+  .ts-assign-toolbar {
+    gap: 8px 12px;
+  }
+
+  .category-filter .chip {
+    padding: 8px 11px;
+  }
 }
 
 .btn {
@@ -917,6 +950,7 @@ body {
 
 .editor-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -984,6 +1018,7 @@ body {
 
 .category-filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -1197,6 +1232,7 @@ body {
 
 .ts-assign-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 16px;
   margin-bottom: 12px;
