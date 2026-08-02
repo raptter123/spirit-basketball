@@ -260,7 +260,7 @@ function rosterCardHTML(p) {
                 <span>${p.rpg.toFixed(1)} RPG</span>
                 <span>${p.apg.toFixed(1)} APG</span>
               </div>`
-            : `<div class="roster-stats hint">기록 데이터 없음</div>`
+            : `<div class="roster-stats">기록 데이터 없음</div>`
         }
       </div>
     </div>
