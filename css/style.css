@@ -106,9 +106,23 @@ body {
   text-decoration: none;
 }
 
+/* 엠블럼은 세로로 긴 형태라 예전 곰 로고보다 살짝 키워야 시각적 무게가 비슷해진다. */
 .brand-logo {
-  height: 48px;
+  height: 54px;
   width: auto;
+}
+
+/* 다크판은 불꽃이 흰색, 라이트판은 보라/빨강이라 배경에 맞는 쪽만 보여준다. */
+.brand-logo-light {
+  display: none;
+}
+
+:root[data-theme="light"] .brand-logo-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .brand-logo-light {
+  display: block;
 }
 
 .brand-text {
