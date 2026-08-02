@@ -51,36 +51,26 @@ export function toggleFavorite(id) {
   return favorites.has(id);
 }
 
-const CUSTOM_ROSTER_KEY = "spirit-custom-roster";
+// 선수 명단은 js/roster.js 한 곳에서만 관리한다.
+// (예전에는 브라우저에만 저장되는 '선수 추가' 기능이 있었지만, 그 브라우저에서만 보여서 혼란스러웠다.)
 
-export function getCustomRoster() {
+const THEME_KEY = "spirit-theme";
+
+export function getTheme() {
   try {
-    const raw = localStorage.getItem(CUSTOM_ROSTER_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const t = localStorage.getItem(THEME_KEY);
+    return t === "light" || t === "dark" ? t : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-export function addCustomRosterEntry(entry) {
-  const list = getCustomRoster();
-  list.push({ ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
+export function saveTheme(theme) {
   try {
-    localStorage.setItem(CUSTOM_ROSTER_KEY, JSON.stringify(list));
+    localStorage.setItem(THEME_KEY, theme);
   } catch {
     // no-op
   }
-  return list;
-}
-
-export function removeCustomRosterEntry(id) {
-  const list = getCustomRoster().filter((p) => p.id !== id);
-  try {
-    localStorage.setItem(CUSTOM_ROSTER_KEY, JSON.stringify(list));
-  } catch {
-    // no-op
-  }
-  return list;
 }
 
 const NEW_TACTIC_DRAFT_KEY = "spirit-new-tactic-draft";

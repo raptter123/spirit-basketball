@@ -103,8 +103,8 @@ export function mountCourt(container, tactic, duration = 4800) {
       <path d="M0,0 L10,5 L0,10 z" fill="${TEAM_COLOR.defense}" />
     </marker>
     <radialGradient id="courtGradient" cx="50%" cy="32%" r="78%">
-      <stop offset="0%" stop-color="#202c49" />
-      <stop offset="100%" stop-color="#0e1526" />
+      <stop class="court-grad-a" offset="0%" />
+      <stop class="court-grad-b" offset="100%" />
     </radialGradient>
     <radialGradient id="ballGradient" cx="34%" cy="30%" r="72%">
       <stop offset="0%" stop-color="#f8ab53" />

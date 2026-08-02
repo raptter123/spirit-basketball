@@ -11,9 +11,6 @@ import {
   clearOverride,
   getFavorites,
   toggleFavorite,
-  getCustomRoster,
-  addCustomRosterEntry,
-  removeCustomRosterEntry,
   getNewTacticDraft,
   saveNewTacticDraft,
   clearNewTacticDraft,
@@ -21,6 +18,7 @@ import {
   getTacticSimAssignment,
   saveTacticSimAssignment,
   clearTacticSimAssignment,
+  saveTheme,
 } from "./storage.js";
 
 const app = document.getElementById("app");
@@ -245,7 +243,7 @@ function computeHighlights() {
   ];
 }
 
-function rosterCardHTML(p, isCustom) {
+function rosterCardHTML(p) {
   const hasStats = typeof p.games === "number";
   return `
     <div class="roster-card">
@@ -262,78 +260,42 @@ function rosterCardHTML(p, isCustom) {
                 <span>${p.rpg.toFixed(1)} RPG</span>
                 <span>${p.apg.toFixed(1)} APG</span>
               </div>`
-            : `<div class="roster-stats hint">기록 데이터 없음 (직접 추가됨)</div>`
+            : `<div class="roster-stats hint">기록 데이터 없음</div>`
         }
       </div>
-      ${isCustom ? `<button type="button" class="btn-icon roster-remove-btn" data-id="${p.id}" aria-label="삭제">×</button>` : ""}
     </div>
   `;
 }
 
 function renderRoster() {
-  function render() {
-    const custom = getCustomRoster();
-    const highlights = computeHighlights();
+  const highlights = computeHighlights();
 
-    app.innerHTML = `
-      <section class="roster-view">
-        <a class="back-link" href="#/">← 홈으로</a>
-        <h1>팀 로스터</h1>
-        <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
+  app.innerHTML = `
+    <section class="roster-view">
+      <a class="back-link" href="#/">← 홈으로</a>
+      <h1>팀 로스터</h1>
+      <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
 
-        <div class="highlight-grid">
-          ${highlights
-            .map(
-              (h) => `
-              <div class="highlight-card">
-                <span class="highlight-label">${h.label}</span>
-                <strong>${escapeHtml(h.player.name)}</strong>
-                <span class="highlight-value">${h.value(h.player)}</span>
-              </div>`
-            )
-            .join("")}
-        </div>
+      <div class="highlight-grid">
+        ${highlights
+          .map(
+            (h) => `
+            <div class="highlight-card">
+              <span class="highlight-label">${h.label}</span>
+              <strong>${escapeHtml(h.player.name)}</strong>
+              <span class="highlight-value">${h.value(h.player)}</span>
+            </div>`
+          )
+          .join("")}
+      </div>
 
-        ${
-          ROSTER.length || custom.length
-            ? `<div class="roster-grid">
-                ${ROSTER.map((p) => rosterCardHTML(p, false)).join("")}
-                ${custom.map((p) => rosterCardHTML(p, true)).join("")}
-              </div>`
-            : `<p class="hint">아직 등록된 선수 정보가 없어요.</p>`
-        }
-
-        <div class="roster-add">
-          <h2 class="section-title">+ 선수 추가</h2>
-          <p class="hint">위 목록에 없는 선수는 이름만 입력해도 추가할 수 있어요 (이 브라우저에만 저장돼요).</p>
-          <form id="add-player-form" class="add-player-form">
-            <input type="text" id="new-player-name" placeholder="이름" required />
-            <input type="text" id="new-player-position" placeholder="포지션 (선택)" />
-            <button type="submit" class="btn btn-primary">추가</button>
-          </form>
-        </div>
-      </section>
-    `;
-
-    document.getElementById("add-player-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const nameInput = document.getElementById("new-player-name");
-      const positionInput = document.getElementById("new-player-position");
-      const name = nameInput.value.trim();
-      if (!name) return;
-      addCustomRosterEntry({ name, position: positionInput.value.trim() });
-      render();
-    });
-
-    document.querySelectorAll(".roster-remove-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        removeCustomRosterEntry(btn.dataset.id);
-        render();
-      });
-    });
-  }
-
-  render();
+      ${
+        ROSTER.length
+          ? `<div class="roster-grid">${ROSTER.map((p) => rosterCardHTML(p)).join("")}</div>`
+          : `<p class="hint">아직 등록된 선수 정보가 없어요.</p>`
+      }
+    </section>
+  `;
 }
 
 function renderTeamShuffle() {
@@ -746,7 +708,7 @@ function renderDetail(id) {
   applySimNames();
 
   function simPanelHTML() {
-    const allNames = [...ROSTER, ...getCustomRoster()].map((p) => p.name);
+    const allNames = ROSTER.map((p) => p.name);
     return `
       <div class="tactic-sim-panel">
         <p class="hint editor-local-notice">✎ 아래에서 로스터 인원을 번호에 넣어 시뮬레이션해볼 수 있어요. <strong>이 화면에 있는 동안만</strong> 적용되고, 페이지를 나가면 자동으로 초기화돼요.</p>
@@ -1059,6 +1021,36 @@ function updateNavActive() {
   });
 }
 
+// 테마별 브라우저 상단바 색 (모바일에서 주소창까지 같이 물든다)
+const THEME_BAR_COLOR = { dark: "#14102b", light: "#fff3dd" };
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", THEME_BAR_COLOR[theme]);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) {
+    // 버튼에는 '지금 누르면 갈 곳'을 보여준다.
+    btn.textContent = theme === "light" ? "🌙" : "☀️";
+    btn.setAttribute("aria-label", theme === "light" ? "어두운 화면으로 전환" : "밝은 화면으로 전환");
+  }
+}
+
+function initTheme() {
+  applyTheme(currentTheme());
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const next = currentTheme() === "light" ? "dark" : "light";
+    saveTheme(next);
+    applyTheme(next);
+  });
+}
+
 let previousHash = null;
 
 function router() {
@@ -1088,5 +1080,6 @@ function router() {
   }
 }
 
+initTheme();
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", router);

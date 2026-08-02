@@ -1,14 +1,84 @@
-:root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-2: #273449;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --accent: #f97316;
+/* 테마는 두 벌뿐이다: 기본(다크) = '퍼플 나이트', [data-theme="light"] = '크림 코트'.
+   두 테마 모두 아래 변수만 갈아끼우면 되도록, 색은 전부 여기서만 정의한다.
+   실제 적용은 index.html의 인라인 스크립트가 <html data-theme>를 먼저 세팅해서 깜빡임을 막는다. */
+:root,
+:root[data-theme="dark"] {
+  --bg: #14102b;
+  --surface: #1e1840;
+  --surface-2: #2a2255;
+  --text: #ece9f7;
+  --text-muted: #a49dc6;
+
+  --accent: #7c5cff;
+  --accent-soft: rgba(124, 92, 255, 0.12);
+  --accent-line: rgba(124, 92, 255, 0.35);
+  --accent-strong: rgba(124, 92, 255, 0.2);
+  --accent-ink: #ffffff;
+
   --offense: #3b82f6;
   --defense: #ef4444;
   --holiday: #fb7185;
+
+  /* 코트 */
   --court-line: #e7ecf4;
+  --court-grad-1: #241c52;
+  --court-grad-2: #14102b;
+  --court-paint: rgba(231, 236, 244, 0.05);
+  --rim: #7c5cff;
+  --rim-glow: rgba(124, 92, 255, 0.55);
+  --player-stroke: #14102b;
+  --name-fill: #f8fafc;
+  --name-stroke: #14102b;
+
+  /* 뱃지 */
+  --badge-off-bg: rgba(59, 130, 246, 0.18);
+  --badge-off-fg: #93c5fd;
+  --badge-def-bg: rgba(239, 68, 68, 0.18);
+  --badge-def-fg: #fca5a5;
+  --badge-set-bg: rgba(168, 85, 247, 0.18);
+  --badge-set-fg: #d8b4fe;
+
+  --overlay: rgba(0, 0, 0, 0.6);
+  --on-bright: #17112e;
+}
+
+:root[data-theme="light"] {
+  --bg: #fff3dd;
+  --surface: #ffffff;
+  --surface-2: #f1e4c9;
+  --text: #2a1458;
+  --text-muted: #6b5d86;
+
+  --accent: #d80204;
+  --accent-soft: rgba(216, 2, 4, 0.08);
+  --accent-line: rgba(216, 2, 4, 0.3);
+  --accent-strong: rgba(216, 2, 4, 0.16);
+  --accent-ink: #ffffff;
+
+  --offense: #2563eb;
+  --defense: #d1332f;
+  --holiday: #e11d48;
+
+  /* 밝은 코트 — 라인은 딥퍼플로 그린다 */
+  --court-line: #6a58a3;
+  --court-grad-1: #ffffff;
+  --court-grad-2: #f0e3c7;
+  --court-paint: rgba(52, 24, 109, 0.07);
+  --rim: #e8730a;
+  --rim-glow: rgba(232, 115, 10, 0.4);
+  --player-stroke: #ffffff;
+  --name-fill: #2a1458;
+  --name-stroke: #ffffff;
+
+  --badge-off-bg: rgba(37, 99, 235, 0.13);
+  --badge-off-fg: #1d4ed8;
+  --badge-def-bg: rgba(209, 51, 47, 0.13);
+  --badge-def-fg: #ad231f;
+  --badge-set-bg: rgba(109, 40, 217, 0.12);
+  --badge-set-fg: #6d28d9;
+
+  --overlay: rgba(42, 20, 88, 0.45);
+  --on-bright: #17112e;
 }
 
 * {
@@ -65,6 +135,26 @@ body {
   color: var(--text-muted);
 }
 
+.theme-toggle {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--surface-2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+
 .utility-bar {
   display: flex;
   flex-wrap: nowrap;
@@ -98,13 +188,13 @@ body {
 
 .utility-bar a.is-active {
   color: var(--accent);
-  border-color: rgba(249, 115, 22, 0.35);
-  background: rgba(249, 115, 22, 0.1);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
   font-weight: 600;
 }
 
 .utility-bar a.is-active:hover {
-  background: rgba(249, 115, 22, 0.18);
+  background: var(--accent-strong);
 }
 
 @media (max-width: 640px) {
@@ -189,18 +279,18 @@ body {
 }
 
 .badge-offense {
-  background: rgba(59, 130, 246, 0.18);
-  color: #93c5fd;
+  background: var(--badge-off-bg);
+  color: var(--badge-off-fg);
 }
 
 .badge-defense {
-  background: rgba(239, 68, 68, 0.18);
-  color: #fca5a5;
+  background: var(--badge-def-bg);
+  color: var(--badge-def-fg);
 }
 
 .badge-set {
-  background: rgba(168, 85, 247, 0.18);
-  color: #d8b4fe;
+  background: var(--badge-set-bg);
+  color: var(--badge-set-fg);
 }
 
 .back-link {
@@ -238,8 +328,18 @@ body {
   stroke-width: 1.5;
 }
 
+/* 코트 배경 그라디언트는 SVG defs 안에 있지만 stop-color를 CSS로 주면
+   테마를 바꿀 때 코트를 다시 그리지 않아도 색이 따라온다. */
+.court-grad-a {
+  stop-color: var(--court-grad-1);
+}
+
+.court-grad-b {
+  stop-color: var(--court-grad-2);
+}
+
 .paint-fill {
-  fill: rgba(231, 236, 244, 0.05);
+  fill: var(--court-paint);
 }
 
 .court-line {
@@ -252,9 +352,9 @@ body {
 
 .rim {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--rim);
   stroke-width: 3;
-  filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.6));
+  filter: drop-shadow(0 0 3px var(--rim-glow));
 }
 
 .arrow-path {
@@ -265,7 +365,7 @@ body {
 }
 
 .player-dot {
-  stroke: #0f172a;
+  stroke: var(--player-stroke);
   stroke-width: 2;
 }
 
@@ -285,11 +385,11 @@ body {
 }
 
 .player-name-label {
-  fill: #f8fafc;
+  fill: var(--name-fill);
   font-size: 11px;
   font-weight: 700;
   paint-order: stroke;
-  stroke: #0f172a;
+  stroke: var(--name-stroke);
   stroke-width: 3px;
   pointer-events: none;
 }
@@ -337,7 +437,7 @@ body {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1a1a1a;
+  color: var(--accent-ink);
   font-weight: 700;
 }
 
@@ -612,7 +712,7 @@ body {
 }
 
 .editor-handle {
-  stroke: #0f172a;
+  stroke: var(--player-stroke);
   stroke-width: 2;
   cursor: grab;
 }
@@ -729,7 +829,7 @@ body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -994,7 +1094,7 @@ body {
 
 .ts-roster-chip.is-checked {
   border-color: var(--accent);
-  background: rgba(249, 115, 22, 0.1);
+  background: var(--accent-soft);
 }
 
 .ts-roster-chip input {
@@ -1047,7 +1147,7 @@ body {
 .ts-team-btn.is-active {
   background: var(--team-color);
   border-color: var(--team-color);
-  color: #0f172a;
+  color: var(--on-bright);
 }
 
 .ts-preview-grid {
@@ -1113,8 +1213,8 @@ body {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--accent);
-  background: rgba(249, 115, 22, 0.12);
-  border: 1px solid rgba(249, 115, 22, 0.3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   border-radius: 999px;
   padding: 2px 10px;
   margin-left: 8px;
@@ -1122,8 +1222,8 @@ body {
 }
 
 .editor-local-notice {
-  background: rgba(249, 115, 22, 0.1);
-  border: 1px solid rgba(249, 115, 22, 0.3);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;
