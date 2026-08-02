@@ -378,6 +378,54 @@ body {
   opacity: 0.85;
 }
 
+/* 드리블(공을 가진 채 이동)은 점선 대신 물결 실선 */
+.arrow-path.is-dribble {
+  stroke-dasharray: none;
+}
+
+/* 스크린: 진행 방향을 막는 벽 */
+.screen-bar {
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: opacity 0.15s ease;
+}
+
+/* 핸드오프: 손으로 건네주는 짧은 이중 곡선 */
+.handoff-mark path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* 코트 아래 기호 설명. 이 전술에 실제로 나온 기호만 표시한다. */
+.court-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.court-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.court-legend-item svg {
+  width: 34px;
+  height: 14px;
+  overflow: visible;
+}
+.court-legend-item svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
 .player-dot {
   stroke: var(--player-stroke);
   stroke-width: 2;
@@ -801,6 +849,38 @@ body {
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 0.85rem;
+}
+
+/* 좌표 줄에 끼워 넣으면 숫자칸이 너무 좁아져서, 스크린 지정은 카드 아래 한 줄로 뺐다. */
+.editor-screen-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--surface-2);
+}
+
+.editor-screen-row label {
+  font-size: 0.78rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.editor-screen-row select {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.8rem;
+}
+
+.editor-screen-row select.is-set {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .editor-ball {

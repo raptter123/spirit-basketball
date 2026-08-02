@@ -1,4 +1,4 @@
-import { TEAM_COLOR, courtMarkingsSVG, svgEl } from "./court.js";
+import { TEAM_COLOR, courtMarkingsSVG, screenBarEndpoints, svgEl } from "./court.js";
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -73,9 +73,30 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
     svg.appendChild(courtGroup);
 
     const pathGroup = svgEl("g");
+    const screenGroup = svgEl("g");
     const handleGroup = svgEl("g");
     svg.appendChild(pathGroup);
+    svg.appendChild(screenGroup);
     svg.appendChild(handleGroup);
+
+    // 스크린 지점을 고르는 순간 코트에 막대가 바로 보이도록, 재생 화면과 같은 계산식으로 그린다.
+    function drawScreenBars() {
+      screenGroup.innerHTML = "";
+      tactic.players.forEach((p) => {
+        const bar = screenBarEndpoints(tactic.players, p);
+        if (!bar) return;
+        screenGroup.appendChild(
+          svgEl("line", {
+            x1: bar.x1,
+            y1: bar.y1,
+            x2: bar.x2,
+            y2: bar.y2,
+            class: "screen-bar",
+            stroke: TEAM_COLOR[p.team],
+          })
+        );
+      });
+    }
 
     tactic.players.forEach((p, playerIdx) => {
       if (p.path.length > 1) {
@@ -116,6 +137,8 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
       });
     });
 
+    drawScreenBars();
+
     handleGroup.querySelectorAll(".editor-handle").forEach((handle) => {
       handle.addEventListener("pointerdown", (e) => {
         handle.setPointerCapture(e.pointerId);
@@ -144,6 +167,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
       }
       const pathEl = pathGroup.querySelector(`[data-player-path="${dragging.playerIdx}"]`);
       if (pathEl) pathEl.setAttribute("d", pathD(tactic.players[dragging.playerIdx].path));
+      drawScreenBars();
       const row = container.querySelector(
         `.editor-point-row[data-player="${dragging.playerIdx}"][data-index="${dragging.index}"]`
       );
@@ -200,6 +224,16 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
               ? `<button type="button" class="btn btn-sm" data-action="remove-player" data-player="${playerIdx}">🗑 이 상대 선수 삭제</button>`
               : ""
           }
+          <div class="editor-screen-row">
+            <label for="screen-${playerIdx}">🧱 스크린 세우는 지점</label>
+            <select id="screen-${playerIdx}" class="${p.screenAt != null ? "is-set" : ""}"
+              data-action="screen-at" data-player="${playerIdx}">
+              <option value="">없음</option>
+              ${p.path
+                .map((_, i) => `<option value="${i}" ${p.screenAt === i ? "selected" : ""}>#${i + 1}</option>`)
+                .join("")}
+            </select>
+          </div>
         </div>
       `
         )
@@ -227,8 +261,14 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         const row = e.target.closest(".editor-point-row");
         const playerIdx = Number(row.dataset.player);
         const index = Number(row.dataset.index);
-        if (tactic.players[playerIdx].path.length <= 1) return;
-        tactic.players[playerIdx].path.splice(index, 1);
+        const p = tactic.players[playerIdx];
+        if (p.path.length <= 1) return;
+        p.path.splice(index, 1);
+        // 점을 지우면 뒤쪽 번호가 하나씩 당겨지므로 스크린 지점도 같이 맞춰준다.
+        if (p.screenAt != null) {
+          if (p.screenAt === index) delete p.screenAt;
+          else if (p.screenAt > index) p.screenAt -= 1;
+        }
         render();
         commit();
       });
@@ -240,6 +280,19 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         const path = tactic.players[playerIdx].path;
         const last = path[path.length - 1];
         path.push([clamp(last[0] + 15, 10, 490), clamp(last[1] + 15, 10, 460)]);
+        render();
+        commit();
+      });
+    });
+
+    playersPanel.querySelectorAll('[data-action="screen-at"]').forEach((sel) => {
+      sel.addEventListener("change", (e) => {
+        const p = tactic.players[Number(e.target.dataset.player)];
+        if (e.target.value === "") {
+          delete p.screenAt;
+        } else {
+          p.screenAt = Number(e.target.value);
+        }
         render();
         commit();
       });
