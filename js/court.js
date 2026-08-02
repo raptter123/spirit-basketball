@@ -50,6 +50,103 @@ function easeInOutQuad(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
+function pathD(points) {
+  return points.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt[0]} ${pt[1]}`).join(" ");
+}
+
+// 경로에서 거리 d0~d1 구간만 잘라낸 폴리라인.
+function slicePath(points, d0, d1) {
+  const out = [pointAt(points, d0)];
+  let acc = 0;
+  for (let i = 1; i < points.length; i++) {
+    acc += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+    if (acc > d0 && acc < d1) out.push(points[i]);
+  }
+  out.push(pointAt(points, d1));
+  return out;
+}
+
+// 드리블 구간은 물결선으로 그린다. 끝부분(tail)은 화살촉 방향이 흔들리지 않게 직선으로 남긴다.
+function wavyD(points, amp = 6, wavelength = 22, tail = 14) {
+  const total = pathLength(points);
+  if (total < 6) return pathD(points);
+  const out = [];
+  for (let d = 0; d <= total; d += 3) {
+    const p = pointAt(points, d);
+    const q = pointAt(points, Math.min(d + 1, total));
+    const dx = q[0] - p[0];
+    const dy = q[1] - p[1];
+    const m = Math.hypot(dx, dy) || 1;
+    const k = d > total - tail ? 0 : amp * Math.sin((d / wavelength) * Math.PI * 2);
+    out.push([p[0] + (-dy / m) * k, p[1] + (dx / m) * k]);
+  }
+  return pathD(out);
+}
+
+function tangentOnPath(points, dist) {
+  const total = pathLength(points);
+  const a = pointAt(points, Math.max(dist - 4, 0));
+  const b = pointAt(points, Math.min(dist + 4, total));
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const m = Math.hypot(dx, dy);
+  return m < 0.01 ? null : [dx / m, dy / m];
+}
+
+// tactic.ball 을 [{from, to, holder}] 소유 구간으로 바꾼다 (진행률 0~1).
+function possessionIntervals(ballSeq) {
+  if (!ballSeq || !ballSeq.length) return [];
+  return ballSeq.map((seg, i) => ({
+    from: i === 0 ? 0 : seg.at,
+    to: i + 1 < ballSeq.length ? ballSeq[i + 1].at : 1,
+    holder: seg.holder,
+  }));
+}
+
+// 공이 넘어가는 순간 두 선수가 이 거리보다 가까우면 패스가 아니라 핸드오프로 본다.
+const HANDOFF_DIST = 58;
+
+// 제자리에서 흔들리는 정도의 경로는 "달려오는 선수"로 보지 않는다.
+// (엘리베이터 스크린처럼 스크리너끼리 붙어 있을 때 서로를 컷터로 오인하는 걸 막는다.)
+const MIN_CUTTER_TRAVEL = 30;
+
+// 스크린 막대의 양 끝점. 각도는 '스크린을 타고 지나갈 선수'(그 시점에 가장 가까우면서
+// 실제로 움직이는 같은 팀 선수)의 진행 방향에 수직으로 자동 계산한다 — 막는 벽처럼 보이게.
+// 재생 화면과 편집기가 같은 그림을 그리도록 여기 한 곳에서만 계산한다.
+// half 은 막대 반길이. 선수 원(r=14)보다 확실히 길어야 "벽"으로 읽힌다.
+export function screenBarEndpoints(allPlayers, p, half = 26) {
+  if (p.screenAt == null) return null;
+  const pt = p.path[p.screenAt];
+  if (!pt) return null;
+  const total = pathLength(p.path);
+  const reachEased = total > 0 ? pathLength(p.path.slice(0, p.screenAt + 1)) / total : 0;
+
+  let dir = null;
+  let best = Infinity;
+  allPlayers.forEach((other) => {
+    if (other === p || other.team !== p.team) return;
+    const otherTotal = pathLength(other.path);
+    if (otherTotal < MIN_CUTTER_TRAVEL) return;
+    const op = pointAt(other.path, reachEased * otherTotal);
+    const dist = Math.hypot(op[0] - pt[0], op[1] - pt[1]);
+    if (dist >= best) return;
+    const t = tangentOnPath(other.path, reachEased * otherTotal);
+    if (t) {
+      best = dist;
+      dir = t;
+    }
+  });
+  if (!dir) dir = tangentOnPath(p.path, reachEased * total) || [1, 0];
+
+  return {
+    x1: pt[0] + dir[1] * half,
+    y1: pt[1] - dir[0] * half,
+    x2: pt[0] - dir[1] * half,
+    y2: pt[1] + dir[0] * half,
+    reachEased,
+  };
+}
+
 export function svgEl(tag, attrs = {}) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -121,17 +218,37 @@ export function mountCourt(container, tactic, duration = 4800) {
   const arrowGroup = svgEl("g", { class: "arrow-layer" });
   const playerGroup = svgEl("g", { class: "player-layer" });
 
+  const possessions = possessionIntervals(tactic.ball);
+
   const players = tactic.players.map((p) => {
-    const hasMovement = p.path.length > 1 && pathLength(p.path) > 0;
+    const total = pathLength(p.path);
+    const hasMovement = p.path.length > 1 && total > 0;
     if (hasMovement) {
-      const d = p.path.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt[0]} ${pt[1]}`).join(" ");
-      const arrow = svgEl("path", {
-        d,
-        class: "arrow-path",
-        stroke: TEAM_COLOR[p.team],
-        "marker-end": `url(#arrow-${p.team})`,
-      });
-      arrowGroup.appendChild(arrow);
+      // 공을 가진 채로 움직이는 구간 = 드리블. 별도 표시 없이 공 소유 데이터에서 뽑아낸다.
+      const dribble = possessions
+        .filter((iv) => iv.holder === p.number)
+        .map((iv) => [easeInOutQuad(iv.from) * total, easeInOutQuad(iv.to) * total])
+        .filter(([a, b]) => b - a > 1);
+
+      const cuts = [0, total];
+      dribble.forEach(([a, b]) => cuts.push(a, b));
+      const marks = [...new Set(cuts.map((v) => Math.max(0, Math.min(total, v))))].sort((x, y) => x - y);
+
+      for (let i = 1; i < marks.length; i++) {
+        const a = marks[i - 1];
+        const b = marks[i];
+        if (b - a < 0.5) continue;
+        const mid = (a + b) / 2;
+        const isDribble = dribble.some(([x, y]) => mid >= x && mid <= y);
+        const seg = slicePath(p.path, a, b);
+        const attrs = {
+          d: isDribble ? wavyD(seg) : pathD(seg),
+          class: isDribble ? "arrow-path is-dribble" : "arrow-path",
+          stroke: TEAM_COLOR[p.team],
+        };
+        if (i === marks.length - 1) attrs["marker-end"] = `url(#arrow-${p.team})`;
+        arrowGroup.appendChild(svgEl("path", attrs));
+      }
     }
 
     const g = svgEl("g", { class: "player", transform: `translate(${p.path[0][0]},${p.path[0][1]})` });
@@ -155,6 +272,59 @@ export function mountCourt(container, tactic, duration = 4800) {
     playersByNumber[player.number] = { path: player.path, length: player.length };
   }
 
+  // 특정 진행률(eased)에서의 선수 위치
+  const posAtEased = (number, eased) => {
+    const d = playersByNumber[number];
+    return d ? pointAt(d.path, eased * d.length) : null;
+  };
+
+  // --- 스크린 막대 ---
+  // 좌표만으로는 "여기서 벽을 세운다"를 알 수 없어서 screenAt 으로 직접 지정받는다.
+  // 막대의 위치·각도 계산은 screenBarEndpoints 한 곳에만 둔다(편집기와 공유).
+  const screenGroup = svgEl("g", { class: "screen-layer" });
+  const screenBars = [];
+  tactic.players.forEach((p) => {
+    const bar = screenBarEndpoints(tactic.players, p);
+    if (!bar) return;
+    const line = svgEl("line", {
+      x1: bar.x1,
+      y1: bar.y1,
+      x2: bar.x2,
+      y2: bar.y2,
+      class: "screen-bar",
+      stroke: TEAM_COLOR[p.team],
+      opacity: 0,
+    });
+    screenGroup.appendChild(line);
+    screenBars.push({ el: line, reachEased: bar.reachEased });
+  });
+
+  // --- 핸드오프 ---
+  // 공이 넘어가는 순간 두 선수가 붙어 있으면 패스가 아니라 손으로 건네준 것으로 본다.
+  const handoffGroup = svgEl("g", { class: "handoff-layer" });
+  const handoffs = [];
+  if (tactic.ball && tactic.ball.length > 1) {
+    for (let i = 1; i < tactic.ball.length; i++) {
+      const prev = tactic.ball[i - 1];
+      const cur = tactic.ball[i];
+      if (prev.holder === cur.holder) continue;
+      const eased = easeInOutQuad(cur.at);
+      const a = posAtEased(prev.holder, eased);
+      const b = posAtEased(cur.holder, eased);
+      if (!a || !b) continue;
+      const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (dist > HANDOFF_DIST) continue;
+      const mx = (a[0] + b[0]) / 2;
+      const my = (a[1] + b[1]) / 2;
+      const angle = (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI;
+      const g = svgEl("g", { class: "handoff-mark", transform: `translate(${mx},${my}) rotate(${angle})`, opacity: 0 });
+      g.appendChild(svgEl("path", { d: "M -11 -4 Q 0 -12 11 -4" }));
+      g.appendChild(svgEl("path", { d: "M -11 4 Q 0 12 11 4" }));
+      handoffGroup.appendChild(g);
+      handoffs.push({ el: g, at: cur.at });
+    }
+  }
+
   let ballEl = null;
   if (tactic.ball && tactic.ball.length) {
     ballEl = svgEl("g", { class: "ball" });
@@ -167,9 +337,34 @@ export function mountCourt(container, tactic, duration = 4800) {
   }
 
   svg.appendChild(arrowGroup);
+  svg.appendChild(screenGroup);
   svg.appendChild(playerGroup);
+  svg.appendChild(handoffGroup);
   if (ballEl) svg.appendChild(ballEl);
   container.appendChild(svg);
+
+  // 새 기호(물결선/막대/이중 호)는 처음 보면 뜻을 모르니, 이 전술에 실제로 쓰인 것만 밑에 짧게 적어준다.
+  const legendItems = [];
+  if (arrowGroup.querySelector(".is-dribble")) {
+    legendItems.push([`<path d="${wavyD([[3, 9], [37, 4]], 3, 11, 6)}" />`, "드리블"]);
+  }
+  if (screenBars.length) {
+    legendItems.push([`<path d="M 4 9 L 26 5" stroke-dasharray="5 4" /><path d="M 30 1 L 34 15" stroke-width="4" />`, "스크린"]);
+  }
+  if (handoffs.length) {
+    legendItems.push([`<path d="M 8 5 Q 20 -1 32 5" /><path d="M 8 11 Q 20 17 32 11" />`, "핸드오프"]);
+  }
+  if (legendItems.length) {
+    const legend = document.createElement("div");
+    legend.className = "court-legend";
+    legend.innerHTML = legendItems
+      .map(
+        ([shape, label]) =>
+          `<span class="court-legend-item"><svg viewBox="0 0 40 16" aria-hidden="true">${shape}</svg>${label}</span>`
+      )
+      .join("");
+    container.appendChild(legend);
+  }
 
   let rafId = null;
   let elapsed = 0;
@@ -185,6 +380,15 @@ export function mountCourt(container, tactic, duration = 4800) {
     if (ballEl && tactic.ball) {
       const [bx, by] = ballPositionAt(tactic.ball, playersByNumber, progress);
       ballEl.setAttribute("transform", `translate(${bx + BALL_OFFSET[0]},${by + BALL_OFFSET[1]})`);
+    }
+    // 스크린 막대는 스크리너가 그 지점에 닿는 순간 나타나서 계속 남는다.
+    for (const bar of screenBars) {
+      bar.el.setAttribute("opacity", eased >= bar.reachEased - 0.01 ? 1 : 0);
+    }
+    // 핸드오프 기호는 주고받는 순간에만 잠깐 보인다.
+    for (const h of handoffs) {
+      const visible = progress >= h.at - PASS_WINDOW && progress <= h.at + 0.06;
+      h.el.setAttribute("opacity", visible ? 1 : 0);
     }
   }
 
