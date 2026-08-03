@@ -9,11 +9,25 @@ function pathD(path) {
 }
 
 // 공은 항상 오펜스 역할(team: "offense")인 선수만 들 수 있다 — 우리 팀이든 상대 공격수든 마찬가지.
+function ballHolders(players) {
+  return players.filter((p) => p.team === "offense");
+}
+
+// 상대 공격수는 등번호가 아니라 "O1" 같은 표기라서 "번"을 붙이면 어색하다.
+function holderLabel(p) {
+  return p.opponent ? p.number : `${p.number}번`;
+}
+
 function playerOptionsHTML(players, selected) {
-  return players
-    .filter((p) => p.team === "offense")
-    .map((p) => `<option value="${p.number}" ${p.number === selected ? "selected" : ""}>${p.number}번</option>`)
+  return ballHolders(players)
+    .map((p) => `<option value="${p.number}" ${p.number === selected ? "selected" : ""}>${holderLabel(p)}</option>`)
     .join("");
+}
+
+// select 의 value 는 항상 문자열이라, 우리 팀 등번호(숫자)는 숫자로 되돌리고
+// 상대 공격수 표기("O2")는 문자열 그대로 둔다. 무조건 Number() 하면 "O2" 가 NaN 이 된다.
+function parseHolder(value) {
+  return /^\d+$/.test(value) ? Number(value) : value;
 }
 
 // 상대 선수는 우리 로스터 선수가 아니므로 등번호 대신 표기 문자를 쓴다: 수비수는 X1, X2..., 공격수(볼 핸들러)는 O1, O2...
@@ -354,7 +368,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
       ballPanel.querySelectorAll(".ball-holder").forEach((sel) => {
         sel.addEventListener("change", (e) => {
           const i = Number(e.target.closest(".editor-ball-row").dataset.index);
-          tactic.ball[i].holder = Number(e.target.value);
+          tactic.ball[i].holder = parseHolder(e.target.value);
           commit();
         });
       });
@@ -379,7 +393,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         });
       });
       ballPanel.querySelector('[data-action="add-keyframe"]').addEventListener("click", () => {
-        tactic.ball.push({ holder: tactic.players[0].number, at: 0.5 });
+        tactic.ball.push({ holder: (ballHolders(tactic.players)[0] || tactic.players[0]).number, at: 0.5 });
         tactic.ball.sort((a, b) => a.at - b.at);
         render();
         commit();
@@ -391,7 +405,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         <button type="button" class="btn btn-sm" data-action="init-ball">+ 공 표시 추가</button>
       `;
       ballPanel.querySelector('[data-action="init-ball"]').addEventListener("click", () => {
-        tactic.ball = [{ holder: tactic.players[0].number, at: 0 }];
+        tactic.ball = [{ holder: (ballHolders(tactic.players)[0] || tactic.players[0]).number, at: 0 }];
         render();
         commit();
       });
