@@ -8,19 +8,36 @@ function pathD(path) {
   return path.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt[0]} ${pt[1]}`).join(" ");
 }
 
-// 공은 항상 오펜스 역할(team: "offense")인 선수만 들 수 있다 — 우리 팀이든 상대 공격수든 마찬가지.
-function ballHolders(players) {
-  return players.filter((p) => p.team === "offense");
+// 공은 코트 위 누구든 들 수 있다.
+// 예전엔 team:"offense" 인 선수만 후보로 뒀는데, 수비 전술을 그리면서 상대를 "상대 수비수"로
+// 넣으면 코트에 offense 가 한 명도 없어져서 후보 목록이 통째로 비어버렸다(선택창이 텅 빔).
+// 그래서 막지 않고 전부 보여주되, '우리 팀 / 상대'로 묶어서 헷갈리지 않게 한다.
+function holderGroups(players) {
+  return [
+    ["우리 팀", players.filter((p) => !p.opponent)],
+    ["상대", players.filter((p) => p.opponent)],
+  ].filter(([, list]) => list.length);
 }
 
-// 상대 공격수는 등번호가 아니라 "O1" 같은 표기라서 "번"을 붙이면 어색하다.
+// 상대 선수는 등번호가 아니라 "O1" 같은 표기라서 "번"을 붙이면 어색하다.
 function holderLabel(p) {
   return p.opponent ? p.number : `${p.number}번`;
 }
 
+// 공을 가질 법한 선수. 공격 역할이 있으면 그쪽, 수비 전술이면 공격하는 건 상대다.
+function defaultHolder(players) {
+  const attacker = players.find((p) => p.team === "offense");
+  return (attacker || players.find((p) => p.opponent) || players[0]).number;
+}
+
 function playerOptionsHTML(players, selected) {
-  return ballHolders(players)
-    .map((p) => `<option value="${p.number}" ${p.number === selected ? "selected" : ""}>${holderLabel(p)}</option>`)
+  return holderGroups(players)
+    .map(
+      ([label, list]) =>
+        `<optgroup label="${label}">${list
+          .map((p) => `<option value="${p.number}" ${p.number === selected ? "selected" : ""}>${holderLabel(p)}</option>`)
+          .join("")}</optgroup>`
+    )
     .join("");
 }
 
@@ -409,7 +426,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         });
       });
       ballPanel.querySelector('[data-action="add-keyframe"]').addEventListener("click", () => {
-        tactic.ball.push({ holder: (ballHolders(tactic.players)[0] || tactic.players[0]).number, at: 0.5 });
+        tactic.ball.push({ holder: defaultHolder(tactic.players), at: 0.5 });
         tactic.ball.sort((a, b) => a.at - b.at);
         render();
         commit();
@@ -421,7 +438,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         <button type="button" class="btn btn-sm" data-action="init-ball">+ 공 표시 추가</button>
       `;
       ballPanel.querySelector('[data-action="init-ball"]').addEventListener("click", () => {
-        tactic.ball = [{ holder: (ballHolders(tactic.players)[0] || tactic.players[0]).number, at: 0 }];
+        tactic.ball = [{ holder: defaultHolder(tactic.players), at: 0 }];
         render();
         commit();
       });
