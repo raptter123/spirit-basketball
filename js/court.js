@@ -138,7 +138,9 @@ export function screenBarEndpoints(allPlayers, p, half = 26) {
   let dir = null;
   let best = Infinity;
   allPlayers.forEach((other) => {
-    if (other === p || other.team !== p.team) return;
+    // 스크린은 '같은 편'을 위해 서는 것이다. team(공격/수비 역할)만 보면 안 되는데,
+    // 수비 전술에서는 우리 선수도 상대 선수도 team:"defense" 라 서로 같은 편으로 잡히기 때문이다.
+    if (other === p || other.team !== p.team || !!other.opponent !== !!p.opponent) return;
     const otherTotal = pathLength(other.path);
     if (otherTotal < MIN_CUTTER_TRAVEL) return;
     const op = pointAt(other.path, reachEased * otherTotal);
