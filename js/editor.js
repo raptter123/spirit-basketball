@@ -1,4 +1,4 @@
-import { TEAM_COLOR, courtMarkingsSVG, screenBarEndpoints, svgEl } from "./court.js";
+import { courtMarkingsSVG, playerColor, screenBarEndpoints, svgEl } from "./court.js";
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -28,6 +28,20 @@ function playerOptionsHTML(players, selected) {
 // 상대 공격수 표기("O2")는 문자열 그대로 둔다. 무조건 Number() 하면 "O2" 가 NaN 이 된다.
 function parseHolder(value) {
   return /^\d+$/.test(value) ? Number(value) : value;
+}
+
+// 새로 추가한 선수가 기존 선수 위에 그대로 겹쳐 생기면 뒤에 깔려 보이지 않는다.
+// 아무도 없는 자리를 골라 놓는다 (선수 원 지름이 28이라 34 이상 떨어지면 안 겹친다).
+const SPAWN_SPOTS = [
+  [250, 300], [250, 350], [250, 210], [330, 300], [170, 300],
+  [340, 390], [160, 390], [410, 210], [90, 210], [250, 120],
+];
+
+function freeSpawn(players) {
+  const taken = players.map((p) => p.path[0]);
+  const spot =
+    SPAWN_SPOTS.find((s) => taken.every(([x, y]) => Math.hypot(x - s[0], y - s[1]) > 34)) || SPAWN_SPOTS[0];
+  return [spot[0], spot[1]];
 }
 
 // 상대 선수는 우리 로스터 선수가 아니므로 등번호 대신 표기 문자를 쓴다: 수비수는 X1, X2..., 공격수(볼 핸들러)는 O1, O2...
@@ -106,7 +120,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
             x2: bar.x2,
             y2: bar.y2,
             class: "screen-bar",
-            stroke: TEAM_COLOR[p.team],
+            stroke: playerColor(p),
           })
         );
       });
@@ -118,13 +132,13 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
           svgEl("path", {
             d: pathD(p.path),
             class: "editor-path",
-            stroke: TEAM_COLOR[p.team],
+            stroke: playerColor(p),
             "data-player-path": playerIdx,
           })
         );
       }
-      // 재생 화면과 똑같이, 상대 선수는 속이 빈 동그라미로 그린다.
-      const opp = p.opponent ? ` player-${p.team} is-opponent` : "";
+      // 재생 화면과 똑같이, 상대 선수는 회색 + 속이 빈 동그라미로 그린다.
+      const opp = p.opponent ? " is-opponent" : "";
       p.path.forEach((pt, i) => {
         handleGroup.appendChild(
           svgEl("circle", {
@@ -132,7 +146,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
             cy: pt[1],
             r: 10,
             class: `editor-handle${opp}`,
-            fill: TEAM_COLOR[p.team],
+            fill: playerColor(p),
             "data-player": playerIdx,
             "data-index": i,
           })
@@ -209,9 +223,9 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
           (p, playerIdx) => `
         <div class="editor-player-card">
           <div class="editor-player-title">
-            <span class="badge ${p.team === "defense" ? "badge-defense" : "badge-offense"}">${
-              p.opponent ? p.number : `${p.number}번`
-            }</span>
+            <span class="badge ${
+              p.opponent ? "badge-opponent" : p.team === "defense" ? "badge-defense" : "badge-offense"
+            }">${p.opponent ? p.number : `${p.number}번`}</span>
             ${
               p.opponent
                 ? `<span class="editor-opponent-tag">${p.team === "defense" ? "상대 수비" : "상대 공격수"}</span>`
@@ -328,7 +342,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         number: nextOpponentLabel(tactic.players, "X"),
         team: "defense",
         opponent: true,
-        path: [[250, 350]],
+        path: [freeSpawn(tactic.players)],
       });
       render();
       commit();
@@ -339,7 +353,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
         number: nextOpponentLabel(tactic.players, "O"),
         team: "offense",
         opponent: true,
-        path: [[250, 300]],
+        path: [freeSpawn(tactic.players)],
       });
       if (!tactic.ball || !tactic.ball.length) {
         tactic.ball = [{ holder: tactic.players[tactic.players.length - 1].number, at: 0 }];

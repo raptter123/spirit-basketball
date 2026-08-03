@@ -17,6 +17,8 @@
 
   --offense: #3b82f6;
   --defense: #ef4444;
+  --opponent: #8b8a8f;
+  --opponent-ink: #b9c2d4;
   --holiday: #fb7185;
 
   /* 코트 */
@@ -57,6 +59,8 @@
 
   --offense: #2563eb;
   --defense: #d1332f;
+  --opponent: #8b8a8f;
+  --opponent-ink: #47526a;
   --holiday: #e11d48;
 
   /* 밝은 코트 — 라인은 딥퍼플로 그린다 */
@@ -302,6 +306,12 @@ body {
   color: var(--badge-def-fg);
 }
 
+/* 편집 카드의 상대 선수 뱃지도 코트와 같은 회색으로 — 우리 팀만 팀 색을 쓴다. */
+.badge-opponent {
+  background: rgba(139, 138, 143, 0.2);
+  color: var(--opponent);
+}
+
 .badge-set {
   background: var(--badge-set-bg);
   color: var(--badge-set-fg);
@@ -427,9 +437,9 @@ body {
 }
 
 .court-legend-item svg .legend-opponent {
-  fill: currentColor;
-  fill-opacity: 0.16;
-  stroke: currentColor;
+  fill: var(--opponent);
+  fill-opacity: 0.18;
+  stroke: var(--opponent);
   stroke-width: 2.5;
 }
 
@@ -453,42 +463,25 @@ body {
   pointer-events: none;
 }
 
-/* 상대 팀 선수는 색이 아니라 '모양'으로 구분한다 — 속이 빈 굵은 테두리 동그라미.
-   수비 전술에서는 우리 팀도 상대도 team:"defense"라서 둘 다 빨간색이 되는데,
-   그때 색만으로는 누가 우리 편인지 알 수가 없기 때문이다. */
+/* 상대 팀은 색과 모양 둘 다로 구분한다 — 역할과 무관하게 회색이고, 속이 빈 동그라미다.
+   팀 색(공격 파랑/수비 빨강)은 오직 우리 팀만 쓴다. 색이 역할만 따라가던 때는
+   수비 전술에서 우리도 상대도 team:"defense"라 코트 위 열 명이 전부 빨간색이었다. */
 .player-dot.is-opponent,
 .editor-handle.is-opponent {
-  fill-opacity: 0.16;
+  fill: var(--opponent);
+  fill-opacity: 0.18;
+  stroke: var(--opponent);
   stroke-width: 3.5;
 }
 
-.player-dot.player-offense.is-opponent,
-.editor-handle.player-offense.is-opponent {
-  stroke: var(--offense);
-}
-
-.player-dot.player-defense.is-opponent,
-.editor-handle.player-defense.is-opponent {
-  stroke: var(--defense);
-}
-
-/* 속이 비었으니 번호를 흰색으로 두면 코트 바탕에 묻힌다. 팀 색으로 적되,
+/* 속이 비었으니 번호를 흰색으로 두면 코트 바탕에 묻힌다. 상대 색으로 적되,
    뒤에 코트 라인이 지나가도 읽히도록 바탕색 테두리를 둘러준다. */
 .player-number.is-opponent,
 .editor-handle-label.is-opponent {
+  fill: var(--opponent-ink);
   paint-order: stroke;
   stroke: var(--player-stroke);
   stroke-width: 2.5px;
-}
-
-.player-number.player-offense.is-opponent,
-.editor-handle-label.player-offense.is-opponent {
-  fill: var(--offense);
-}
-
-.player-number.player-defense.is-opponent,
-.editor-handle-label.player-defense.is-opponent {
-  fill: var(--defense);
 }
 
 .player-name-label {

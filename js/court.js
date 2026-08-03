@@ -3,6 +3,20 @@ export const TEAM_COLOR = {
   defense: "#ef4444",
 };
 
+// 상대 팀은 역할(공격/수비)과 상관없이 항상 이 회색. 우리 팀만 팀 색을 쓴다.
+// 파랑/빨강 어느 쪽과도 겹치지 않고, 다크·라이트 코트 양쪽에서 다 보이는 값이다.
+export const OPPONENT_COLOR = "#8b8a8f";
+
+// 그 선수를 그릴 색. 상대면 무조건 회색.
+export function playerColor(p) {
+  return p.opponent ? OPPONENT_COLOR : TEAM_COLOR[p.team];
+}
+
+// marker-end 로 쓸 화살촉 id 조각.
+export function arrowKind(p) {
+  return p.opponent ? "opponent" : p.team;
+}
+
 export function courtMarkingsSVG() {
   return `
     <rect class="court-boundary" x="10" y="10" width="480" height="450" rx="18" />
@@ -199,6 +213,9 @@ export function mountCourt(container, tactic, duration = 4800) {
     <marker id="arrow-defense" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="${TEAM_COLOR.defense}" />
     </marker>
+    <marker id="arrow-opponent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="${OPPONENT_COLOR}" />
+    </marker>
     <radialGradient id="courtGradient" cx="50%" cy="32%" r="78%">
       <stop class="court-grad-a" offset="0%" />
       <stop class="court-grad-b" offset="100%" />
@@ -244,15 +261,15 @@ export function mountCourt(container, tactic, duration = 4800) {
         const attrs = {
           d: isDribble ? wavyD(seg) : pathD(seg),
           class: isDribble ? "arrow-path is-dribble" : "arrow-path",
-          stroke: TEAM_COLOR[p.team],
+          stroke: playerColor(p),
         };
-        if (i === marks.length - 1) attrs["marker-end"] = `url(#arrow-${p.team})`;
+        if (i === marks.length - 1) attrs["marker-end"] = `url(#arrow-${arrowKind(p)})`;
         arrowGroup.appendChild(svgEl("path", attrs));
       }
     }
 
-    // 상대 선수는 속이 빈 동그라미로 그린다. 우리 팀과 상대가 같은 역할일 때
-    // (수비 전술에서 양쪽 다 defense) 색만으로는 구분이 안 되기 때문이다.
+    // 상대 선수는 회색 + 속이 빈 동그라미. 우리 팀만 팀 색으로 꽉 채운다.
+    // 색과 모양 두 가지로 구분해야 양쪽이 같은 역할일 때도 헷갈리지 않는다.
     const opp = p.opponent ? " is-opponent" : "";
     const g = svgEl("g", { class: "player", transform: `translate(${p.path[0][0]},${p.path[0][1]})` });
     const circle = svgEl("circle", { r: 14, class: `player-dot player-${p.team}${opp}` });
@@ -299,7 +316,7 @@ export function mountCourt(container, tactic, duration = 4800) {
       x2: bar.x2,
       y2: bar.y2,
       class: "screen-bar",
-      stroke: TEAM_COLOR[p.team],
+      stroke: playerColor(p),
       opacity: 0,
     });
     screenGroup.appendChild(line);
