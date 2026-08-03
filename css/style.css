@@ -426,6 +426,13 @@ body {
   stroke-linecap: round;
 }
 
+.court-legend-item svg .legend-opponent {
+  fill: currentColor;
+  fill-opacity: 0.16;
+  stroke: currentColor;
+  stroke-width: 2.5;
+}
+
 .player-dot {
   stroke: var(--player-stroke);
   stroke-width: 2;
@@ -444,6 +451,44 @@ body {
   font-size: 13px;
   font-weight: 700;
   pointer-events: none;
+}
+
+/* 상대 팀 선수는 색이 아니라 '모양'으로 구분한다 — 속이 빈 굵은 테두리 동그라미.
+   수비 전술에서는 우리 팀도 상대도 team:"defense"라서 둘 다 빨간색이 되는데,
+   그때 색만으로는 누가 우리 편인지 알 수가 없기 때문이다. */
+.player-dot.is-opponent,
+.editor-handle.is-opponent {
+  fill-opacity: 0.16;
+  stroke-width: 3.5;
+}
+
+.player-dot.player-offense.is-opponent,
+.editor-handle.player-offense.is-opponent {
+  stroke: var(--offense);
+}
+
+.player-dot.player-defense.is-opponent,
+.editor-handle.player-defense.is-opponent {
+  stroke: var(--defense);
+}
+
+/* 속이 비었으니 번호를 흰색으로 두면 코트 바탕에 묻힌다. 팀 색으로 적되,
+   뒤에 코트 라인이 지나가도 읽히도록 바탕색 테두리를 둘러준다. */
+.player-number.is-opponent,
+.editor-handle-label.is-opponent {
+  paint-order: stroke;
+  stroke: var(--player-stroke);
+  stroke-width: 2.5px;
+}
+
+.player-number.player-offense.is-opponent,
+.editor-handle-label.player-offense.is-opponent {
+  fill: var(--offense);
+}
+
+.player-number.player-defense.is-opponent,
+.editor-handle-label.player-defense.is-opponent {
+  fill: var(--defense);
 }
 
 .player-name-label {

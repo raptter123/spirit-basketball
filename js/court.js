@@ -251,9 +251,16 @@ export function mountCourt(container, tactic, duration = 4800) {
       }
     }
 
+    // 상대 선수는 속이 빈 동그라미로 그린다. 우리 팀과 상대가 같은 역할일 때
+    // (수비 전술에서 양쪽 다 defense) 색만으로는 구분이 안 되기 때문이다.
+    const opp = p.opponent ? " is-opponent" : "";
     const g = svgEl("g", { class: "player", transform: `translate(${p.path[0][0]},${p.path[0][1]})` });
-    const circle = svgEl("circle", { r: 14, class: `player-dot player-${p.team}` });
-    const text = svgEl("text", { class: "player-number", "text-anchor": "middle", dy: "0.35em" });
+    const circle = svgEl("circle", { r: 14, class: `player-dot player-${p.team}${opp}` });
+    const text = svgEl("text", {
+      class: `player-number player-${p.team}${opp}`,
+      "text-anchor": "middle",
+      dy: "0.35em",
+    });
     text.textContent = p.number;
     g.appendChild(circle);
     g.appendChild(text);
@@ -343,8 +350,11 @@ export function mountCourt(container, tactic, duration = 4800) {
   if (ballEl) svg.appendChild(ballEl);
   container.appendChild(svg);
 
-  // 새 기호(물결선/막대/이중 호)는 처음 보면 뜻을 모르니, 이 전술에 실제로 쓰인 것만 밑에 짧게 적어준다.
+  // 기호는 처음 보면 뜻을 모르니, 이 전술에 실제로 쓰인 것만 밑에 짧게 적어준다.
   const legendItems = [];
+  if (tactic.players.some((p) => p.opponent)) {
+    legendItems.push([`<circle class="legend-opponent" cx="20" cy="8" r="6" />`, "상대 팀"]);
+  }
   if (arrowGroup.querySelector(".is-dribble")) {
     legendItems.push([`<path d="${wavyD([[3, 9], [37, 4]], 3, 11, 6)}" />`, "드리블"]);
   }

@@ -123,13 +123,15 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
           })
         );
       }
+      // 재생 화면과 똑같이, 상대 선수는 속이 빈 동그라미로 그린다.
+      const opp = p.opponent ? ` player-${p.team} is-opponent` : "";
       p.path.forEach((pt, i) => {
         handleGroup.appendChild(
           svgEl("circle", {
             cx: pt[0],
             cy: pt[1],
             r: 10,
-            class: "editor-handle",
+            class: `editor-handle${opp}`,
             fill: TEAM_COLOR[p.team],
             "data-player": playerIdx,
             "data-index": i,
@@ -139,7 +141,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
           const label = svgEl("text", {
             x: pt[0],
             y: pt[1],
-            class: "editor-handle-label",
+            class: `editor-handle-label${opp}`,
             "text-anchor": "middle",
             dy: "0.35em",
             "data-player-label": playerIdx,
