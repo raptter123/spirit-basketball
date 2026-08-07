@@ -533,8 +533,8 @@ export function mountTeamBuilder(container) {
       <p class="hint">이름 옆 팀 글자를 눌러 배정해주세요.</p>
       <div class="ts-assign-toolbar">
         <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
-        <button type="button" class="link-btn" id="ts-clear-assign">배정 초기화</button>
-        <button type="button" class="link-btn" id="ts-clear-all">전체 초기화</button>
+        <button type="button" class="link-btn tap-wide" id="ts-clear-assign">배정 초기화</button>
+        <button type="button" class="link-btn tap-wide" id="ts-clear-all">전체 초기화</button>
       </div>
       <div class="ts-assign-list">
         ${
