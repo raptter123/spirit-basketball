@@ -256,7 +256,7 @@ function computeHighlights() {
 function rosterCardHTML(p) {
   const hasStats = typeof p.games === "number";
   return `
-    <div class="roster-card">
+    <a class="roster-card" href="#/player/${encodeURIComponent(p.name)}">
       <div class="roster-info">
         <div class="roster-name">
           ${escapeHtml(p.name)}${p.captain ? ` <span class="captain-tag">(C)</span>` : ""}
@@ -273,7 +273,115 @@ function rosterCardHTML(p) {
             : `<div class="roster-stats">기록 데이터 없음</div>`
         }
       </div>
+      <span class="roster-more" aria-hidden="true">›</span>
+    </a>
+  `;
+}
+
+
+// 선수 상세 — 팀 안에서 이 선수가 어느 위치인지 보여주는 게 목적이다.
+// 기록이 있는 선수(games 있음)끼리만 비교한다. 아직 기록이 없는 선수는 계산에서 빠진다.
+const PLAYER_STATS = [
+  { key: "ppg", label: "득점", unit: "점", digits: 1 },
+  { key: "rpg", label: "리바운드", unit: "개", digits: 1 },
+  { key: "apg", label: "어시스트", unit: "개", digits: 1 },
+  { key: "spg", label: "스틸", unit: "개", digits: 1 },
+  { key: "fgPct", label: "야투 성공률", percent: true },
+  { key: "ts", label: "TS% (슛 효율)", percent: true },
+  { key: "topg", label: "턴오버", unit: "개", digits: 1, lowerIsBetter: true },
+  { key: "winRate", label: "승률", percent: true },
+];
+
+// 표본이 이보다 적으면 순위·비교를 곧이곧대로 읽기 어렵다.
+const SMALL_SAMPLE_GAMES = 10;
+
+function statLineHTML(p, stat, pool) {
+  const v = p[stat.key];
+  if (typeof v !== "number") return "";
+  const values = pool.map((q) => q[stat.key]).filter((x) => typeof x === "number");
+  if (!values.length) return "";
+
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  // 턴오버는 적을수록 좋으니 순위와 막대를 뒤집는다.
+  const rank = stat.lowerIsBetter
+    ? values.filter((x) => x < v).length + 1
+    : values.filter((x) => x > v).length + 1;
+  const span = max - min || 1;
+  const pos = stat.lowerIsBetter ? (max - v) / span : (v - min) / span;
+  const avgPos = stat.lowerIsBetter ? (max - avg) / span : (avg - min) / span;
+  const fmt = (x) => (stat.percent ? `${(x * 100).toFixed(1)}%` : `${x.toFixed(stat.digits ?? 1)}${stat.unit || ""}`);
+  const betterThanAvg = stat.lowerIsBetter ? v < avg : v > avg;
+
+  return `
+    <div class="stat-row">
+      <div class="stat-top">
+        <span class="stat-label">${stat.label}${stat.lowerIsBetter ? ` <em>낮을수록 좋음</em>` : ""}</span>
+        <span class="stat-value ${betterThanAvg ? "is-above" : ""}">${fmt(v)}</span>
+      </div>
+      <div class="stat-bar">
+        <span class="stat-fill ${betterThanAvg ? "is-above" : ""}" style="width:${Math.round(Math.max(0, Math.min(1, pos)) * 100)}%"></span>
+        <span class="stat-avg-mark" style="left:${Math.round(Math.max(0, Math.min(1, avgPos)) * 100)}%" title="팀 평균"></span>
+      </div>
+      <div class="stat-foot">
+        <span>팀 평균 ${fmt(avg)}</span>
+        <span>${values.length}명 중 <strong>${rank}위</strong></span>
+      </div>
     </div>
+  `;
+}
+
+function renderPlayer(name) {
+  const p = ROSTER.find((x) => x.name === name);
+  if (!p) {
+    app.innerHTML = `
+      <section class="detail-view">
+        <a class="back-link tap-wide" href="#/roster">← 로스터로</a>
+        <h1>선수를 찾을 수 없어요</h1>
+        <p class="hint">이름이 바뀌었거나 명단에서 빠진 선수일 수 있어요.</p>
+      </section>`;
+    return;
+  }
+
+  const pool = ROSTER.filter((x) => typeof x.games === "number");
+  const hasStats = typeof p.games === "number";
+  const strengths = hasStats
+    ? PLAYER_STATS.filter((st) => {
+        const vals = pool.map((q) => q[st.key]).filter((x) => typeof x === "number");
+        if (typeof p[st.key] !== "number" || !vals.length) return false;
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        return st.lowerIsBetter ? p[st.key] < avg : p[st.key] > avg;
+      }).map((st) => st.label)
+    : [];
+
+  app.innerHTML = `
+    <section class="player-view">
+      <a class="back-link tap-wide" href="#/roster">← 로스터로</a>
+      <h1>${escapeHtml(p.name)}${p.captain ? ` <span class="captain-tag">(C)</span>` : ""}</h1>
+      ${
+        hasStats
+          ? `<p class="hint">${p.games}경기 · 2026년 상반기(1~6월) 기록 기준 평균이에요.</p>
+             ${
+               p.games < SMALL_SAMPLE_GAMES
+                 ? `<p class="hint player-caution">⚠️ 경기 수가 적어서(${p.games}경기) 순위나 평균 비교는 참고만 해주세요.</p>`
+                 : ""
+             }
+             ${
+               strengths.length
+                 ? `<div class="player-strengths">
+                      <span class="player-strengths-label">팀 평균보다 좋은 항목</span>
+                      <div class="player-strength-chips">${strengths
+                        .map((t) => `<span class="strength-chip">${t}</span>`)
+                        .join("")}</div>
+                    </div>`
+                 : `<p class="hint">아직 팀 평균을 넘는 항목이 없어요.</p>`
+             }
+             <div class="stat-list">${PLAYER_STATS.map((st) => statLineHTML(p, st, pool)).join("")}</div>
+             <p class="hint stat-legend">막대는 기록이 있는 ${pool.length}명 안에서의 위치이고, 세로선은 팀 평균이에요.</p>`
+          : `<p class="hint">아직 기록지에 올라온 경기가 없어요. 기록이 쌓이면 여기에 나옵니다.</p>`
+      }
+    </section>
   `;
 }
 
@@ -1190,6 +1298,8 @@ function router() {
     renderRoster();
   } else if (hash === "#/glossary") {
     renderGlossary();
+  } else if (hash.startsWith("#/player/")) {
+    renderPlayer(decodeURIComponent(hash.slice("#/player/".length)));
   } else if (hash === "#/team-shuffle") {
     renderTeamShuffle();
   } else {
