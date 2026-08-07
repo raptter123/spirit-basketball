@@ -255,8 +255,10 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
                 (pt, i) => `
               <div class="editor-point-row" data-player="${playerIdx}" data-index="${i}">
                 <span class="editor-point-index">#${i + 1}</span>
-                <input type="number" class="pt-x" value="${pt[0]}" min="10" max="490" />
-                <input type="number" class="pt-y" value="${pt[1]}" min="10" max="460" />
+                <input type="number" class="pt-x" value="${pt[0]}" min="10" max="490"
+                  aria-label="${i + 1}번째 지점 가로 위치" />
+                <input type="number" class="pt-y" value="${pt[1]}" min="10" max="460"
+                  aria-label="${i + 1}번째 지점 세로 위치" />
                 <button type="button" class="btn-icon" data-action="remove-point" ${
                   p.path.length <= 1 ? "disabled" : ""
                 }>×</button>

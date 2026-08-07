@@ -163,7 +163,12 @@ function renderList() {
     const q = query.trim().toLowerCase();
     const filtered = TACTICS.filter((t) => {
       const inCategory = category === "전체" || t.category === category;
-      const inQuery = !q || t.name.toLowerCase().includes(q) || t.summary.toLowerCase().includes(q);
+      // 검색창 안내대로 상세 설명까지 뒤진다. 용어 사전처럼 설명에만 있는 내용도 찾아야 한다.
+      const inQuery =
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        t.summary.toLowerCase().includes(q) ||
+        (t.description || "").toLowerCase().includes(q);
       return inCategory && inQuery;
     });
     const favTactics = filtered.filter((t) => favorites.has(t.id));
@@ -171,7 +176,7 @@ function renderList() {
 
     app.innerHTML = `
       <section class="list-view">
-        <a class="back-link" href="#/">← 홈으로</a>
+        <a class="back-link tap-wide" href="#/">← 홈으로</a>
         <div class="list-header">
           <h1>전술 목록</h1>
           <a href="#/new-tactic" class="btn btn-primary">+ 전술 추가</a>
@@ -272,7 +277,7 @@ function renderRoster() {
 
   app.innerHTML = `
     <section class="roster-view">
-      <a class="back-link" href="#/">← 홈으로</a>
+      <a class="back-link tap-wide" href="#/">← 홈으로</a>
       <h1>팀 로스터</h1>
       <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
 
@@ -301,7 +306,7 @@ function renderRoster() {
 function renderTeamShuffle() {
   app.innerHTML = `
     <section class="shuffle-view">
-      <a class="back-link" href="#/">← 홈으로</a>
+      <a class="back-link tap-wide" href="#/">← 홈으로</a>
       <h1>자체전 팀 편성</h1>
       <p class="hint">참석자를 로스터에서 선택하고, 이름 옆 팀 글자를 눌러 배정해주세요.</p>
       <div id="team-builder-container"></div>
@@ -313,7 +318,7 @@ function renderTeamShuffle() {
 function renderSchedule() {
   app.innerHTML = `
     <section class="schedule-view">
-      <a class="back-link" href="#/">← 홈으로</a>
+      <a class="back-link tap-wide" href="#/">← 홈으로</a>
       <h1>일정</h1>
       <p class="hint">날짜를 클릭하면 그 날의 일정을 볼 수 있어요.</p>
       <div id="calendar-container"></div>
@@ -325,7 +330,7 @@ function renderSchedule() {
 function renderNotFound() {
   app.innerHTML = `
     <section class="detail-view">
-      <a class="back-link" href="#/tactics">← 목록으로</a>
+      <a class="back-link tap-wide" href="#/tactics">← 목록으로</a>
       <p>존재하지 않는 전술입니다.</p>
     </section>
   `;
@@ -483,7 +488,7 @@ function renderNewTactic() {
     tactic.name = name || "이름 없는 전술";
     app.innerHTML = `
       <section class="detail-view new-tactic-view">
-        <a class="back-link" href="#/tactics">← 전술 목록으로</a>
+        <a class="back-link tap-wide" href="#/tactics">← 전술 목록으로</a>
         <h1>+ 새 전술 추가</h1>
         <p class="hint editor-local-notice">✎ 여기서 만드는 전술은 <strong>이 브라우저에만</strong> 저장돼요. 다 만들었으면 아래 코트의 "내보내기"로 나온 내용을 황규철에게 전달해주세요.</p>
         <form class="new-tactic-form" id="new-tactic-form">
@@ -504,7 +509,7 @@ function renderNewTactic() {
             <textarea id="nt-description" rows="4" placeholder="전술 흐름을 자세히 설명해주세요">${escapeHtml(description)}</textarea>
           </label>
         </form>
-        <button type="button" class="link-btn" id="nt-clear-draft">이 초안 전체 삭제</button>
+        <button type="button" class="link-btn tap-wide" id="nt-clear-draft">이 초안 전체 삭제</button>
         <p class="hint">한 전술 안에서 여러 상황(예: 돌파 / 1번 패스 / 2번 패스)을 각각 만들고 싶으면 아래 "+ 시나리오 추가"를 눌러주세요. 같은 시작 배치에서 시작해서, 각 시나리오의 흐름만 따로 그리면 돼요.</p>
         <div id="scenario-toolbar"></div>
         <div class="court-wrap" id="new-tactic-court"></div>
@@ -548,7 +553,7 @@ function renderNewTactic() {
         activeScenario > 0
           ? `<div class="scenario-edit-row">
                <input type="text" id="scenario-name-input" value="${escapeHtml(scenarios[activeScenario].name)}" placeholder="시나리오 이름" />
-               <button type="button" class="link-btn" id="scenario-delete">🗑 이 시나리오 삭제</button>
+               <button type="button" class="link-btn tap-wide" id="scenario-delete">🗑 이 시나리오 삭제</button>
              </div>`
           : ""
       }
@@ -674,7 +679,7 @@ function renderDetail(id) {
     const anchor = document.getElementById("tactic-summary-display");
     const hintEl = document.createElement("p");
     hintEl.className = "hint override-hint";
-    hintEl.innerHTML = `이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button>`;
+    hintEl.innerHTML = `이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn tap-wide" id="reset-btn">초기화</button>`;
     anchor.insertAdjacentElement("afterend", hintEl);
     document.getElementById("reset-btn").addEventListener("click", () => {
       clearOverride(id);
@@ -709,8 +714,16 @@ function renderDetail(id) {
 
   function simPanelHTML() {
     const allNames = ROSTER.map((p) => p.name);
+    // 이름 시뮬레이션은 선택 기능인데 펼쳐두면 360px을 차지해서, 정작 보러 온 코트가
+    // 항상 첫 화면 밖으로 밀렸다. 기본은 한 줄로 접어두고 필요할 때만 펼친다.
+    // 이미 배정한 이름이 있으면 열어둬야 지금 적용 중인 걸 놓치지 않는다.
+    const assignedCount = Object.values(simAssignment).filter(Boolean).length;
     return `
-      <div class="tactic-sim-panel">
+      <details class="tactic-sim-panel" ${assignedCount ? "open" : ""}>
+        <summary class="tactic-sim-summary">
+          <span>👤 선수 이름 넣어보기</span>
+          ${assignedCount ? `<span class="tactic-sim-count">${assignedCount}명 배정됨</span>` : ""}
+        </summary>
         <p class="hint editor-local-notice">✎ 아래에서 로스터 인원을 번호에 넣어 시뮬레이션해볼 수 있어요. <strong>이 화면에 있는 동안만</strong> 적용되고, 페이지를 나가면 자동으로 초기화돼요.</p>
         <div class="tactic-sim-grid">
           ${tactic.players
@@ -738,24 +751,50 @@ function renderDetail(id) {
             })
             .join("")}
         </div>
-        <button type="button" class="link-btn" id="sim-clear">배정 초기화</button>
-      </div>
+        <button type="button" class="link-btn tap-wide" id="sim-clear">배정 초기화</button>
+      </details>
     `;
+  }
+
+  // 용어 사전처럼 설명이 긴 전술은 화면 두 개를 넘길 만큼 길어진다.
+  // 넘칠 때만 접고, 짧으면 버튼도 만들지 않는다.
+  function setupDescriptionToggle() {
+    const el = document.getElementById("tactic-description-display");
+    if (!el) return;
+    document.querySelector(".description-toggle")?.remove();
+    // 먼저 접어본 뒤 실제로 잘리는지 본다. 펼친 상태에서는 scrollHeight 와 clientHeight 가 같아서
+    // 길이를 알 수 없다.
+    el.classList.add("is-clamped");
+    if (el.scrollHeight <= el.clientHeight + 4) {
+      el.classList.remove("is-clamped");
+      return;
+    }
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "description-toggle";
+    btn.textContent = "▾ 설명 더 보기";
+    btn.addEventListener("click", () => {
+      const clamped = el.classList.toggle("is-clamped");
+      btn.textContent = clamped ? "▾ 설명 더 보기" : "▴ 설명 접기";
+      if (clamped) el.scrollIntoView({ block: "nearest" });
+    });
+    el.after(btn);
   }
 
   function renderShell() {
     app.innerHTML = `
       <section class="detail-view">
-        <a class="back-link" href="#/">← 목록으로</a>
+        <a class="back-link tap-wide" href="#/">← 목록으로</a>
         <div class="detail-top-row">
           <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
-          <button type="button" class="link-btn" id="copy-link-btn">🔗 링크 복사</button>
+          <button type="button" class="link-btn tap-wide" id="copy-link-btn">🔗 링크 복사</button>
         </div>
         <h1 id="tactic-name-display">${tactic.name}</h1>
         <p class="summary" id="tactic-summary-display">${tactic.summary}</p>
         ${
           getOverride(id)
-            ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn" id="reset-btn">초기화</button></p>`
+            ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn tap-wide" id="reset-btn">초기화</button></p>`
             : ""
         }
         ${simPanelHTML()}
@@ -792,6 +831,8 @@ function renderDetail(id) {
         btn.textContent = "🔗 링크 복사";
       }, 1500);
     });
+
+    setupDescriptionToggle();
 
     document.querySelectorAll(".tactic-sim-grid select").forEach((select) => {
       select.addEventListener("change", (e) => {
@@ -831,7 +872,7 @@ function renderDetail(id) {
         editing && activeScenario > 0
           ? `<div class="scenario-edit-row">
                <input type="text" id="scenario-name-input" value="${escapeHtml(scenarios[activeScenario].name)}" placeholder="시나리오 이름" />
-               <button type="button" class="link-btn" id="scenario-delete">🗑 이 시나리오 삭제</button>
+               <button type="button" class="link-btn tap-wide" id="scenario-delete">🗑 이 시나리오 삭제</button>
              </div>`
           : ""
       }
@@ -914,6 +955,7 @@ function renderDetail(id) {
     document.getElementById("meta-description").addEventListener("input", (e) => {
       tactic.description = e.target.value;
       document.getElementById("tactic-description-display").textContent = tactic.description;
+      setupDescriptionToggle();
       persistOverride();
       ensureOverrideHintVisible();
     });

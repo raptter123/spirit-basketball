@@ -7,13 +7,18 @@
   --surface: #1e1840;
   --surface-2: #2a2255;
   --text: #ece9f7;
-  --text-muted: #a49dc6;
+  --text-muted: #b2abd4;
 
   --accent: #7c5cff;
   --accent-soft: rgba(124, 92, 255, 0.12);
   --accent-line: rgba(124, 92, 255, 0.35);
   --accent-strong: rgba(124, 92, 255, 0.2);
   --accent-ink: #ffffff;
+  /* 강조색을 작은 글씨에 그대로 쓰면 어두운 배경에서 명암비가 3.7:1 정도밖에 안 나온다.
+     로고·버튼용(--accent)과 글씨용(--accent-text)을 분리해서 글씨 쪽만 밝힌다. */
+  --accent-text: #b3a1ff;
+  /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
+  --accent-btn: #7857fa;
 
   --offense: #3b82f6;
   --defense: #ef4444;
@@ -56,6 +61,8 @@
   --accent-line: rgba(216, 2, 4, 0.3);
   --accent-strong: rgba(216, 2, 4, 0.16);
   --accent-ink: #ffffff;
+  --accent-text: #b00203;
+  --accent-btn: #d80204;
 
   --offense: #2563eb;
   --defense: #d1332f;
@@ -75,7 +82,7 @@
   --name-stroke: #ffffff;
 
   --badge-off-bg: rgba(37, 99, 235, 0.13);
-  --badge-off-fg: #1d4ed8;
+  --badge-off-fg: #1a45c2;
   --badge-def-bg: rgba(209, 51, 47, 0.13);
   --badge-def-fg: #ad231f;
   --badge-set-bg: rgba(109, 40, 217, 0.12);
@@ -99,7 +106,7 @@ body {
 .site-header {
   display: flex;
   align-items: center;
-  padding: 18px 24px 12px;
+  padding: 18px 24px 4px;
 }
 
 .brand {
@@ -178,7 +185,7 @@ body {
   flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 6px;
-  padding: 0 24px 14px;
+  padding: 8px 24px 14px;
   border-bottom: 1px solid var(--surface-2);
   overflow-x: auto;
   scrollbar-width: none;
@@ -205,7 +212,7 @@ body {
 }
 
 .utility-bar a.is-active {
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: var(--accent-line);
   background: var(--accent-soft);
   font-weight: 600;
@@ -217,12 +224,12 @@ body {
 
 @media (max-width: 640px) {
   .site-header {
-    padding: 16px 16px 10px;
+    padding: 16px 16px 2px;
   }
 
   .utility-bar {
     justify-content: flex-start;
-    padding: 0 16px 12px;
+    padding: 8px 16px 12px;
     mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
     -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   }
@@ -408,6 +415,54 @@ body {
   stroke-linecap: round;
 }
 
+/* 손가락으로 누르는 영역 넓히기.
+   글씨 크기나 배치는 그대로 두고, 보이지 않는 ::after 로 눌리는 범위만 키운다.
+   (권장치는 44px인데 링크 복사 17px, ← 목록으로 21px, ☆ 23px 처럼 절반 수준이었다.)
+   position:relative 가 이미 있는 요소는 건드리지 않도록 각각 따로 지정한다. */
+.tap-wide {
+  position: relative;
+}
+
+.tap-wide::after {
+  content: "";
+  position: absolute;
+  inset: -14px -12px;
+}
+
+/* 좌표 줄의 × 는 옆 입력칸을 덮지 않게 위아래로만 넓힌다. */
+.btn-icon {
+  position: relative;
+}
+
+.btn-icon::after {
+  content: "";
+  position: absolute;
+  inset: -10px -2px;
+}
+
+/* 상단 메뉴는 높이를 바꾸지 않는다(줄바꿈·배치 유지). 위아래로만 눌리는 범위를 넓히는데,
+   위쪽은 헤더의 아래 여백(12px) 안에서만 늘려 로고 링크를 가로채지 않게 한다. */
+.utility-bar a {
+  position: relative;
+}
+
+.utility-bar a::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0 -12px;
+}
+
+/* 달력 화살표는 좌우로 붙어 있어 위아래로만 넓힌다. */
+.calendar-nav {
+  position: relative;
+}
+
+.calendar-nav::after {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
+}
+
 /* 코트 아래 기호 설명. 이 전술에 실제로 나온 기호만 표시한다. */
 .court-legend {
   display: flex;
@@ -568,8 +623,8 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-btn);
+  border-color: var(--accent-btn);
   color: var(--accent-ink);
   font-weight: 700;
 }
@@ -650,7 +705,7 @@ body {
 
 .calendar-day.is-today {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .calendar-day.is-selected {
@@ -772,7 +827,7 @@ body {
 }
 
 .override-hint {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .link-btn {
@@ -1090,17 +1145,19 @@ body {
   height: 100%;
 }
 
+/* ☆ 은 여백으로 눌리는 범위를 넓히고, 그만큼 위치를 당겨 보이는 자리는 그대로 둔다.
+   (카드 밖으로 넘치면 옆 카드를 가로채므로 ::after 대신 padding 을 쓴다.) */
 .fav-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 0;
+  right: 0;
   border: none;
   background: none;
   color: var(--text-muted);
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
-  padding: 2px;
+  padding: 11px;
 }
 
 .fav-btn.is-fav {
@@ -1134,7 +1191,7 @@ body {
 }
 
 .highlight-value {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -1170,7 +1227,7 @@ body {
 }
 
 .captain-tag {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -1400,11 +1457,97 @@ body {
 }
 
 .editor-local-notice strong {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
+/* 이름 시뮬레이션은 접어둔다 — 펼치면 360px이라 코트가 첫 화면 밖으로 밀렸다. */
 .tactic-sim-panel {
   margin-bottom: 16px;
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0 14px;
+}
+
+.tactic-sim-panel[open] {
+  padding-bottom: 14px;
+}
+
+.tactic-sim-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+}
+
+.tactic-sim-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 펼침 표시는 오른쪽 끝에 직접 그린다 (기본 삼각형은 브라우저마다 위치가 달라서). */
+.tactic-sim-summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.tactic-sim-panel[open] .tactic-sim-summary::after {
+  transform: rotate(180deg);
+}
+
+.tactic-sim-summary:hover {
+  color: var(--accent-text);
+}
+
+.tactic-sim-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+/* 긴 설명은 접어두고 '더 보기'로 펼친다. */
+.description.is-clamped {
+  max-height: 11em;
+  overflow: hidden;
+  position: relative;
+}
+
+.description.is-clamped::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3.5em;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
+}
+
+.description-toggle {
+  display: block;
+  margin-top: 10px;
+  background: none;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 9px 14px;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.description-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .tactic-sim-grid {
@@ -1450,7 +1593,7 @@ body {
 
 .chip-add {
   border-style: dashed;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .chip:disabled {
@@ -1484,7 +1627,7 @@ body {
 .home-tagline {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   margin: 0 0 10px;
 }
 
@@ -1600,7 +1743,7 @@ body {
   flex: 0 0 auto;
   font-family: "SF Mono", "Menlo", ui-monospace, monospace;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   min-width: 44px;
 }
 
