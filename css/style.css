@@ -498,6 +498,100 @@ body {
   stroke-width: 2.5;
 }
 
+/* ── 용어 사전 ─────────────────────────────────────────── */
+.glossary-view h1 {
+  margin: 8px 0 4px;
+}
+
+.glossary-view .search-input {
+  margin-bottom: 8px;
+}
+
+.term-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.term-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.term-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.term-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.term-en {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* '언제 쓰는지'는 라벨을 앞에 붙여 뜻과 구분한다. */
+.term-when {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+}
+
+.term-when span {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 2px 6px;
+  height: fit-content;
+}
+
+.term-idea {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.term-link {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-top: 1px dashed var(--surface-2);
+}
+
+.term-link:hover {
+  color: var(--accent-text);
+}
+
+.glossary-footnote {
+  margin-top: 20px;
+  font-size: 0.85rem;
+}
+
+.glossary-footnote a {
+  color: var(--accent-text);
+}
+
 .player-dot {
   stroke: var(--player-stroke);
   stroke-width: 2;
@@ -1811,6 +1905,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 버튼 두 개를 묶어둔다. 폭이 모자라면 제목만 남고 버튼 줄이 통째로 내려가서,
+   버튼 하나만 어정쩡하게 떨어지는 모양이 되지 않는다. */
+.list-header-actions {
+  display: flex;
+  gap: 10px;
   flex-wrap: wrap;
 }
 

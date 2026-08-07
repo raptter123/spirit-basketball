@@ -4,6 +4,7 @@ import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { ROSTER } from "./roster.js";
+import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents } from "./events.js";
 import {
   getOverride,
@@ -33,6 +34,7 @@ function badgeClassFor(category) {
 
 const HOME_MENU = [
   { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
+  { icon: "📖", title: "용어 사전", desc: "스위치·드롭백·블리츠 같은 콜과 용어를 한곳에 모아뒀어요.", href: "#/glossary" },
   { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
   { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
   { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록을 모아둔 보관실이에요.", href: "https://kimjunseok.github.io/Spirit/", external: true },
@@ -179,7 +181,10 @@ function renderList() {
         <a class="back-link tap-wide" href="#/">← 홈으로</a>
         <div class="list-header">
           <h1>전술 목록</h1>
-          <a href="#/new-tactic" class="btn btn-primary">+ 전술 추가</a>
+          <div class="list-header-actions">
+            <a href="#/glossary" class="btn">📖 용어 사전</a>
+            <a href="#/new-tactic" class="btn btn-primary">+ 전술 추가</a>
+          </div>
         </div>
         <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
         <div class="list-controls">
@@ -325,6 +330,74 @@ function renderSchedule() {
     </section>
   `;
   mountCalendar(document.getElementById("calendar-container"));
+}
+
+
+function glossaryCardHTML(g) {
+  const tactic = g.tactic ? getTacticById(g.tactic) : null;
+  return `
+    <article class="term-card">
+      <div class="term-head">
+        <h3>${escapeHtml(g.term)}</h3>
+        ${g.en ? `<span class="term-en">${escapeHtml(g.en)}</span>` : ""}
+      </div>
+      ${g.when ? `<p class="term-when"><span>언제</span>${escapeHtml(g.when)}</p>` : ""}
+      <p class="term-idea">${escapeHtml(g.idea)}</p>
+      ${
+        tactic
+          ? `<a class="term-link" href="#/tactic/${tactic.id}">🏀 코트에서 보기 — ${escapeHtml(tactic.name)}</a>`
+          : ""
+      }
+    </article>
+  `;
+}
+
+function renderGlossary() {
+  let query = "";
+
+  function render() {
+    const q = query.trim().toLowerCase();
+    const hit = (g) =>
+      !q ||
+      [g.term, g.en, g.when, g.idea, g.group].some((v) => (v || "").toLowerCase().includes(q));
+    const found = GLOSSARY.filter(hit);
+
+    app.innerHTML = `
+      <section class="glossary-view">
+        <a class="back-link tap-wide" href="#/">← 홈으로</a>
+        <h1>용어 사전</h1>
+        <p class="hint">경기 중에 나오는 콜과 용어를 모아뒀어요. 용어를 누르면 실제로 그 움직임이 나오는 전술로 갈 수 있어요.</p>
+        <input type="text" id="glossary-search" class="search-input" placeholder="용어 검색 (예: 블리츠, switch)" value="${escapeHtml(query)}" />
+        ${
+          found.length
+            ? GLOSSARY_GROUPS.map((group) => {
+                const list = found.filter((g) => g.group === group);
+                if (!list.length) return "";
+                return `
+          <h2 class="section-title">${escapeHtml(group)}</h2>
+          <div class="term-grid">${list.map(glossaryCardHTML).join("")}</div>`;
+              }).join("")
+            : `<p class="hint">찾는 용어가 없어요. 팀에서 쓰는 말인데 여기 없으면 알려주세요.</p>`
+        }
+        <p class="hint glossary-footnote">
+          픽앤롤 수비 콜과 매치업 용어는 <a href="#/tactic/man-to-man-defense">[규철] 맨투맨 디팬스</a>에 정리된 내용을 옮긴 거예요.
+          뜻이 팀에서 쓰는 것과 다르면 알려주시면 고칠게요.
+        </p>
+      </section>
+    `;
+
+    const input = document.getElementById("glossary-search");
+    input.addEventListener("input", (e) => {
+      query = e.target.value;
+      const pos = e.target.selectionStart;
+      render();
+      const next = document.getElementById("glossary-search");
+      next.focus();
+      next.setSelectionRange(pos, pos);
+    });
+  }
+
+  render();
 }
 
 function renderNotFound() {
@@ -1115,6 +1188,8 @@ function router() {
     renderSchedule();
   } else if (hash === "#/roster") {
     renderRoster();
+  } else if (hash === "#/glossary") {
+    renderGlossary();
   } else if (hash === "#/team-shuffle") {
     renderTeamShuffle();
   } else {
