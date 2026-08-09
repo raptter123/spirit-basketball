@@ -31,11 +31,11 @@ export const TACTICS = [
       "가드는 스크린을 타고 페인트존으로 돌파합니다. 스크린을 세운 센터는 곧바로 골밑으로 롤인하여 " +
       "패스를 받을 준비를 합니다. 현대 농구에서 가장 기본이 되는 2대2 액션입니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 300], [195, 290], [165, 330], [190, 380], [215, 415]] },
-      { number: 5, team: "offense", path: [[170, 300], [170, 300], [210, 400], [275, 420]], screenAt: 1 },
-      { number: 2, team: "offense", path: [[400, 350], [420, 330]] },
-      { number: 3, team: "offense", path: [[100, 350], [90, 330]] },
-      { number: 4, team: "offense", path: [[350, 260], [330, 240]] },
+      { number: 1, team: "offense", path: [[250, 160], [246, 205], [196, 240], [196, 320], [220, 396]] },
+      { number: 5, team: "offense", path: [[205, 262], [208, 212], [232, 320], [268, 408]], screenAt: 1 },
+      { number: 2, team: "offense", path: [[432, 258], [452, 300]] },
+      { number: 3, team: "offense", path: [[30, 415], [40, 404]] },
+      { number: 4, team: "offense", path: [[355, 195], [340, 178]] },
     ],
     ball: [{ holder: 1, at: 0 }],
   },
@@ -49,11 +49,11 @@ export const TACTICS = [
       "곧바로 백도어 컷으로 골밑을 파고듭니다. 패스를 받은 2번은 곧바로 1번에게 리턴 패스를 노립니다. " +
       "농구에서 가장 오래되고 단순하지만 여전히 유효한 오프더볼 움직임입니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 300], [250, 300], [205, 355], [200, 400], [232, 430]] },
-      { number: 2, team: "offense", path: [[400, 340], [400, 340]] },
-      { number: 3, team: "offense", path: [[100, 350], [95, 340]] },
-      { number: 4, team: "offense", path: [[350, 250], [335, 235]] },
-      { number: 5, team: "offense", path: [[170, 420], [175, 400]] },
+      { number: 1, team: "offense", path: [[250, 175], [250, 175], [222, 250], [206, 330], [234, 408]] },
+      { number: 2, team: "offense", path: [[432, 258], [432, 258]] },
+      { number: 3, team: "offense", path: [[68, 250], [62, 240]] },
+      { number: 4, team: "offense", path: [[470, 415], [462, 404]] },
+      { number: 5, team: "offense", path: [[30, 415], [38, 404]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -68,11 +68,12 @@ export const TACTICS = [
     summary: "리바운드 후 3인이 빠르게 골밑으로 전개하는 속공 전술",
     description:
       "리바운드를 잡은 직후, 세 명의 선수가 각자 레인을 나눠 빠르게 전개하는 3인 속공(3-lane break)입니다. " +
-      "가운데 볼 핸들러(1)가 속도를 조절하며 좌우 레인의 동료(2, 3)에게 패스 타이밍을 만듭니다.",
+      "가운데 볼 핸들러(1)가 림을 향해 밀고 들어가고, 좌우 레인의 두 명은 골밑으로 파고드는 대신 " +
+      "양쪽 코너 3점 자리까지 넓게 달려 나갑니다. 수비가 볼을 막으러 모이면 그대로 코너 3점이 열립니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 20], [250, 150], [235, 300], [222, 420]] },
-      { number: 2, team: "offense", path: [[400, 20], [400, 150], [380, 280], [300, 400]] },
-      { number: 3, team: "offense", path: [[100, 20], [100, 150], [120, 280], [200, 400]] },
+      { number: 1, team: "offense", path: [[250, 20], [250, 150], [242, 280], [228, 398]] },
+      { number: 2, team: "offense", path: [[400, 20], [452, 150], [470, 300], [470, 412]] },
+      { number: 3, team: "offense", path: [[100, 20], [48, 150], [30, 300], [30, 412]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -110,14 +111,15 @@ export const TACTICS = [
     description:
       "혼스 세트는 포인트가드가 탑에, 두 명의 빅맨이 양쪽 엘보우에, 나머지 두 명이 양쪽 코너에 서는 " +
       "대형입니다. 가드가 한쪽 엘보우 빅맨의 스크린을 활용해 픽앤롤을 시작하고, 스크린을 세운 빅맨은 " +
-      "곧바로 골밑으로 롤인합니다. 반대쪽 빅맨은 팝아웃하며 다음 옵션을 준비합니다. 대부분의 NBA 팀이 " +
-      "쓰는 가장 대표적인 세트 오펜스입니다.",
+      "곧바로 골밑으로 롤인합니다. 반대쪽 빅맨은 3점 라인 밖까지 팝아웃해 킥아웃 패스를 받을 자리를 " +
+      "잡습니다. 스크린은 3점 라인 위에서 걸어야 수비가 따라 나오고, 그래야 골밑이 비어서 롤인이 삽니다. " +
+      "대부분의 NBA 팀이 쓰는 가장 대표적인 세트 오펜스입니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 220], [230, 245], [195, 275], [210, 340], [225, 395]] },
-      { number: 5, team: "offense", path: [[180, 270], [180, 270], [215, 350], [250, 420]] },
-      { number: 4, team: "offense", path: [[320, 270], [300, 250]] },
-      { number: 2, team: "offense", path: [[470, 420], [455, 405]] },
-      { number: 3, team: "offense", path: [[30, 420], [45, 405]] },
+      { number: 1, team: "offense", path: [[250, 172], [238, 205], [198, 244], [200, 320], [222, 392]] },
+      { number: 5, team: "offense", path: [[180, 270], [206, 218], [236, 320], [262, 402]], screenAt: 1 },
+      { number: 4, team: "offense", path: [[320, 270], [352, 196]] },
+      { number: 2, team: "offense", path: [[470, 415], [462, 402]] },
+      { number: 3, team: "offense", path: [[30, 415], [38, 402]] },
     ],
     ball: [{ holder: 1, at: 0 }],
   },
@@ -134,11 +136,11 @@ export const TACTICS = [
       "'스크린 후 그 스크리너를 다시 스크린해주는' 패턴이 계속 반복되는 것이 특징으로, 선수 교체 " +
       "없이도 오픈 찬스를 계속 만들어낼 수 있어 아마추어·고교 농구에서 특히 선호됩니다.",
     players: [
-      { number: 1, team: "offense", path: [[250, 220], [250, 220], [230, 270], [210, 320]] },
-      { number: 5, team: "offense", path: [[320, 270], [320, 270]] },
-      { number: 2, team: "offense", path: [[200, 420], [200, 420], [220, 380], [250, 300]] },
-      { number: 3, team: "offense", path: [[300, 420], [220, 410], [180, 380]] },
-      { number: 4, team: "offense", path: [[180, 270], [170, 260]] },
+      { number: 1, team: "offense", path: [[250, 178], [250, 178], [180, 222], [150, 242]] },
+      { number: 5, team: "offense", path: [[330, 268], [330, 268]] },
+      { number: 2, team: "offense", path: [[30, 415], [152, 428], [152, 428], [96, 300], [68, 252]], screenAt: 1 },
+      { number: 3, team: "offense", path: [[470, 415], [340, 432], [268, 424]] },
+      { number: 4, team: "offense", path: [[170, 270], [162, 258]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -179,13 +181,13 @@ export const TACTICS = [
       "아이버슨 컷은 탑의 가드가 양쪽 엘보우에 선 빅맨들의 스태거 스크린을 연달아 활용해 " +
       "한쪽 윙에서 반대쪽 윙으로 가로질러 컷하는 오프더볼 액션입니다. 필라델피아 시절 앨런 아이버슨이 " +
       "자주 활용해 이름이 붙었습니다. 수비를 스크린에 걸리게 만들어 반대쪽에서 오픈 찬스를 만든 뒤 " +
-      "패스를 받습니다.",
+      "패스를 받습니다. 도착점을 3점 라인 밖에 잡아야 받자마자 3점을 던질 수 있습니다.",
     players: [
-      { number: 1, team: "offense", path: [[260, 235], [270, 245]] },
-      { number: 2, team: "offense", path: [[400, 330], [330, 270], [250, 250], [170, 270], [110, 310]] },
-      { number: 4, team: "offense", path: [[330, 270], [335, 265]] },
-      { number: 5, team: "offense", path: [[170, 270], [165, 265]] },
-      { number: 3, team: "offense", path: [[430, 410], [420, 400]] },
+      { number: 1, team: "offense", path: [[250, 168], [258, 182]] },
+      { number: 2, team: "offense", path: [[432, 258], [352, 236], [250, 228], [148, 236], [60, 252]] },
+      { number: 4, team: "offense", path: [[330, 270], [334, 266]] },
+      { number: 5, team: "offense", path: [[170, 270], [166, 266]] },
+      { number: 3, team: "offense", path: [[470, 415], [462, 404]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -203,11 +205,11 @@ export const TACTICS = [
       "완전히 차단하는 스크린입니다. 레지 밀러, 클레이 탐슨 등이 즐겨 쓴 것으로 유명합니다. " +
       "문이 닫힌 사이로 빠져나온 슈터는 오픈 3점 찬스를 잡습니다.",
     players: [
-      { number: 1, team: "offense", path: [[390, 300], [380, 290]] },
-      { number: 2, team: "offense", path: [[290, 420], [270, 340], [255, 270], [255, 215]] },
-      { number: 5, team: "offense", path: [[220, 270], [215, 275]], screenAt: 0 },
-      { number: 4, team: "offense", path: [[290, 270], [295, 275]], screenAt: 0 },
-      { number: 3, team: "offense", path: [[430, 410], [420, 400]] },
+      { number: 1, team: "offense", path: [[432, 258], [424, 246]] },
+      { number: 2, team: "offense", path: [[306, 428], [272, 340], [254, 262], [248, 178]] },
+      { number: 5, team: "offense", path: [[216, 262], [212, 266]], screenAt: 0 },
+      { number: 4, team: "offense", path: [[286, 262], [290, 266]], screenAt: 0 },
+      { number: 3, team: "offense", path: [[30, 415], [38, 404]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -225,11 +227,11 @@ export const TACTICS = [
       "롤맨을 쫓는 수비수를 백스크린으로 걸어 완전히 열어줍니다. 스페인 국가대표팀이 즐겨 써서 " +
       "이런 이름이 붙었습니다. 수비가 스크린에 걸리면 1번이 활짝 열린 5번에게 패스를 연결합니다.",
     players: [
-      { number: 1, team: "offense", path: [[260, 250], [220, 270], [195, 310], [210, 340]] },
-      { number: 5, team: "offense", path: [[190, 270], [190, 270], [230, 360], [265, 420]], screenAt: 1 },
-      { number: 2, team: "offense", path: [[400, 340], [320, 380], [350, 410]], screenAt: 1 },
-      { number: 3, team: "offense", path: [[100, 340], [90, 330]] },
-      { number: 4, team: "offense", path: [[430, 410], [420, 400]] },
+      { number: 1, team: "offense", path: [[250, 168], [244, 208], [200, 246], [202, 322]] },
+      { number: 5, team: "offense", path: [[204, 262], [208, 214], [238, 322], [266, 404]], screenAt: 1 },
+      { number: 2, team: "offense", path: [[432, 258], [272, 300], [352, 196]], screenAt: 1 },
+      { number: 3, team: "offense", path: [[30, 415], [40, 404]] },
+      { number: 4, team: "offense", path: [[470, 415], [460, 404]] },
     ],
     ball: [
       { holder: 1, at: 0 },
@@ -243,13 +245,15 @@ export const TACTICS = [
     summary: "볼 사이드로 수비 대형 전체가 이동하는 2-3 지역방어 기본 움직임",
     description:
       "공격이 볼을 오른쪽 윙으로 이동시키면, 2-3 지역방어의 다섯 명이 동시에 볼 사이드로 " +
-      "무게중심을 옮깁니다. 앞선 두 명과 뒷선 세 명이 유기적으로 간격을 좁혀 패싱레인을 차단합니다.",
+      "무게중심을 옮깁니다. 앞선 두 명과 뒷선 세 명이 유기적으로 간격을 좁혀 패싱레인을 차단합니다. " +
+      "요즘처럼 3점을 많이 던지는 상대라면 앞선 둘은 3점 라인 바로 안쪽까지, 뒷선 양옆 둘은 " +
+      "45도와 코너를 클로즈아웃할 수 있는 자리까지 나와 있어야 합니다.",
     players: [
-      { number: 1, team: "defense", path: [[150, 150], [225, 140]] },
-      { number: 2, team: "defense", path: [[350, 150], [385, 165]] },
-      { number: 3, team: "defense", path: [[100, 300], [165, 285]] },
-      { number: 4, team: "defense", path: [[250, 340], [300, 325]] },
-      { number: 5, team: "defense", path: [[400, 300], [425, 325]] },
+      { number: 1, team: "defense", path: [[188, 244], [246, 232]] },
+      { number: 2, team: "defense", path: [[312, 244], [368, 258]] },
+      { number: 3, team: "defense", path: [[96, 322], [158, 316]] },
+      { number: 4, team: "defense", path: [[250, 406], [298, 398]] },
+      { number: 5, team: "defense", path: [[404, 322], [436, 336]] },
     ],
   },
   {
@@ -263,11 +267,11 @@ export const TACTICS = [
       "좁혀 헬프 각도를 만듭니다. 미드레인지 풀업 점퍼는 내주더라도 골밑과 돌파만은 확실히 막는 " +
       "수비로, 발이 느린 대신 림 프로텍팅에 능한 빅맨이 있는 팀이 즐겨 씁니다.",
     players: [
-      { number: 1, team: "defense", path: [[250, 290], [220, 270], [200, 310], [210, 350]] },
-      { number: 5, team: "defense", path: [[190, 300], [220, 360], [240, 410], [260, 390]] },
-      { number: 2, team: "defense", path: [[400, 340], [370, 330]] },
-      { number: 3, team: "defense", path: [[100, 350], [130, 340]] },
-      { number: 4, team: "defense", path: [[350, 250], [300, 270]] },
+      { number: 1, team: "defense", path: [[250, 210], [216, 232], [200, 292], [214, 344]] },
+      { number: 5, team: "defense", path: [[212, 254], [232, 330], [248, 396], [268, 372]] },
+      { number: 2, team: "defense", path: [[396, 300], [368, 296]] },
+      { number: 3, team: "defense", path: [[104, 300], [136, 302]] },
+      { number: 4, team: "defense", path: [[348, 212], [312, 244]] },
     ],
   },
   {
@@ -281,11 +285,11 @@ export const TACTICS = [
       "곧바로 자기 마크맨(롤러)에게 복귀합니다. 드랍보다 더 적극적으로 볼 핸들러를 압박하고 싶을 " +
       "때 쓰는 픽앤롤 수비 커버리지입니다.",
     players: [
-      { number: 1, team: "defense", path: [[250, 290], [230, 300], [210, 330], [220, 360]] },
-      { number: 5, team: "defense", path: [[190, 300], [230, 320], [210, 360], [230, 400]] },
-      { number: 2, team: "defense", path: [[400, 340], [380, 330]] },
-      { number: 3, team: "defense", path: [[100, 350], [120, 340]] },
-      { number: 4, team: "defense", path: [[350, 250], [320, 280]] },
+      { number: 1, team: "defense", path: [[250, 210], [228, 240], [206, 296], [216, 342]] },
+      { number: 5, team: "defense", path: [[212, 254], [238, 216], [230, 300], [252, 366]] },
+      { number: 2, team: "defense", path: [[396, 300], [372, 298]] },
+      { number: 3, team: "defense", path: [[104, 300], [128, 302]] },
+      { number: 4, team: "defense", path: [[348, 212], [320, 240]] },
     ],
   },
   {
@@ -299,11 +303,11 @@ export const TACTICS = [
       "자체를 무력화하는 가장 단순하고 확실한 방법이라, 수비수들의 스위치가 가능한 팀에서 널리 " +
       "쓰입니다.",
     players: [
-      { number: 1, team: "defense", path: [[250, 290], [210, 300], [200, 340], [230, 390]] },
-      { number: 5, team: "defense", path: [[190, 300], [220, 290], [240, 310], [230, 340]] },
-      { number: 2, team: "defense", path: [[400, 340], [390, 335]] },
-      { number: 3, team: "defense", path: [[100, 350], [105, 345]] },
-      { number: 4, team: "defense", path: [[350, 250], [340, 255]] },
+      { number: 1, team: "defense", path: [[250, 210], [222, 244], [226, 310], [244, 372]] },
+      { number: 5, team: "defense", path: [[212, 254], [232, 218], [252, 206], [262, 218]] },
+      { number: 2, team: "defense", path: [[396, 300], [388, 298]] },
+      { number: 3, team: "defense", path: [[104, 300], [110, 300]] },
+      { number: 4, team: "defense", path: [[348, 212], [340, 218]] },
     ],
   },
   {
@@ -313,14 +317,14 @@ export const TACTICS = [
     summary: "네 명이 박스 존을 짜고 한 명이 상대 에이스를 전담 마크하는 변형 수비",
     description:
       "네 명이 페인트 구역을 감싸는 박스 모양의 지역방어를 서고, 한 명(5)은 상대 에이스 득점원을 " +
-      "어디든 따라다니며 맨투맨으로 밀착 수비합니다. 상대 팀에 확실한 에이스 한 명만 있고 나머지 " +
+      "3점 라인 밖까지 어디든 따라다니며 맨투맨으로 밀착 수비합니다. 상대 팀에 확실한 에이스 한 명만 있고 나머지 " +
       "득점력이 약할 때, 그 한 명을 완전히 잠그기 위해 아마추어 농구에서도 자주 쓰이는 변형 수비입니다.",
     players: [
-      { number: 1, team: "defense", path: [[190, 270], [200, 260]] },
-      { number: 2, team: "defense", path: [[310, 270], [300, 260]] },
-      { number: 3, team: "defense", path: [[200, 400], [190, 390]] },
-      { number: 4, team: "defense", path: [[300, 400], [310, 390]] },
-      { number: 5, team: "defense", path: [[400, 200], [300, 180], [420, 320], [350, 400]] },
+      { number: 1, team: "defense", path: [[186, 268], [196, 258]] },
+      { number: 2, team: "defense", path: [[314, 268], [304, 258]] },
+      { number: 3, team: "defense", path: [[192, 402], [182, 392]] },
+      { number: 4, team: "defense", path: [[308, 402], [318, 392]] },
+      { number: 5, team: "defense", path: [[432, 256], [352, 196], [250, 176], [150, 206]] },
     ],
   },
   {
@@ -333,11 +337,11 @@ export const TACTICS = [
       "나머지 세 명은 패스 레인을 좁히고 롱패스에 대비해 골밑까지 커버합니다. 상대 볼 핸들링이 " +
       "불안하거나 세트 오펜스가 시작되기 전에 흐름을 강제로 끊고 싶을 때 쓰는 압박 수비입니다.",
     players: [
-      { number: 1, team: "defense", path: [[250, 150], [240, 170]] },
-      { number: 2, team: "defense", path: [[350, 150], [270, 160]] },
-      { number: 3, team: "defense", path: [[100, 200], [150, 220]] },
-      { number: 4, team: "defense", path: [[400, 250], [350, 240]] },
-      { number: 5, team: "defense", path: [[250, 350], [280, 300]] },
+      { number: 1, team: "defense", path: [[250, 118], [268, 158]] },
+      { number: 2, team: "defense", path: [[356, 138], [304, 166]] },
+      { number: 3, team: "defense", path: [[96, 254], [128, 288]] },
+      { number: 4, team: "defense", path: [[404, 254], [376, 296]] },
+      { number: 5, team: "defense", path: [[250, 368], [250, 402]] },
     ],
   },
   {
