@@ -516,7 +516,7 @@ function renderBoard() {
     <section class="board-view">
       <a class="back-link tap-wide" href="#/">← 홈으로</a>
       <h1>작전판</h1>
-      <p class="hint">저장된 전술과는 별개로, 지금 이 자리에서 배치를 옮겨보는 판이에요. 고친 내용은 이 브라우저에 남아 있어서 새로고침해도 그대로예요.</p>
+      <p class="hint">저장된 전술과 별개로 즉석에서 배치를 옮겨보는 판이에요. 고친 내용은 이 브라우저에 그대로 남습니다.</p>
       <div id="board-root"></div>
     </section>
   `;

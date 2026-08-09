@@ -27,8 +27,9 @@ function placeFormation(id, view) {
   const pieces = [];
   f.us.forEach((pt, i) => pieces.push({ id: `u${i + 1}`, side: "us", n: i + 1, ...at(pt) }));
   f.them.forEach((pt, i) => pieces.push({ id: `o${i + 1}`, side: "them", n: i + 1, ...at(pt) }));
-  // 공은 공을 든 상대 선수 옆에 살짝 띄워 놓는다.
-  const holder = at(f.them[(f.ballAt || 1) - 1]);
+  // 공은 공을 든 선수 옆에 살짝 띄워 놓는다. 우리가 공격하는 대형이면 우리 쪽이 든다.
+  const holderSide = f.ballSide === "us" ? f.us : f.them;
+  const holder = at(holderSide[(f.ballAt || 1) - 1]);
   pieces.push({
     id: "ball",
     side: "ball",
@@ -115,9 +116,16 @@ export function mountBoard(container) {
       <button type="button" class="btn btn-sm" id="board-flip">↔ 좌우 반전</button>
       <button type="button" class="btn btn-sm" id="board-reset">🧹 판 비우기</button>
     </div>
-    <p class="board-note" id="board-note"></p>
-    <p class="board-status" id="board-status" role="status">선수나 공을 끌어서 옮기세요. 눌러서 고른 뒤 빈 곳을 눌러도 이동해요.</p>
+    <div class="board-brief">
+      <p class="board-note" id="board-note"></p>
+      <details class="board-why">
+        <summary class="board-why-summary">이 대형의 장단점</summary>
+        <p class="board-pro" id="board-pro"></p>
+        <p class="board-con" id="board-con"></p>
+      </details>
+    </div>
     <div class="board-court"></div>
+    <p class="board-status" id="board-status" role="status">선수나 공을 끌어서 옮기세요. 눌러서 고른 뒤 빈 곳을 눌러도 이동해요.</p>
     <div class="board-legend">
       <span class="board-legend-item"><span class="board-swatch is-us"></span>우리 팀</span>
       <span class="board-legend-item"><span class="board-swatch is-them"></span>상대 팀</span>
@@ -311,8 +319,15 @@ export function mountBoard(container) {
   });
 
   const noteEl = container.querySelector("#board-note");
+  const proEl = container.querySelector("#board-pro");
+  const conEl = container.querySelector("#board-con");
   function showNote() {
-    noteEl.textContent = getFormation(formation).note;
+    const f = getFormation(formation);
+    noteEl.textContent = f.note;
+    proEl.textContent = f.strength || "";
+    conEl.textContent = f.weakness || "";
+    proEl.hidden = !f.strength;
+    conEl.hidden = !f.weakness;
   }
 
   function applyFormation() {
