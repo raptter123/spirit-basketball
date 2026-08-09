@@ -1252,6 +1252,8 @@ function updateNavActive() {
     active = "team-shuffle";
   } else if (hash === "#/schedule") {
     active = "schedule";
+  } else if (hash === "#/board") {
+    active = "board";
   }
 
   document.querySelectorAll(".utility-bar a[data-nav]").forEach((a) => {
