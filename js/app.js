@@ -3,6 +3,7 @@ import { mountCourt } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
+import { mountBoard } from "./board.js";
 import { ROSTER } from "./roster.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents } from "./events.js";
@@ -34,6 +35,7 @@ function badgeClassFor(category) {
 
 const HOME_MENU = [
   { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
+  { icon: "✍️", title: "작전판", desc: "풀코트 위에서 선수와 공을 끌어 옮기며 즉석에서 이야기해보세요.", href: "#/board" },
   { icon: "📖", title: "용어 사전", desc: "스위치·드롭백·블리츠 같은 콜과 용어를 한곳에 모아뒀어요.", href: "#/glossary" },
   { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
   { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
@@ -506,6 +508,19 @@ function renderGlossary() {
   }
 
   render();
+}
+
+
+function renderBoard() {
+  app.innerHTML = `
+    <section class="board-view">
+      <a class="back-link tap-wide" href="#/">← 홈으로</a>
+      <h1>작전판</h1>
+      <p class="hint">저장된 전술과는 별개로, 지금 이 자리에서 배치를 옮겨보는 판이에요. 고친 내용은 이 브라우저에 남아 있어서 새로고침해도 그대로예요.</p>
+      <div id="board-root"></div>
+    </section>
+  `;
+  mountBoard(document.getElementById("board-root"));
 }
 
 function renderNotFound() {
@@ -1298,6 +1313,8 @@ function router() {
     renderRoster();
   } else if (hash === "#/glossary") {
     renderGlossary();
+  } else if (hash === "#/board") {
+    renderBoard();
   } else if (hash.startsWith("#/player/")) {
     renderPlayer(decodeURIComponent(hash.slice("#/player/".length)));
   } else if (hash === "#/team-shuffle") {
