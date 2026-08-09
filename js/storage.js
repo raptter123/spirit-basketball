@@ -153,3 +153,32 @@ export function clearTacticSimAssignment() {
     // no-op
   }
 }
+
+const BOARD_KEY = "spirit-board";
+
+// 작전판은 새로고침이나 실수로 나갔다 와도 그리던 게 남아 있어야 한다.
+// (전술 초안과 달리 화면을 떠난다고 지우지 않는다 — 지우는 건 "판 비우기" 뿐이다.)
+export function getBoardState() {
+  try {
+    const raw = localStorage.getItem(BOARD_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveBoardState(state) {
+  try {
+    localStorage.setItem(BOARD_KEY, JSON.stringify(state));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearBoardState() {
+  try {
+    localStorage.removeItem(BOARD_KEY);
+  } catch {
+    // no-op
+  }
+}

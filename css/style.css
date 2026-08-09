@@ -498,6 +498,211 @@ body {
   stroke-width: 2.5;
 }
 
+/* ── 작전판 ───────────────────────────────────────────────
+   원본 파일은 자체 색·전역 선택자를 갖고 있었는데, 여기서는 전부 사이트 변수로 바꾸고
+   클래스 이름도 board- 로 묶어서 기존 화면과 부딪히지 않게 했다. */
+.board-view h1 {
+  margin: 8px 0 4px;
+}
+
+.board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.board-view-label,
+.board-view label,
+.board-toolbar .board-view {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.board-toolbar .board-view span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.board-toolbar select {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.board-toolbar .btn {
+  white-space: nowrap;
+}
+
+/* 그리기 모드가 켜졌는지 한눈에 보이게 */
+.board-toolbar .btn.is-on {
+  background: var(--accent-btn);
+  border-color: var(--accent-btn);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.board-status {
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.board-court {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+/* 드래그 중에 화면이 같이 스크롤되면 말을 놓치므로 터치 제스처를 이 판에서만 막는다. */
+.board-svg {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.court-line.is-dashed {
+  stroke-dasharray: 10 10;
+  opacity: 0.5;
+}
+
+.court-line.is-board {
+  stroke-width: 6;
+  opacity: 1;
+}
+
+.board-piece {
+  cursor: grab;
+}
+
+.board-piece:active {
+  cursor: grabbing;
+}
+
+/* 선택된 말에만 보이는 테두리 링 */
+.board-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  opacity: 0;
+}
+
+.board-piece.is-selected .board-ring {
+  opacity: 1;
+}
+
+/* 코트 전술 그림과 같은 규칙: 우리 팀은 꽉 찬 원, 상대는 회색 속 빈 원 */
+.board-dot {
+  stroke: var(--player-stroke);
+  stroke-width: 3;
+}
+
+.board-dot.is-us {
+  fill: var(--offense);
+}
+
+.board-dot.is-them {
+  fill: var(--opponent);
+  fill-opacity: 0.18;
+  stroke: var(--opponent);
+  stroke-width: 5;
+}
+
+.board-num {
+  font-size: 26px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.board-num.is-us {
+  fill: #fff;
+}
+
+.board-num.is-them {
+  fill: var(--opponent-ink);
+  paint-order: stroke;
+  stroke: var(--player-stroke);
+  stroke-width: 4px;
+}
+
+.board-ball {
+  fill: #e8730a;
+  stroke: #7a3600;
+  stroke-width: 3;
+}
+
+.board-ball-seam {
+  fill: none;
+  stroke: #7a3600;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.board-arrow {
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.board-arrowhead {
+  fill: var(--accent);
+}
+
+.board-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.board-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.board-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.board-swatch.is-us {
+  background: var(--offense);
+}
+
+.board-swatch.is-them {
+  background: color-mix(in srgb, var(--opponent) 18%, transparent);
+  border: 2px solid var(--opponent);
+}
+
+.board-swatch.is-ball {
+  background: #e8730a;
+}
+
+.board-swatch.is-arrow {
+  background: var(--accent);
+  border-radius: 2px;
+  height: 4px;
+  width: 18px;
+}
+
 /* ── 용어 사전 ─────────────────────────────────────────── */
 .glossary-view h1 {
   margin: 8px 0 4px;
