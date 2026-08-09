@@ -3,6 +3,7 @@
 // 클래스 이름 충돌 없음)에 맞춰 다시 옮겼다.
 import { svgEl } from "./court.js";
 import { getBoardState, saveBoardState, clearBoardState } from "./storage.js";
+import { FORMATION_GROUPS, DEFAULT_FORMATION, getFormation } from "./formations.js";
 
 // FIBA 28m × 15m 비율. 하프코트 전술 좌표(500×470)와는 다른 체계라 서로 섞이지 않는다.
 const FULL_W = 1120;
@@ -17,20 +18,25 @@ const VIEWS = {
 const PIECE_R = 27;
 const BALL_R = 22;
 
-function initialPieces() {
-  return [
-    { id: "u1", side: "us", n: 1, x: 755, y: 300 },
-    { id: "u2", side: "us", n: 2, x: 855, y: 115 },
-    { id: "u3", side: "us", n: 3, x: 855, y: 485 },
-    { id: "u4", side: "us", n: 4, x: 990, y: 205 },
-    { id: "u5", side: "us", n: 5, x: 990, y: 395 },
-    { id: "o1", side: "them", n: 1, x: 690, y: 300 },
-    { id: "o2", side: "them", n: 2, x: 810, y: 160 },
-    { id: "o3", side: "them", n: 3, x: 810, y: 440 },
-    { id: "o4", side: "them", n: 4, x: 940, y: 250 },
-    { id: "o5", side: "them", n: 5, x: 940, y: 350 },
-    { id: "ball", side: "ball", n: "", x: 730, y: 245 },
-  ];
+// 대형 좌표는 오른쪽 하프코트 기준으로 적혀 있다.
+// 왼쪽 하프를 보고 있으면 좌우를 뒤집어 그쪽에 놓아야 화면 안에 들어온다.
+function placeFormation(id, view) {
+  const f = getFormation(id);
+  const mirror = view === "left";
+  const at = ([x, y]) => ({ x: mirror ? FULL_W - x : x, y });
+  const pieces = [];
+  f.us.forEach((pt, i) => pieces.push({ id: `u${i + 1}`, side: "us", n: i + 1, ...at(pt) }));
+  f.them.forEach((pt, i) => pieces.push({ id: `o${i + 1}`, side: "them", n: i + 1, ...at(pt) }));
+  // 공은 공을 든 상대 선수 옆에 살짝 띄워 놓는다.
+  const holder = at(f.them[(f.ballAt || 1) - 1]);
+  pieces.push({
+    id: "ball",
+    side: "ball",
+    n: "",
+    x: holder.x + (mirror ? 40 : -40),
+    y: holder.y - 38,
+  });
+  return pieces;
 }
 
 // 하프코트 코트 그림과 같은 클래스를 써서 테마가 그대로 따라오게 한다.
@@ -69,10 +75,11 @@ function fullCourtMarkings() {
 
 export function mountBoard(container) {
   const saved = getBoardState();
-  let pieces = saved?.pieces?.length ? saved.pieces.map((p) => ({ ...p })) : initialPieces();
-  let arrows = saved?.arrows ? saved.arrows.map((a) => [...a]) : [];
   // 폰에서 풀코트를 띄우면 세로가 200px밖에 안 돼서 말을 집기 어렵다. 좁은 화면은 하프로 시작한다.
   let view = saved?.view || (window.innerWidth < 700 ? "right" : "full");
+  let formation = saved?.formation || DEFAULT_FORMATION;
+  let pieces = saved?.pieces?.length ? saved.pieces.map((p) => ({ ...p })) : placeFormation(formation, view);
+  let arrows = saved?.arrows ? saved.arrows.map((a) => [...a]) : [];
   let selected = null;
   let drawMode = false;
 
@@ -80,11 +87,21 @@ export function mountBoard(container) {
   let pendingArrow = null;
 
   function persist() {
-    saveBoardState({ pieces, arrows, view });
+    saveBoardState({ pieces, arrows, view, formation });
   }
 
   container.innerHTML = `
     <div class="board-toolbar">
+      <label class="board-view">
+        <span>대형</span>
+        <select id="board-formation">
+          ${FORMATION_GROUPS.map(
+            (g) => `<optgroup label="${g.label}">${g.items
+              .map((f) => `<option value="${f.id}" ${formation === f.id ? "selected" : ""}>${f.name}</option>`)
+              .join("")}</optgroup>`
+          ).join("")}
+        </select>
+      </label>
       <label class="board-view">
         <span>코트</span>
         <select id="board-view">
@@ -98,6 +115,7 @@ export function mountBoard(container) {
       <button type="button" class="btn btn-sm" id="board-flip">↔ 좌우 반전</button>
       <button type="button" class="btn btn-sm" id="board-reset">🧹 판 비우기</button>
     </div>
+    <p class="board-note" id="board-note"></p>
     <p class="board-status" id="board-status" role="status">선수나 공을 끌어서 옮기세요. 눌러서 고른 뒤 빈 곳을 눌러도 이동해요.</p>
     <div class="board-court"></div>
     <div class="board-legend">
@@ -292,25 +310,52 @@ export function mountBoard(container) {
     say("좌우를 뒤집었어요.");
   });
 
-  container.querySelector("#board-reset").addEventListener("click", () => {
-    pieces = initialPieces();
-    arrows = [];
+  const noteEl = container.querySelector("#board-note");
+  function showNote() {
+    noteEl.textContent = getFormation(formation).note;
+  }
+
+  function applyFormation() {
+    pieces = placeFormation(formation, view);
     selected = null;
+    drawPieces();
+    showNote();
+    persist();
+  }
+
+  container.querySelector("#board-formation").addEventListener("change", (e) => {
+    formation = e.target.value;
+    applyFormation();
+    say(`${getFormation(formation).name} 배치로 세웠어요.`);
+  });
+
+  container.querySelector("#board-reset").addEventListener("click", () => {
+    arrows = [];
     drawMode = false;
     drawBtn.classList.remove("is-on");
     drawBtn.setAttribute("aria-pressed", "false");
     clearBoardState();
-    drawPieces();
+    applyFormation();
     drawArrows();
-    say("처음 배치로 되돌렸어요.");
+    say(`${getFormation(formation).name} 처음 배치로 되돌렸어요.`);
   });
 
   container.querySelector("#board-view").addEventListener("change", (e) => {
+    const prev = view;
     view = e.target.value;
     svg.setAttribute("viewBox", VIEWS[view].box);
+    // 반대쪽 하프로 넘어가면 선수들이 화면 밖에 남으므로 같이 옮겨준다.
+    const flipped = (prev === "left") !== (view === "left");
+    if (flipped) {
+      pieces = pieces.map((p) => ({ ...p, x: FULL_W - p.x }));
+      arrows = arrows.map(([x1, y1, x2, y2]) => [FULL_W - x1, y1, FULL_W - x2, y2]);
+      drawPieces();
+      drawArrows();
+    }
     persist();
   });
 
+  showNote();
   drawArrows();
   drawPieces();
 }
