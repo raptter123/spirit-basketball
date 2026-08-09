@@ -113,6 +113,7 @@ export function mountBoard(container) {
       </label>
       <button type="button" class="btn btn-sm" id="board-draw">✏️ 이동선 그리기</button>
       <button type="button" class="btn btn-sm" id="board-undo">↩ 선 하나 지우기</button>
+      <button type="button" class="btn btn-sm" id="board-swap">🔄 공수교대</button>
       <button type="button" class="btn btn-sm" id="board-flip">↔ 좌우 반전</button>
       <button type="button" class="btn btn-sm" id="board-reset">🧹 판 비우기</button>
     </div>
@@ -307,6 +308,24 @@ export function mountBoard(container) {
     drawArrows();
     persist();
     say("이동선 하나를 지웠어요.");
+  });
+
+  // 공수교대 — 자리는 그대로 두고 우리 말과 상대 말만 맞바꾼다.
+  // 같은 배치를 반대 입장에서 보게 되므로, 방금 그린 수비 대형을 그대로 공격 대형으로 읽을 수 있다.
+  container.querySelector("#board-swap").addEventListener("click", () => {
+    const us = pieces.filter((p) => p.side === "us");
+    const them = pieces.filter((p) => p.side === "them");
+    const n = Math.min(us.length, them.length);
+    for (let i = 0; i < n; i++) {
+      const tmp = { x: us[i].x, y: us[i].y };
+      us[i].x = them[i].x;
+      us[i].y = them[i].y;
+      them[i].x = tmp.x;
+      them[i].y = tmp.y;
+    }
+    drawPieces();
+    persist();
+    say("공수를 바꿨어요. 공은 그 자리에 그대로 있습니다.");
   });
 
   container.querySelector("#board-flip").addEventListener("click", () => {
