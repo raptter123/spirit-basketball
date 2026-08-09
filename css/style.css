@@ -505,6 +505,11 @@ body {
   margin: 8px 0 4px;
 }
 
+/* 코트를 한 화면 안에 넣으려고 위쪽 여백을 다른 화면보다 좁게 잡았다. */
+.board-view .hint {
+  margin-bottom: 14px;
+}
+
 .board-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -535,6 +540,9 @@ body {
   padding: 9px 10px;
   font: inherit;
   font-size: 0.85rem;
+  /* 이름이 긴 대형 하나 때문에 목록 전체가 넓어지면 툴바가 한 줄 더 늘어난다. */
+  max-width: 146px;
+  text-overflow: ellipsis;
 }
 
 .board-toolbar .btn {
@@ -549,14 +557,103 @@ body {
   font-weight: 700;
 }
 
-.board-note {
-  margin: 0 0 8px;
-  font-size: 0.84rem;
-  color: var(--text-muted);
+.board-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
+.board-note {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* 장단점은 폰에서 코트를 화면 밖으로 밀어내므로 접어 둔다. 전술 상세의 시뮬레이션 칸과 같은 방식. */
+.board-why {
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0 12px;
+}
+
+.board-why[open] {
+  padding-bottom: 11px;
+}
+
+.board-why-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+}
+
+.board-why-summary::-webkit-details-marker {
+  display: none;
+}
+
+.board-why-summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.board-why[open] .board-why-summary::after {
+  transform: rotate(180deg);
+}
+
+.board-why-summary:hover {
+  color: var(--accent-text);
+}
+
+/* 장단점은 라벨을 앞에 붙여 한눈에 갈리게 한다. */
+.board-pro,
+.board-con {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding-left: 46px;
+  text-indent: -46px;
+}
+
+.board-con {
+  margin-top: 6px;
+}
+
+.board-pro::before,
+.board-con::before {
+  content: "장점";
+  display: inline-block;
+  width: 34px;
+  margin-right: 12px;
+  text-indent: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 0;
+  color: var(--offense);
+  background: var(--badge-off-bg);
+}
+
+.board-con::before {
+  content: "약점";
+  color: var(--defense);
+  background: var(--badge-def-bg);
+}
+
+/* 코트가 폰 화면 위쪽에 오도록 안내·상태 줄은 코트 아래에 둔다. */
 .board-status {
-  margin: 0 0 10px;
+  margin: 10px 0 0;
   padding: 9px 12px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
