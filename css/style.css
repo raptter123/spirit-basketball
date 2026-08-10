@@ -398,6 +398,14 @@ body {
   filter: drop-shadow(0 0 3px var(--rim-glow));
 }
 
+/* 위에서 본 그물. 림보다 가늘고 옅게 — 골대가 어디인지 알려주는 정도면 된다. */
+.net {
+  fill: none;
+  stroke: var(--rim);
+  stroke-width: 1.4;
+  opacity: 0.55;
+}
+
 .arrow-path {
   fill: none;
   stroke-width: 2.5;
@@ -721,6 +729,12 @@ body {
   opacity: 0.4;
 }
 
+/* 하프코트는 그림이 작아서 싸인도 작게 — 사이드라인을 물지 않는 크기 */
+.brand-word.is-small {
+  font-size: 34px;
+  opacity: 0.34;
+}
+
 /* 라이트판은 빨강이라 같은 값에서도 더 진해 보인다. 전체적으로 낮춘다. */
 :root[data-theme="light"] .brand-zone {
   opacity: 0.05;
@@ -731,7 +745,7 @@ body {
 }
 
 :root[data-theme="light"] .court-mark {
-  opacity: 0.15;
+  opacity: 0.26;
 }
 
 :root[data-theme="light"] .brand-word {
@@ -740,6 +754,10 @@ body {
 
 :root[data-theme="light"] .brand-word.is-big {
   opacity: 0.3;
+}
+
+:root[data-theme="light"] .brand-word.is-small {
+  opacity: 0.26;
 }
 
 /* 로고는 다크판(흰 불꽃)과 라이트판이 따로다. 헤더 로고와 같은 규칙을 쓴다. */
@@ -755,10 +773,10 @@ body {
   display: block;
 }
 
-/* 하프코트로 보면 센터 마크가 화면 끝에서 반토막 나므로 그때는 숨긴다.
-   구역·페인트존·워드마크는 각 반쪽 안에 있어서 그대로 둔다.
+/* 하프코트로 보면 가운데 마크가 화면 끝에서 반토막 나므로 그것만 숨긴다.
+   골대 옆 마크·구역·페인트존·워드마크는 각 반쪽 안에 있어서 그대로 둔다.
    위 테마 규칙과 특이도가 같으므로 반드시 뒤에 와야 이긴다. */
-.board-svg.is-half .court-mark {
+.board-svg.is-half .court-mark.is-center {
   display: none;
 }
 

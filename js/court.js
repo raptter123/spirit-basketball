@@ -17,9 +17,25 @@ export function arrowKind(p) {
   return p.opponent ? "opponent" : p.team;
 }
 
+// 위에서 내려다본 코트라 그물은 링 안쪽에 비쳐 보인다.
+// 방사형 줄 몇 가닥과 안쪽 원 하나면 '그물이 달린 골대'로 읽힌다.
+export function netSVG(cx, cy, r) {
+  const strands = 8;
+  const lines = Array.from({ length: strands }, (_, i) => {
+    const a = (Math.PI * 2 * i) / strands + Math.PI / strands;
+    const x1 = cx + Math.cos(a) * r;
+    const y1 = cy + Math.sin(a) * r;
+    const x2 = cx + Math.cos(a) * r * 0.24;
+    const y2 = cy + Math.sin(a) * r * 0.24;
+    return `<line class="net" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />`;
+  }).join("");
+  return `${lines}<circle class="net" cx="${cx}" cy="${cy}" r="${(r * 0.55).toFixed(1)}" />`;
+}
+
 export function courtMarkingsSVG() {
   return `
     <rect class="court-boundary" x="10" y="10" width="480" height="450" rx="18" />
+    ${courtBrandingSVG()}
     <rect class="paint-fill" x="170" y="270" width="160" height="190" />
     <path class="court-line" d="M 190 10 A 60 60 0 0 0 310 10" />
     <rect class="court-line" x="170" y="270" width="160" height="190" />
@@ -29,7 +45,30 @@ export function courtMarkingsSVG() {
     <path class="court-line" d="M 470 310 L 470 460" />
     <path class="court-line" d="M 30 310 A 257 257 0 0 1 470 310" />
     <line class="court-line" x1="215" y1="428" x2="285" y2="428" />
+    ${netSVG(250, 442, 9)}
     <circle class="rim" cx="250" cy="442" r="9" />
+  `;
+}
+
+// 프로 경기 코트처럼 바닥에 팀 색을 칠하고 마크를 찍는다. 색·투명도는 CSS(.court-brand)에서 잡는다.
+// 자리는 전술 21개의 선수 경로를 격자로 세어서 고른 것이다:
+//   - 3점 라인 안쪽은 넓게 칠하되 색만 (그림·글자를 얹으면 화살표와 싸운다)
+//   - 로고는 골대 오른쪽 숏코너. 골밑 한가운데는 모든 전술의 마지막 장면이라 피한다
+//   - 싸인은 왼쪽 위. 어느 전술도 선수가 지나가지 않는 유일한 빈 구역이다
+function courtBrandingSVG() {
+  const arcZone = "M 30 460 L 30 310 A 257 257 0 0 1 470 310 L 470 460 Z";
+  const mark = (theme) =>
+    `<image class="court-mark court-mark-${theme}" href="assets/logo-${theme}.svg"
+            x="352" y="342" width="70" height="84" preserveAspectRatio="xMidYMid meet" />`;
+  return `
+    <g class="court-brand" aria-hidden="true">
+      <path class="brand-zone" d="${arcZone}" />
+      <rect class="brand-key" x="170" y="270" width="160" height="190" />
+      ${mark("dark")}
+      ${mark("light")}
+      <text class="brand-word is-small" x="92" y="96" text-anchor="middle"
+            transform="rotate(-32 92 96)">Spirit</text>
+    </g>
   `;
 }
 

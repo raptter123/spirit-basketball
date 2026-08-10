@@ -1,7 +1,7 @@
 // 작전판 — 저장된 전술과 별개로, 즉석에서 배치를 옮겨보며 이야기하는 화이트보드.
 // 원본은 규철이 만든 독립 HTML 파일이고, 여기서는 사이트 규칙(테마 변수, 상대는 회색 속 빈 원,
 // 클래스 이름 충돌 없음)에 맞춰 다시 옮겼다.
-import { svgEl } from "./court.js";
+import { netSVG, svgEl } from "./court.js";
 import { getBoardState, saveBoardState, clearBoardState } from "./storage.js";
 import { FORMATION_GROUPS, DEFAULT_FORMATION, getFormation } from "./formations.js";
 
@@ -62,6 +62,7 @@ function fullCourtMarkings() {
       <line class="court-line" x1="${rimX}" y1="248" x2="${boardX}" y2="248" />
       <line class="court-line" x1="${rimX}" y1="352" x2="${boardX}" y2="352" />
       <line class="court-line is-board" x1="${boardX}" y1="264" x2="${boardX}" y2="336" />
+      ${netSVG(rimX, 300, 10)}
       <circle class="rim" cx="${rimX}" cy="300" r="10" />
     `;
   };
@@ -82,17 +83,24 @@ function courtBranding() {
   const arcL = "M 0 36 L 120 36 A 270 270 0 0 1 120 564 L 0 564 Z";
   const arcR = `M ${FULL_W} 36 L 1000 36 A 270 270 0 0 0 1000 564 L ${FULL_W} 564 Z`;
   // 다크판·라이트판 로고가 따로라 헤더 로고와 같은 방식으로 하나만 보여준다.
-  const mark = (theme) =>
-    `<image class="court-mark court-mark-${theme}" href="assets/logo-${theme}.svg"
-            x="462" y="172" width="196" height="235" preserveAspectRatio="xMidYMid meet" />`;
+  const mark = (theme, x, y, w, extra = "") =>
+    `<image class="court-mark court-mark-${theme} ${extra}" href="assets/logo-${theme}.svg"
+            x="${x}" y="${y}" width="${w}" height="${Math.round(w * 1.199)}"
+            preserveAspectRatio="xMidYMid meet" />`;
+  // 골대 옆 마크. 하프코트 그림의 '골대 오른쪽'을 풀코트로 돌리면 골대 위/아래가 되고,
+  // 양쪽 골대가 점대칭으로 놓여야 실제 코트처럼 보인다.
+  const side = (theme) =>
+    mark(theme, 32, 419, 88) + mark(theme, 1000, 76, 88);
   return `
     <g class="court-brand" aria-hidden="true">
       <path class="brand-zone" d="${arcL}" />
       <path class="brand-zone" d="${arcR}" />
       <rect class="brand-key" x="0" y="202" width="232" height="196" />
       <rect class="brand-key" x="888" y="202" width="232" height="196" />
-      ${mark("dark")}
-      ${mark("light")}
+      ${mark("dark", 462, 172, 196, "is-center")}
+      ${mark("light", 462, 172, 196, "is-center")}
+      ${side("dark")}
+      ${side("light")}
       <text class="brand-word is-big" x="700" y="70" text-anchor="middle">Spirit</text>
       <text class="brand-word" x="424" y="556" text-anchor="middle">Since 1992</text>
     </g>
