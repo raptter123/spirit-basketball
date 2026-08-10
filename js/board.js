@@ -69,8 +69,26 @@ function fullCourtMarkings() {
     <rect class="court-boundary" x="2" y="2" width="${FULL_W - 4}" height="${FULL_H - 4}" rx="14" />
     <line class="court-line" x1="${FULL_W / 2}" y1="0" x2="${FULL_W / 2}" y2="${FULL_H}" />
     <circle class="court-line" cx="${FULL_W / 2}" cy="300" r="72" />
+    ${centerMark()}
     ${half(0, 1)}
     ${half(FULL_W, -1)}
+  `;
+}
+
+// 프로 경기 코트처럼 센터 서클에 팀 마크를 찍는다.
+// 어디까지나 바닥 무늬라 말과 이동선을 이기면 안 된다 — 아주 옅게, 클릭도 통과시킨다.
+// 다크/라이트용 파일이 따로 있어서 헤더 로고와 같은 방식으로 하나만 보여준다.
+// 하프코트로 보면 마크가 화면 가장자리에서 반토막 나므로 풀코트일 때만 켠다.
+function centerMark() {
+  const box = { x: FULL_W / 2 - 50, y: 240, width: 100, height: 120 };
+  const attrs = Object.entries(box)
+    .map(([k, v]) => `${k}="${v}"`)
+    .join(" ");
+  return `
+    <g class="court-mark" aria-hidden="true">
+      <image class="court-mark-dark" href="assets/logo-dark.svg" ${attrs} preserveAspectRatio="xMidYMid meet" />
+      <image class="court-mark-light" href="assets/logo-light.svg" ${attrs} preserveAspectRatio="xMidYMid meet" />
+    </g>
   `;
 }
 
@@ -138,7 +156,7 @@ export function mountBoard(container) {
   const statusEl = container.querySelector("#board-status");
   const svg = svgEl("svg", {
     viewBox: VIEWS[view].box,
-    class: "court-svg board-svg",
+    class: `court-svg board-svg${view === "full" ? "" : " is-half"}`,
     role: "img",
     "aria-label": "드래그해서 배치를 옮기는 작전판",
   });
@@ -378,6 +396,7 @@ export function mountBoard(container) {
     const prev = view;
     view = e.target.value;
     svg.setAttribute("viewBox", VIEWS[view].box);
+    svg.classList.toggle("is-half", view !== "full");
     // 반대쪽 하프로 넘어가면 선수들이 화면 밖에 남으므로 같이 옮겨준다.
     const flipped = (prev === "left") !== (view === "left");
     if (flipped) {
