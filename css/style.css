@@ -675,6 +675,36 @@ body {
   -webkit-user-select: none;
 }
 
+/* 센터 서클의 팀 마크. 바닥에 찍힌 무늬처럼 보일 만큼만 — 말과 이동선을 절대 이기면 안 된다.
+   포인터 이벤트도 통과시켜야 마크 위에서도 말을 집을 수 있다. */
+.court-mark {
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+/* 하프코트로 보면 마크가 화면 끝에서 반토막 나므로 그때는 숨긴다. */
+.board-svg.is-half .court-mark {
+  display: none;
+}
+
+/* 로고는 다크판(흰 불꽃)과 라이트판이 따로다. 헤더 로고와 같은 규칙을 쓴다. */
+.court-mark-light {
+  display: none;
+}
+
+:root[data-theme="light"] .court-mark-dark {
+  display: none;
+}
+
+:root[data-theme="light"] .court-mark-light {
+  display: block;
+}
+
+/* 라이트판 로고는 빨강이라 같은 투명도에서도 더 진하게 보인다. 조금 더 낮춘다. */
+:root[data-theme="light"] .court-mark {
+  opacity: 0.07;
+}
+
 .court-line.is-dashed {
   stroke-dasharray: 10 10;
   opacity: 0.5;
