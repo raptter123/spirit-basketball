@@ -1,3 +1,13 @@
+/* 코트 바닥 워드마크용 필기체. 무료(OFL)라 사이트에 직접 넣어 두고,
+   네트워크가 없어도(PWA) 같은 모양이 나오게 한다. */
+@font-face {
+  font-family: "CourtScript";
+  src: url("../assets/fonts/pacifico.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* 테마는 두 벌뿐이다: 기본(다크) = '퍼플 나이트', [data-theme="light"] = '크림 코트'.
    두 테마 모두 아래 변수만 갈아끼우면 되도록, 색은 전부 여기서만 정의한다.
    실제 적용은 index.html의 인라인 스크립트가 <html data-theme>를 먼저 세팅해서 깜빡임을 막는다. */
@@ -675,16 +685,61 @@ body {
   -webkit-user-select: none;
 }
 
-/* 센터 서클의 팀 마크. 바닥에 찍힌 무늬처럼 보일 만큼만 — 말과 이동선을 절대 이기면 안 된다.
-   포인터 이벤트도 통과시켜야 마크 위에서도 말을 집을 수 있다. */
-.court-mark {
-  opacity: 0.09;
+/* ── 코트 바닥 브랜딩 ────────────────────────────────────
+   프로 경기 코트를 따라 3점 라인 안쪽을 칠하고, 페인트존을 한 단계 더 진하게,
+   센터에 마크를 찍고, 좌우 반쪽에 워드마크를 하나씩 둔다.
+   전부 바닥 무늬라 말과 이동선을 이기면 안 되고, 클릭도 통과시켜야 한다. */
+.court-brand {
   pointer-events: none;
 }
 
-/* 하프코트로 보면 마크가 화면 끝에서 반토막 나므로 그때는 숨긴다. */
-.board-svg.is-half .court-mark {
-  display: none;
+.brand-zone {
+  fill: var(--accent);
+  opacity: 0.07;
+}
+
+.brand-key {
+  fill: var(--accent);
+  opacity: 0.12;
+}
+
+.court-mark {
+  opacity: 0.2;
+}
+
+/* 워드마크는 필기체로. 코트 위 화살표·스크린이 전부 직선이라, 흘려 쓴 획이어야
+   눈이 '바닥 무늬'로 분류하고 전술 표시와 헷갈리지 않는다. */
+.brand-word {
+  font-family: "CourtScript", cursive;
+  font-size: 42px;
+  fill: var(--accent);
+  opacity: 0.32;
+}
+
+.brand-word.is-big {
+  font-size: 66px;
+  opacity: 0.4;
+}
+
+/* 라이트판은 빨강이라 같은 값에서도 더 진해 보인다. 전체적으로 낮춘다. */
+:root[data-theme="light"] .brand-zone {
+  opacity: 0.05;
+}
+
+:root[data-theme="light"] .brand-key {
+  opacity: 0.09;
+}
+
+:root[data-theme="light"] .court-mark {
+  opacity: 0.15;
+}
+
+:root[data-theme="light"] .brand-word {
+  opacity: 0.24;
+}
+
+:root[data-theme="light"] .brand-word.is-big {
+  opacity: 0.3;
 }
 
 /* 로고는 다크판(흰 불꽃)과 라이트판이 따로다. 헤더 로고와 같은 규칙을 쓴다. */
@@ -700,9 +755,11 @@ body {
   display: block;
 }
 
-/* 라이트판 로고는 빨강이라 같은 투명도에서도 더 진하게 보인다. 조금 더 낮춘다. */
-:root[data-theme="light"] .court-mark {
-  opacity: 0.07;
+/* 하프코트로 보면 센터 마크가 화면 끝에서 반토막 나므로 그때는 숨긴다.
+   구역·페인트존·워드마크는 각 반쪽 안에 있어서 그대로 둔다.
+   위 테마 규칙과 특이도가 같으므로 반드시 뒤에 와야 이긴다. */
+.board-svg.is-half .court-mark {
+  display: none;
 }
 
 .court-line.is-dashed {
