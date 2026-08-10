@@ -1,7 +1,7 @@
 // 작전판 — 저장된 전술과 별개로, 즉석에서 배치를 옮겨보며 이야기하는 화이트보드.
 // 원본은 규철이 만든 독립 HTML 파일이고, 여기서는 사이트 규칙(테마 변수, 상대는 회색 속 빈 원,
 // 클래스 이름 충돌 없음)에 맞춰 다시 옮겼다.
-import { svgEl } from "./court.js";
+import { netSVG, svgEl } from "./court.js";
 import { getBoardState, saveBoardState, clearBoardState } from "./storage.js";
 import { FORMATION_GROUPS, DEFAULT_FORMATION, getFormation } from "./formations.js";
 
@@ -62,32 +62,47 @@ function fullCourtMarkings() {
       <line class="court-line" x1="${rimX}" y1="248" x2="${boardX}" y2="248" />
       <line class="court-line" x1="${rimX}" y1="352" x2="${boardX}" y2="352" />
       <line class="court-line is-board" x1="${boardX}" y1="264" x2="${boardX}" y2="336" />
+      ${netSVG(rimX, 300, 10)}
       <circle class="rim" cx="${rimX}" cy="300" r="10" />
     `;
   };
   return `
     <rect class="court-boundary" x="2" y="2" width="${FULL_W - 4}" height="${FULL_H - 4}" rx="14" />
     <line class="court-line" x1="${FULL_W / 2}" y1="0" x2="${FULL_W / 2}" y2="${FULL_H}" />
-    <circle class="court-line" cx="${FULL_W / 2}" cy="300" r="72" />
-    ${centerMark()}
+    ${courtBranding()}
     ${half(0, 1)}
     ${half(FULL_W, -1)}
   `;
 }
 
-// 프로 경기 코트처럼 센터 서클에 팀 마크를 찍는다.
-// 어디까지나 바닥 무늬라 말과 이동선을 이기면 안 된다 — 아주 옅게, 클릭도 통과시킨다.
-// 다크/라이트용 파일이 따로 있어서 헤더 로고와 같은 방식으로 하나만 보여준다.
-// 하프코트로 보면 마크가 화면 가장자리에서 반토막 나므로 풀코트일 때만 켠다.
-function centerMark() {
-  const box = { x: FULL_W / 2 - 50, y: 240, width: 100, height: 120 };
-  const attrs = Object.entries(box)
-    .map(([k, v]) => `${k}="${v}"`)
-    .join(" ");
+// 프로 경기 코트처럼 바닥에 팀 색을 칠하고 마크를 찍는다.
+// 색과 투명도는 전부 CSS(.court-brand)에서 잡아서 테마별로 갈아끼운다.
+// 센터 서클 라인은 일부러 안 그린다 — 마크가 원에 갇히지 않고 바닥에 박힌 것처럼 보이게 하려고.
+function courtBranding() {
+  // 3점 라인 안쪽 구역. 페인트존만이 아니라 아크 안쪽을 통째로 칠하는 게 프로 코트 방식이다.
+  const arcL = "M 0 36 L 120 36 A 270 270 0 0 1 120 564 L 0 564 Z";
+  const arcR = `M ${FULL_W} 36 L 1000 36 A 270 270 0 0 0 1000 564 L ${FULL_W} 564 Z`;
+  // 다크판·라이트판 로고가 따로라 헤더 로고와 같은 방식으로 하나만 보여준다.
+  const mark = (theme, x, y, w, extra = "") =>
+    `<image class="court-mark court-mark-${theme} ${extra}" href="assets/logo-${theme}.svg"
+            x="${x}" y="${y}" width="${w}" height="${Math.round(w * 1.199)}"
+            preserveAspectRatio="xMidYMid meet" />`;
+  // 골대 옆 마크. 하프코트 그림의 '골대 오른쪽'을 풀코트로 돌리면 골대 위/아래가 되고,
+  // 양쪽 골대가 점대칭으로 놓여야 실제 코트처럼 보인다.
+  const side = (theme) =>
+    mark(theme, 32, 419, 88) + mark(theme, 1000, 76, 88);
   return `
-    <g class="court-mark" aria-hidden="true">
-      <image class="court-mark-dark" href="assets/logo-dark.svg" ${attrs} preserveAspectRatio="xMidYMid meet" />
-      <image class="court-mark-light" href="assets/logo-light.svg" ${attrs} preserveAspectRatio="xMidYMid meet" />
+    <g class="court-brand" aria-hidden="true">
+      <path class="brand-zone" d="${arcL}" />
+      <path class="brand-zone" d="${arcR}" />
+      <rect class="brand-key" x="0" y="202" width="232" height="196" />
+      <rect class="brand-key" x="888" y="202" width="232" height="196" />
+      ${mark("dark", 462, 172, 196, "is-center")}
+      ${mark("light", 462, 172, 196, "is-center")}
+      ${side("dark")}
+      ${side("light")}
+      <text class="brand-word is-big" x="700" y="70" text-anchor="middle">Spirit</text>
+      <text class="brand-word" x="424" y="556" text-anchor="middle">Since 1992</text>
     </g>
   `;
 }
