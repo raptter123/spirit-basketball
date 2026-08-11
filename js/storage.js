@@ -158,10 +158,30 @@ const BOARD_KEY = "spirit-board";
 
 // 작전판은 새로고침이나 실수로 나갔다 와도 그리던 게 남아 있어야 한다.
 // (전술 초안과 달리 화면을 떠난다고 지우지 않는다 — 지우는 건 "판 비우기" 뿐이다.)
+// 저장된 값은 예전 버전이 남긴 것일 수도, 손으로 건드려 깨진 것일 수도 있다.
+// 그대로 믿고 쓰면 작전판이 통째로 안 뜨는데, 사용자는 원인도 모르고 지울 방법도 없다.
+// 그래서 모양이 맞는 것만 통과시키고 나머지는 버린다 — 최악이라도 처음 배치로 열린다.
+const BOARD_VIEWS = ["full", "left", "right"];
+
+function cleanBoardState(saved) {
+  if (!saved || typeof saved !== "object") return null;
+  const num = (v) => typeof v === "number" && Number.isFinite(v);
+  return {
+    pieces: Array.isArray(saved.pieces)
+      ? saved.pieces.filter((p) => p && typeof p === "object" && num(p.x) && num(p.y))
+      : [],
+    arrows: Array.isArray(saved.arrows)
+      ? saved.arrows.filter((a) => Array.isArray(a) && a.length === 4 && a.every(num))
+      : [],
+    view: BOARD_VIEWS.includes(saved.view) ? saved.view : null,
+    formation: typeof saved.formation === "string" ? saved.formation : null,
+  };
+}
+
 export function getBoardState() {
   try {
     const raw = localStorage.getItem(BOARD_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? cleanBoardState(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
