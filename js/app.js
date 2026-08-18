@@ -5,6 +5,7 @@ import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { mountBoard } from "./board.js";
 import { ROSTER } from "./roster.js";
+import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents } from "./events.js";
 import {
@@ -252,30 +253,6 @@ function computeHighlights() {
     { label: "🎯 어시스트왕", player: topBy("apg"), value: (p) => `${p.apg.toFixed(1)} APG` },
     { label: "🏆 승률왕", player: topBy("winRate"), value: (p) => `${Math.round(p.winRate * 100)}%` },
   ];
-}
-
-// 등번호는 민소매 유니폼 모양 안에 넣어서 보여준다. 로스터 카드와 선수 상세가 같이 쓴다.
-// 아직 번호가 없는 선수도 빈 유니폼으로 자리를 지킨다 — 그래야 카드마다 이름 시작 위치가 같다.
-// 심인보가 실제로 0번이라 `p.number ? ...`로 판단하면 유니폼이 비어 버린다. 타입으로 확인할 것.
-function jerseyHTML(p, extraClass = "") {
-  const has = typeof p.number === "number";
-  const twoDigit = has && String(p.number).length > 1;
-  return `
-    <span class="jersey ${has ? "" : "is-blank"} ${extraClass}" role="img"
-          aria-label="${has ? `등번호 ${p.number}번` : "등번호 미정"}">
-      <svg viewBox="0 0 40 46" aria-hidden="true">
-        <path class="jersey-body" d="M6 11 L13.5 2.5 C15.5 8 24.5 8 26.5 2.5 L34 11
-          C34 16.5 32.5 18.5 31 19.5 L31 40 C31 42.5 29.5 43.5 27.5 43.5 L12.5 43.5
-          C10.5 43.5 9 42.5 9 40 L9 19.5 C7.5 18.5 6 16.5 6 11 Z" />
-        <path class="jersey-collar" d="M13.5 2.5 C15.5 8 24.5 8 26.5 2.5" />
-        ${
-          has
-            ? `<text class="jersey-number" x="20" y="${twoDigit ? 34 : 34.5}" text-anchor="middle"
-                     font-size="${twoDigit ? 13.5 : 16}">${p.number}</text>`
-            : ""
-        }
-      </svg>
-    </span>`;
 }
 
 function rosterCardHTML(p) {

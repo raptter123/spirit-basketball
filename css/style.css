@@ -1780,6 +1780,11 @@ body {
   width: 52px;
 }
 
+/* 팀 편성처럼 이름 옆에 줄줄이 놓일 때 — 줄 높이를 밀어내지 않을 만큼만. */
+.jersey.is-sm {
+  width: 22px;
+}
+
 .roster-card:hover .jersey-body {
   fill: var(--accent-strong);
 }
@@ -2068,6 +2073,9 @@ body {
 }
 
 .ts-assign-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.9rem;
 }
 
@@ -2112,9 +2120,18 @@ body {
 }
 
 .ts-preview-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   font-size: 0.9rem;
   color: var(--text-muted);
   margin-bottom: 8px;
+}
+
+.ts-preview-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .ts-preview-stats {

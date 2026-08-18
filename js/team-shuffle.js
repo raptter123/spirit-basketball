@@ -1,6 +1,14 @@
 import { ROSTER } from "./roster.js";
 import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
 import { getNextEventDate } from "./events.js";
+import {
+  jerseyHTML,
+  hasNumber,
+  JERSEY_PATH,
+  JERSEY_COLLAR_PATH,
+  JERSEY_VIEW,
+  JERSEY_NUM_CY,
+} from "./jersey.js";
 
 const TEAM_LETTERS = ["A", "B", "C"];
 const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6"];
@@ -75,8 +83,66 @@ function computeProjection(playerNames, playersByName) {
   };
 }
 
+// 공지 이미지에도 로스터와 같은 유니폼을 그린다. HTML은 SVG, 여기는 캔버스라
+// 그리는 방법만 다르고 좌표(js/jersey.js)는 하나를 같이 쓴다.
+// ink는 테마마다 다르므로(밝은 칸/어두운 칸) 색을 받아서 그 색으로 그린다.
+function drawJersey(ctx, x, y, h, p, ink) {
+  const s = h / JERSEY_VIEW.h;
+  ctx.save();
+  // 번호가 아직 없는 선수는 옅게 — 자리는 지키되 눈에 덜 띄게.
+  if (!hasNumber(p)) ctx.globalAlpha = 0.4;
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.translate(-JERSEY_VIEW.x, -JERSEY_VIEW.y);
+  const body = new Path2D(JERSEY_PATH);
+  ctx.save();
+  ctx.globalAlpha *= 0.14;
+  ctx.fillStyle = ink;
+  ctx.fill(body);
+  ctx.restore();
+  ctx.strokeStyle = ink;
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 1.6;
+  ctx.stroke(body);
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.stroke(new Path2D(JERSEY_COLLAR_PATH));
+  ctx.restore();
+
+  if (!hasNumber(p)) return;
+  const twoDigit = String(p.number).length > 1;
+  ctx.save();
+  ctx.fillStyle = ink;
+  ctx.font = `800 ${((twoDigit ? 13.5 : 16) * s).toFixed(1)}px ${FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(p.number), x + (20 - JERSEY_VIEW.x) * s, y + (JERSEY_NUM_CY - JERSEY_VIEW.y) * s);
+  ctx.restore();
+}
+
+// [유니폼][이름]을 한 덩어리로 묶어 칸 가운데에 놓는다.
+// 덩어리 전체 폭을 재서 배치해야 이름만 있던 때와 가운데가 어긋나지 않는다.
+function drawPlayerCell(ctx, p, cx, cy, font, ink) {
+  const jerseyH = 34;
+  const jerseyW = (jerseyH * JERSEY_VIEW.w) / JERSEY_VIEW.h;
+  const gap = 7;
+  ctx.font = font;
+  const nameW = ctx.measureText(p.name).width;
+  const left = cx - (jerseyW + gap + nameW) / 2;
+  drawJersey(ctx, left, cy - jerseyH / 2, jerseyH, p, ink);
+  ctx.font = font;
+  ctx.fillStyle = ink;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(p.name, left + jerseyW + gap, cy + 1);
+  // 다음 칸이 가운데 정렬을 기대하고 있으므로 되돌려 놓는다.
+  ctx.textAlign = "center";
+}
+
 function computeCanvasLayout(rows) {
-  const cellW = 132;
+  // 유니폼이 이름 앞에 붙는 만큼 칸이 넓어야 한다(예전 132).
+  // 가장 긴 조합이 "유니폼 + 김성훈(C)" 118px(클래식 20px 기준)이라 양옆에 16px씩 남는다.
+  const cellW = 150;
   const cellH = 58;
   const labelW = 70;
   const padding = 26;
@@ -139,14 +205,12 @@ function drawClassicTheme(rows, gameDate, teamCount) {
     ctx.font = `bold 20px ${FONT}`;
     ctx.fillText(team.letter, padding + labelW / 2, y + cellH / 2 + 1);
 
-    team.players.forEach((name, i) => {
+    team.players.forEach((p, i) => {
       const x = padding + labelW + i * cellW;
       ctx.fillStyle = color;
       ctx.fillRect(x, y, cellW, cellH);
       ctx.strokeRect(x, y, cellW, cellH);
-      ctx.fillStyle = "#1a1a1a";
-      ctx.font = `20px ${FONT}`;
-      ctx.fillText(name, x + cellW / 2, y + cellH / 2 + 1);
+      drawPlayerCell(ctx, p, x + cellW / 2, y + cellH / 2, `20px ${FONT}`, "#1a1a1a");
     });
   });
 
@@ -190,7 +254,7 @@ function drawNbaTheme(rows, gameDate, teamCount) {
     ctx.font = `900 18px ${FONT}`;
     ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
 
-    team.players.forEach((name, i) => {
+    team.players.forEach((p, i) => {
       const x = padding + labelW + i * cellW;
       ctx.fillStyle = "#111827";
       roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 8);
@@ -199,9 +263,7 @@ function drawNbaTheme(rows, gameDate, teamCount) {
       ctx.lineWidth = 2;
       roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 8);
       ctx.stroke();
-      ctx.fillStyle = "#f8fafc";
-      ctx.font = `bold 17px ${FONT}`;
-      ctx.fillText(name, x + (cellW - 8) / 2, y + cellH / 2 + 1);
+      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#f8fafc");
     });
   });
 
@@ -252,7 +314,7 @@ function drawSoccerTheme(rows, gameDate, teamCount) {
     ctx.font = `bold 18px ${FONT}`;
     ctx.fillText(team.letter, padding + labelR, y + cellH / 2 + 1);
 
-    team.players.forEach((name, i) => {
+    team.players.forEach((p, i) => {
       const x = padding + labelW + i * cellW;
       ctx.fillStyle = "rgba(255,255,255,0.95)";
       roundRectPath(ctx, x, y + 6, cellW - 10, cellH - 12, cellH / 2 - 6);
@@ -261,9 +323,7 @@ function drawSoccerTheme(rows, gameDate, teamCount) {
       ctx.lineWidth = 3;
       roundRectPath(ctx, x, y + 6, cellW - 10, cellH - 12, cellH / 2 - 6);
       ctx.stroke();
-      ctx.fillStyle = "#111827";
-      ctx.font = `bold 17px ${FONT}`;
-      ctx.fillText(name, x + (cellW - 10) / 2, y + cellH / 2 + 1);
+      drawPlayerCell(ctx, p, x + (cellW - 10) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#111827");
     });
   });
 
@@ -306,7 +366,7 @@ function drawEsportsTheme(rows, gameDate, teamCount) {
     ctx.font = `900 18px ${FONT}`;
     ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
 
-    team.players.forEach((name, i) => {
+    team.players.forEach((p, i) => {
       const x = padding + labelW + i * cellW;
       ctx.fillStyle = "#101018";
       roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 6);
@@ -315,9 +375,7 @@ function drawEsportsTheme(rows, gameDate, teamCount) {
       ctx.lineWidth = 1.5;
       roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 6);
       ctx.stroke();
-      ctx.fillStyle = "#f1f5f9";
-      ctx.font = `bold 17px ${FONT}`;
-      ctx.fillText(name, x + (cellW - 8) / 2, y + cellH / 2 + 1);
+      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#f1f5f9");
     });
   });
 
@@ -354,7 +412,7 @@ function drawRetroTheme(rows, gameDate, teamCount) {
     ctx.font = `bold 18px ${FONT}`;
     ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
 
-    team.players.forEach((name, i) => {
+    team.players.forEach((p, i) => {
       const x = padding + labelW + i * cellW;
       ctx.fillStyle = "#fff8ea";
       ctx.fillRect(x, y + 4, cellW - 8, cellH - 8);
@@ -363,9 +421,7 @@ function drawRetroTheme(rows, gameDate, teamCount) {
       ctx.setLineDash([5, 4]);
       ctx.strokeRect(x, y + 4, cellW - 8, cellH - 8);
       ctx.setLineDash([]);
-      ctx.fillStyle = "#3f2a1a";
-      ctx.font = `bold 17px ${FONT}`;
-      ctx.fillText(name, x + (cellW - 8) / 2, y + cellH / 2 + 1);
+      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#3f2a1a");
     });
   });
 
@@ -543,7 +599,9 @@ export function mountTeamBuilder(container) {
                 .map(
                   (name) => `
           <div class="ts-assign-row">
-            <span class="ts-assign-name">${escapeHtml(nameWithCaptain(playersByName[name]))}</span>
+            <span class="ts-assign-name">${jerseyHTML(playersByName[name], "is-sm")}${escapeHtml(
+                    nameWithCaptain(playersByName[name])
+                  )}</span>
             <div class="ts-team-buttons">
               ${Array.from(
                 { length: teamCount },
@@ -570,7 +628,16 @@ export function mountTeamBuilder(container) {
           <div class="ts-preview-card" style="--team-color:${TEAM_ACCENT[i]}">
             <h4>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h4>
             <div class="ts-preview-names">${
-              teamNames.length ? teamNames.map((n) => escapeHtml(nameWithCaptain(playersByName[n]))).join(", ") : "아직 없음"
+              teamNames.length
+                ? teamNames
+                    .map(
+                      (n) =>
+                        `<span class="ts-preview-player">${jerseyHTML(playersByName[n], "is-sm")}${escapeHtml(
+                          nameWithCaptain(playersByName[n])
+                        )}</span>`
+                    )
+                    .join("")
+                : "아직 없음"
             }</div>
             ${
               proj
@@ -678,7 +745,11 @@ export function mountTeamBuilder(container) {
     document.getElementById("ts-image-btn").addEventListener("click", () => {
       const rows = Array.from({ length: teamCount }, (_, i) => ({
         letter: TEAM_LETTERS[i],
-        players: teamsPlayers[i].map((n) => nameWithCaptain(playersByName[n])),
+        // 유니폼을 그리려면 번호가 필요하니 이름만 넘기지 않고 선수를 통째로 넘긴다.
+        players: teamsPlayers[i].map((n) => ({
+          name: nameWithCaptain(playersByName[n]),
+          number: playersByName[n]?.number,
+        })),
       })).filter((t) => t.players.length > 0);
       if (!rows.length) return;
       showTeamImageModal(rows, gameDate, teamCount);
