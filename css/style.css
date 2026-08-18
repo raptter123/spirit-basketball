@@ -1725,6 +1725,13 @@ body {
   border-color: var(--accent);
 }
 
+/* 카드가 space-between이라, 이 칸이 남는 공간을 먹지 않으면 내용이 짧은 카드
+   (기록이 아직 없는 선수)만 이름이 가운데로 밀린다. 이름 시작 위치는 카드마다 같아야 한다. */
+.roster-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .roster-more {
   flex: 0 0 auto;
   color: var(--text-muted);
@@ -1732,7 +1739,63 @@ body {
   line-height: 1;
 }
 
+/* 등번호 유니폼 — 로스터 카드와 선수 상세에서 같이 쓴다. */
+.jersey {
+  flex: 0 0 auto;
+  width: 34px;
+}
+
+.jersey svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.jersey-body {
+  fill: var(--accent-soft);
+  stroke: var(--accent-line);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.jersey-collar {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.jersey-number {
+  fill: var(--accent-text);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* 번호가 아직 없는 선수 — 자리는 지키되 옅게. */
+.jersey.is-blank {
+  opacity: 0.4;
+}
+
+.jersey.is-lg {
+  width: 52px;
+}
+
+.roster-card:hover .jersey-body {
+  fill: var(--accent-strong);
+}
+
 /* ── 선수 상세 ─────────────────────────────────────────── */
+.player-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 4px;
+}
+
+.player-head h1 {
+  margin: 0;
+}
+
 .player-view h1 {
   margin: 8px 0 4px;
 }
