@@ -61,6 +61,52 @@ export function derive(p) {
   };
 }
 
+// ── GameScore (John Hollinger) ───────────────────────────
+// 득점·야투 효율·리바운드·어시스트를 한 숫자로 묶어 그날의 활약을 재는 지표.
+//
+//   pts + 0.4·fgm − 0.7·fga − 0.4·(fta − ftm)
+//       + 0.7·oreb + 0.3·dreb
+//       + stl + 0.7·ast + 0.7·blk − 0.4·pf − to
+//
+// ⚠️ 우리 기록지는 공격/수비 리바운드를 나눠 적지 않는다. 원식은 둘의 가중치가
+// 달라서(0.7 / 0.3) 총 리바운드만으로는 정확히 못 낸다. 그래서 섞은 가중치를 쓴다.
+//   0.7×(공격 비율) + 0.3×(수비 비율)
+// OREB_SHARE 는 동호회 경기에서 공격 리바운드가 전체의 대략 3할이라는 통념값이다.
+// 우리 기록으로 검증한 값이 아니라 **가정**이다. 기록지에 공격/수비 칸을 나누면
+// 이 근사를 버리고 원식 그대로 쓸 수 있다 — 그때 REB_WEIGHT 자리를 갈아끼우면 된다.
+export const OREB_SHARE = 0.3;
+export const REB_WEIGHT = 0.7 * OREB_SHARE + 0.3 * (1 - OREB_SHARE); // 0.42
+
+export function gameScore(p) {
+  const d = derive(p);
+  return (
+    d.pts +
+    0.4 * d.fgm -
+    0.7 * d.fga -
+    0.4 * (p.fta - p.ftm) +
+    REB_WEIGHT * p.reb +
+    p.stl +
+    0.7 * p.ast +
+    0.7 * p.blk -
+    0.4 * p.pf -
+    p.to
+  );
+}
+
+// 그날의 MOM. 동점이면 GameScore → 득점 → 어시스트 순으로 가린다.
+// 원래 규칙은 "이긴 팀에서" 뽑는 것인데, 기록지 한 장은 한 팀뿐이라 여기서는
+// 우리 팀 안에서만 고른다. 졌을 때는 부르는 이름을 바꿔서 쓰면 된다.
+export function momOf(players) {
+  const ranked = [...players].sort((a, b) => {
+    const g = gameScore(b) - gameScore(a);
+    if (Math.abs(g) > 1e-9) return g;
+    const p = derive(b).pts - derive(a).pts;
+    if (p) return p;
+    return b.ast - a.ast;
+  });
+  return ranked[0] || null;
+}
+
 export function teamTotals(game) {
   const acc = {
     min: 0, p2m: 0, p2a: 0, p3m: 0, p3a: 0, fgm: 0, fga: 0, ftm: 0, fta: 0,
@@ -145,6 +191,15 @@ export const CUMULATIVE_HEADERS = [
   "득점", "리바", "어시", "스틸", "블락", "턴오버", "파울", "비고", "기타",
 ];
 
+// 확률 열(0부터 센 자리). 값은 0.545 같은 분수로 넣고, 엑셀에서 0.00% 서식으로 보이게 한다.
+// 값을 54.5 로 넣어버리면 나중에 평균을 낼 때 100배 틀린 숫자가 나온다 — 서식만 바꾼다.
+export const PERCENT_COLUMNS = [
+  CUMULATIVE_HEADERS.indexOf("2점야투"),
+  CUMULATIVE_HEADERS.indexOf("3점야투"),
+  CUMULATIVE_HEADERS.indexOf("전체야투"),
+  CUMULATIVE_HEADERS.indexOf("자유투확률"),
+];
+
 // 날짜 열은 YYMMDD_경기번호 형태를 쓰고 있었다 (예: 260103_1).
 export function sheetDateKey(game) {
   const d = (game.date || "").replaceAll("-", "").slice(2);
@@ -158,14 +213,16 @@ export function cumulativeRows(game) {
     const d = derive(p);
     return [
       game.gameType, sheetDateKey(game), game.us, r, score, p.name, d.min,
-      p.p2m, p.p2a, round3(d.p2pct), p.p3m, p.p3a, round3(d.p3pct),
-      d.fgm, d.fga, round3(d.fgpct), p.ftm, p.fta, round3(d.ftpct),
+      p.p2m, p.p2a, roundPct(d.p2pct), p.p3m, p.p3a, roundPct(d.p3pct),
+      d.fgm, d.fga, roundPct(d.fgpct), p.ftm, p.fta, roundPct(d.ftpct),
       d.pts, p.reb, p.ast, p.stl, p.blk, p.to, p.pf, p.memo || "", "",
     ];
   });
 }
 
-const round3 = (v) => Math.round(v * 1000) / 1000;
+// 퍼센트로 소수 둘째 자리까지 보이려면 분수는 넷째 자리까지 있어야 한다.
+// (6/11 = 0.5454… → 0.5455 → 54.55%. 셋째 자리에서 자르면 54.50% 이 되어버린다.)
+const roundPct = (v) => Math.round(v * 10000) / 10000;
 
 // ── 글로 남기는 요약 ─────────────────────────────────────
 // 이미지·엑셀과 별개로, 밴드에 붙여넣거나 눈으로 훑을 수 있는 텍스트.
@@ -192,6 +249,14 @@ export function summaryText(game) {
     "",
     "오늘의 기록",
   ];
+
+  const best = momOf(game.players);
+  if (best && game.players.length) {
+    // 원래 MOM 은 "이긴 팀에서" 뽑는다. 기록지 한 장은 우리 팀뿐이라, 졌을 때는
+    // MOM 이라고 부르지 않고 우리 팀 최고 활약으로만 적는다.
+    const label = result(game) === "승" ? "MOM" : "우리 팀 최고";
+    lines.push(`  ${label} ${best.name} (GameScore ${gameScore(best).toFixed(1)})`);
+  }
 
   const highs = [
     byPts[0] && derive(byPts[0]).pts ? `득점 ${byPts[0].name} ${derive(byPts[0]).pts}점` : null,

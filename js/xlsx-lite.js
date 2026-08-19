@@ -280,10 +280,93 @@ export async function readSheet(wb, sheetName, maxRows = 0) {
   return rows;
 }
 
+// ── 셀 서식 ──────────────────────────────────────────────
+// 엑셀에는 미리 정해진 서식 번호가 있다. 10번이 "0.00%" — 소수 둘째 자리 퍼센트다.
+// 이걸 쓰면 styles.xml 에 새 서식을 정의할 필요 없이 번호만 가리키면 된다.
+const PERCENT_NUMFMT = 10;
+
+// 확률 칸에 퍼센트 서식을 입히되, 그 칸이 원래 쓰던 글꼴·테두리·색은 그대로 둔다.
+// 그러려면 기존 서식(xf)을 복사해서 숫자 서식만 바꾼 새 서식을 만들어야 한다.
+// cellXfs 맨 뒤에 덧붙이므로 기존 번호는 하나도 안 밀린다 — 다른 셀은 영향이 없다.
+async function percentStyleFor(wb, baseIndex) {
+  if (!wb._pctStyle) wb._pctStyle = new Map();
+  const key = baseIndex ?? -1;
+  if (wb._pctStyle.has(key)) return wb._pctStyle.get(key);
+
+  let xml = wb._dirty.get("xl/styles.xml") ?? (await wb.text("xl/styles.xml"));
+  if (xml == null) return null;
+
+  const block = xml.match(/<cellXfs\b([^>]*)>([\s\S]*?)<\/cellXfs>/);
+  if (!block) return null;
+  const xfs = block[2].match(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g) || [];
+
+  const base = xfs[baseIndex] || xfs[0] || `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>`;
+  const head = base.match(/^<xf\b[^>]*?(\/?)>/);
+  let attrs = head[0].replace(/^<xf/, "").replace(/\/?>$/, "");
+  attrs = attrs.replace(/\snumFmtId="[^"]*"/, "");
+  attrs = attrs.replace(/\sapplyNumberFormat="[^"]*"/, "");
+  const newHead = `<xf numFmtId="${PERCENT_NUMFMT}" applyNumberFormat="1"${attrs}`;
+  const newXf = head[1] === "/"
+    ? `${newHead}/>`
+    : newHead + ">" + base.slice(head[0].length);
+
+  // 똑같은 서식이 이미 있으면 그걸 쓴다 — 부를 때마다 늘어나면 파일만 커진다.
+  let index = xfs.indexOf(newXf);
+  if (index < 0) {
+    index = xfs.length;
+    xml = xml.replace(block[0],
+      `<cellXfs${block[1].replace(/\scount="[^"]*"/, "")} count="${xfs.length + 1}">${block[2]}${newXf}</cellXfs>`);
+    wb._dirty.set("xl/styles.xml", xml);
+  }
+  wb._pctStyle.set(key, index);
+  return index;
+}
+
+// 이미 들어 있는 줄의 확률 칸에도 같은 서식을 입힌다.
+// 값은 손대지 않는다 — 0.545 는 그대로 0.545 이고, 보이는 모양만 54.50% 가 된다.
+// 이걸 안 하면 새로 붙은 줄만 퍼센트로 보여서 한 열이 두 가지 모양으로 갈린다.
+export async function formatPercentColumns(wb, sheetName, colIndexes, skipRows = 1) {
+  const sheet = wb.sheets.find((s) => s.name === sheetName);
+  if (!sheet) return 0;
+  let xml = wb._dirty.get(sheet.path) ?? (await wb.text(sheet.path));
+  if (xml == null) return 0;
+
+  const letters = new Set(colIndexes.map((i) => colLetter(i + 1)));
+  let changed = 0;
+  const out = [];
+  let last = 0;
+  const re = /<c\b([^>]*?)(\/?)>/g;
+  let m;
+  while ((m = re.exec(xml))) {
+    const tag = m[0];
+    const ref = attr(tag, "r") || "";
+    const col = ref.replace(/\d+/g, "");
+    const row = +(ref.replace(/\D+/g, "") || 0);
+    // 글자가 든 칸(머리글 등)에 숫자 서식을 입혀도 소용이 없으니 건너뛴다.
+    const type = attr(tag, "t");
+    if (!letters.has(col) || row <= skipRows || type === "s" || type === "inlineStr" || type === "str") continue;
+
+    const baseAttr = attr(tag, "s");
+    const pct = await percentStyleFor(wb, baseAttr == null ? null : +baseAttr);
+    if (pct == null || String(pct) === baseAttr) continue;
+
+    const newTag = baseAttr == null
+      ? tag.replace(/^<c/, `<c s="${pct}"`)
+      : tag.replace(/\ss="[^"]*"/, ` s="${pct}"`);
+    out.push(xml.slice(last, m.index), newTag);
+    last = m.index + tag.length;
+    changed++;
+  }
+  if (!changed) return 0;
+  out.push(xml.slice(last));
+  wb._dirty.set(sheet.path, out.join(""));
+  return changed;
+}
+
 // ── 시트 끝에 줄 붙이기 ──────────────────────────────────
 // 원본 XML을 문자열로 고쳐 넣는다. 나머지 부품(styles.xml 등)은 손대지 않으므로 서식이 남는다.
 // 새 줄의 셀에는 기존 마지막 줄의 셀 서식(s 속성)을 그대로 물려준다 — 표가 이어져 보이게.
-export async function appendRows(wb, sheetName, rows) {
+export async function appendRows(wb, sheetName, rows, percentCols = []) {
   const sheet = wb.sheets.find((s) => s.name === sheetName);
   if (!sheet) throw new Error(`"${sheetName}" 시트를 찾지 못했습니다.`);
   let xml = wb._dirty.get(sheet.path) ?? (await wb.text(sheet.path));
@@ -303,6 +386,16 @@ export async function appendRows(wb, sheetName, rows) {
     if (ref && s != null) styleByCol[ref.replace(/\d+/g, "")] = s;
   }
 
+  // 확률 칸은 물려받은 서식을 그대로 쓰지 않고, 숫자 서식만 퍼센트로 바꾼 판을 쓴다.
+  const pctSet = new Set(percentCols);
+  const pctStyleByCol = {};
+  for (const c of pctSet) {
+    const col = colLetter(c + 1);
+    const base = styleByCol[col];
+    const idx = await percentStyleFor(wb, base == null ? null : +base);
+    if (idx != null) pctStyleByCol[col] = String(idx);
+  }
+
   let added = "";
   let maxCols = 0;
   rows.forEach((row, i) => {
@@ -312,7 +405,8 @@ export async function appendRows(wb, sheetName, rows) {
     row.forEach((value, c) => {
       if (value === null || value === undefined || value === "") return;
       const col = colLetter(c + 1);
-      const s = styleByCol[col] != null ? ` s="${styleByCol[col]}"` : "";
+      const style = pctStyleByCol[col] ?? styleByCol[col];
+      const s = style != null ? ` s="${style}"` : "";
       if (typeof value === "number" && Number.isFinite(value)) {
         cells += `<c r="${col}${r}"${s}><v>${value}</v></c>`;
       } else {
@@ -372,7 +466,7 @@ export async function saveWorkbook(wb) {
 
 // ── 새 통합 문서 ─────────────────────────────────────────
 // 업로드할 파일이 없을 때 쓰는 최소 구성. 첫 줄은 굵게, 열 너비는 글자 수에 맞춘다.
-export async function createWorkbook(sheetName, rows) {
+export async function createWorkbook(sheetName, rows, percentCols = []) {
   if (!zipSupported()) {
     throw new Error("이 브라우저는 엑셀 파일 만들기를 지원하지 않습니다. 크롬이나 최신 사파리에서 열어주세요.");
   }
@@ -384,6 +478,7 @@ export async function createWorkbook(sheetName, rows) {
       widths[i] = Math.max(widths[i] || 0, len);
     });
   });
+  const pctSet = new Set(percentCols);
   const cols = widths
     .map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.min(28, Math.max(6, w + 2))}" customWidth="1"/>`)
     .join("");
@@ -394,7 +489,9 @@ export async function createWorkbook(sheetName, rows) {
         .map((value, c) => {
           if (value === null || value === undefined || value === "") return "";
           const ref = `${colLetter(c + 1)}${r + 1}`;
-          const s = r === 0 ? ' s="1"' : "";
+          // 0 = 보통, 1 = 굵게(머리글), 2 = 0.00% 퍼센트
+          const style = r === 0 ? 1 : pctSet.has(c) ? 2 : 0;
+          const s = style ? ` s="${style}"` : "";
           if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
           return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escXml(value)}</t></is></c>`;
         })
@@ -439,8 +536,9 @@ export async function createWorkbook(sheetName, rows) {
       `<fill><patternFill patternType="gray125"/></fill></fills>` +
       `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
       `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-      `<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>` +
+      `<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+      `<xf numFmtId="${PERCENT_NUMFMT}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>` +
       `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
       `</styleSheet>`,
     "xl/worksheets/sheet1.xml":

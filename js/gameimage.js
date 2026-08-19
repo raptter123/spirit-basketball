@@ -7,7 +7,9 @@
 // 캔버스로 그리는 이유: 화면 캡처와 달리 기기·테마·글꼴에 상관없이 항상 같은
 // 그림이 나오고, 클립보드로 바로 복사할 수 있다 (팀 편성 이미지와 같은 방식).
 
-import { derive, teamTotals, usScore, themScore, result, perQuarterToCumulative, lineups } from "./gamestats.js";
+import {
+  derive, teamTotals, usScore, themScore, result, perQuarterToCumulative, lineups, gameScore, momOf,
+} from "./gamestats.js";
 
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
@@ -22,6 +24,7 @@ const C = {
   line: "#d7dbe6",
   zebra: "#f5f7fb",
   total: "#eaeef7",
+  mom: "#fff2e0",
   win: "#e8590c",
   lose: "#4c6ef5",
   draw: "#7c7f8a",
@@ -51,7 +54,8 @@ const COLS = [
   { key: "blk", label: "블락", w: 46 },
   { key: "to", label: "턴오버", w: 52 },
   { key: "pf", label: "파울", w: 46 },
-  { key: "memo", label: "비고", w: 128, align: "left" },
+  { key: "gs", label: "GS", w: 50, strong: true },
+  { key: "memo", label: "비고", w: 122, align: "left" },
 ];
 
 const PAD = 26;
@@ -91,6 +95,7 @@ function pctText(v) {
 
 function cellText(col, row) {
   const v = row[col.key];
+  if (col.key === "gs") return v == null ? "" : v.toFixed(1);
   if (col.pct) return pctText(v);
   if (col.key === "memo") return v || "";
   if (col.key === "name") return v || "";
@@ -249,9 +254,10 @@ function drawQuarterBlock(ctx, game, x, y, w) {
 
 // ── 기록표 ────────────────────────────────────────────────
 function drawTable(ctx, game, x, y, w) {
-  const players = game.players.map((p) => ({ ...p, ...derive(p) }));
+  const players = game.players.map((p) => ({ ...p, ...derive(p), gs: gameScore(p) }));
   const totals = teamTotals(game);
-  const totalRow = { ...totals, no: "", name: "TEAM", memo: "" };
+  const totalRow = { ...totals, no: "", name: "TEAM", memo: "", gs: null };
+  const best = momOf(game.players);
 
   // 머리 — 위는 묶음 이름(2점/3점/…), 아래는 개별 열
   let cx = x;
@@ -319,7 +325,8 @@ function drawTable(ctx, game, x, y, w) {
   };
 
   players.forEach((p, r) => {
-    drawRow(p, bodyTop + r * ROW_H, { fill: r % 2 ? C.zebra : null });
+    const isMom = best && p.name === best.name;
+    drawRow(p, bodyTop + r * ROW_H, { fill: isMom ? C.mom : r % 2 ? C.zebra : null, strong: isMom });
   });
   const totalY = bodyTop + players.length * ROW_H;
   drawRow(totalRow, totalY, { fill: C.total, strong: true });
@@ -355,11 +362,27 @@ export function drawGameImage(game) {
   const t = teamTotals(game);
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
+  ctx.fillStyle = C.ink2;
+
+  // 표에서 색이 깔린 줄이 왜 그런지 여기서 밝힌다 — 색만 두면 무슨 뜻인지 모른다.
+  const best = momOf(game.players);
+  let fx = PAD;
+  if (best) {
+    const label = result(game) === "승" ? "MOM" : "우리 팀 최고";
+    ctx.font = `800 13px ${FONT}`;
+    ctx.fillStyle = C.win;
+    const text = `${label} ${best.name} · GS ${gameScore(best).toFixed(1)}`;
+    ctx.fillText(text, fx, y + 14);
+    fx += ctx.measureText(text).width + 14;
+    ctx.fillStyle = "#c8cdda";
+    ctx.fillText("|", fx, y + 14);
+    fx += 12;
+  }
   ctx.font = `600 13px ${FONT}`;
   ctx.fillStyle = C.ink2;
   ctx.fillText(
     `야투 ${t.fgm}/${t.fga} · 3점 ${t.p3m}/${t.p3a} · 자유투 ${t.ftm}/${t.fta} · 리바 ${t.reb} · 어시 ${t.ast} · 턴오버 ${t.to}`,
-    PAD, y + 14
+    fx, y + 14
   );
   ctx.textAlign = "right";
   ctx.font = `700 13px ${FONT}`;

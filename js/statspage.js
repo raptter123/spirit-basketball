@@ -14,11 +14,13 @@ import { getNextEventDate } from "./events.js";
 import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft } from "./storage.js";
 import {
   emptyGame, emptyPlayer, derive, teamTotals, usScore, themScore, result,
-  perQuarterToCumulative, cumulativeToPerQuarter, validate,
-  CUMULATIVE_HEADERS, cumulativeRows, sheetDateKey, summaryText,
+  perQuarterToCumulative, cumulativeToPerQuarter, validate, gameScore,
+  CUMULATIVE_HEADERS, PERCENT_COLUMNS, cumulativeRows, sheetDateKey, summaryText,
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
-import { openWorkbook, readSheet, appendRows, saveWorkbook, createWorkbook, zipSupported } from "./xlsx-lite.js";
+import {
+  openWorkbook, readSheet, appendRows, saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
+} from "./xlsx-lite.js";
 
 const STAT_FIELDS = [
   { key: "p2m", label: "2점 성공", short: "2P성" },
@@ -263,7 +265,7 @@ export function mountStatsPage(container) {
     return `<tr>
       <th class="stats-sticky">TEAM</th><th></th>
       ${STAT_FIELDS.map((f) => `<td>${t[f.key]}</td>`).join("")}
-      <td class="stats-pts">${t.pts}</td><td></td><td></td>
+      <td class="stats-pts">${t.pts}</td><td></td><td></td><td></td>
     </tr>`;
   }
 
@@ -281,7 +283,7 @@ export function mountStatsPage(container) {
       <thead><tr>
         <th class="stats-sticky">선수</th><th>출전 쿼터</th>
         ${STAT_FIELDS.map((f) => `<th title="${f.label}">${f.short}</th>`).join("")}
-        <th>득점</th><th>비고</th><th></th>
+        <th>득점</th><th title="GameScore — 활약을 한 숫자로">GS</th><th>비고</th><th></th>
       </tr></thead>`;
     const body = game.players.map((p, i) => {
       const d = derive(p);
@@ -295,6 +297,7 @@ export function mountStatsPage(container) {
         ${STAT_FIELDS.map((f) =>
           `<td><input type="number" inputmode="numeric" min="0" data-row="${i}" data-key="${f.key}" value="${p[f.key]}" /></td>`).join("")}
         <td class="stats-pts">${d.pts}</td>
+        <td class="stats-gs">${gameScore(p).toFixed(1)}</td>
         <td><input type="text" class="stats-memo" data-row="${i}" data-key="memo" value="${escapeHtml(p.memo)}"
               placeholder="칸이 모자랐던 것 등" /></td>
         <td><button type="button" class="stats-del" data-del="${i}" aria-label="${escapeHtml(p.name)} 삭제">✕</button></td>
@@ -319,7 +322,10 @@ export function mountStatsPage(container) {
         // 입력 중에 표를 다시 그리면 커서가 튄다 — 표 밖의 것만 갱신한다.
         touch({ skipTable: true });
         const tr = e.target.closest("tr");
-        if (tr) tr.querySelector(".stats-pts").textContent = derive(p).pts;
+        if (tr) {
+          tr.querySelector(".stats-pts").textContent = derive(p).pts;
+          tr.querySelector(".stats-gs").textContent = gameScore(p).toFixed(1);
+        }
       });
     });
     $("#st-table").querySelectorAll(".stats-del").forEach((btn) => {
@@ -454,13 +460,16 @@ export function mountStatsPage(container) {
       if (excel.buffer) {
         // 항상 원본에서 새로 열어 덧붙인다 — 버튼을 두 번 눌러도 두 번 붙지 않는다.
         const wb = await openWorkbook(excel.buffer.slice(0));
-        const where = await appendRows(wb, excel.sheetName, rows);
+        const where = await appendRows(wb, excel.sheetName, rows, PERCENT_COLUMNS);
+        // 새 줄만 퍼센트로 보이면 한 열이 두 가지 모양으로 갈린다. 원래 있던 줄도 같이 맞춘다
+        // (값은 그대로, 보이는 모양만).
+        await formatPercentColumns(wb, excel.sheetName, PERCENT_COLUMNS);
         bytes = await saveWorkbook(wb);
         const stem = excel.fileName.replace(/\.xlsx$/i, "");
         name = asciiName(`${stem}_${sheetDateKey(game)}.xlsx`, `spirit-stats-${sheetDateKey(game)}.xlsx`);
         msg.textContent = `${where.firstRow}~${where.lastRow}번째 줄에 붙였습니다.`;
       } else {
-        bytes = await createWorkbook("누적기록", [CUMULATIVE_HEADERS, ...rows]);
+        bytes = await createWorkbook("누적기록", [CUMULATIVE_HEADERS, ...rows], PERCENT_COLUMNS);
         name = `spirit-stats-${sheetDateKey(game)}.xlsx`;
         msg.textContent = `새 파일 ${rows.length}줄을 만들었습니다.`;
       }
