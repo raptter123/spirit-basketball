@@ -1,7 +1,10 @@
 // 한 경기 기록을 다루는 계산·검증·내보내기 로직만 모아둔다 (화면 코드는 statspage.js).
 //
-// 기록지 한 장 = 한 팀의 한 경기다. 그래서 이 파일의 "경기"는 항상 우리 팀 시점이고,
-// 상대 팀 기록지는 별개의 경기 객체가 된다 (3파전이면 6장 = 6개).
+// 한 경기 = 두 팀이다. 기록지는 팀마다 한 장씩 나오지만, 여기서는 두 장을 한 경기로
+// 묶는다. 그래야 MOM 을 원래 규칙대로 "이긴 팀에서" 뽑을 수 있고, 결과표에서 두 팀
+// 기록을 나란히 볼 수 있다.
+//
+// game.teams[0] 이 왼쪽, [1] 이 오른쪽이지만 계산은 둘을 구분하지 않는다.
 
 // 쿼터 하나의 길이. 출전 쿼터 수에 이걸 곱해서 MIN을 낸다.
 // 대회는 쿼터 시간이 다를 때가 있어서 값을 바꿀 수 있게 밖으로 뺐다.
@@ -20,17 +23,21 @@ export function emptyPlayer(no = null, name = "") {
   };
 }
 
+export function emptyTeam(name = "") {
+  return {
+    name,
+    // 쿼터별 "구간" 점수. 기록지에는 누적으로 적지만 저장은 구간으로 한다.
+    q: [0, 0, 0, 0],
+    players: [],
+  };
+}
+
 export function emptyGame() {
   return {
     date: "",          // YYYY-MM-DD
     gameNo: 1,
     gameType: "자체전",
-    us: "혼 A",
-    them: "혼 B",
-    // 쿼터별 "구간" 점수. 기록지에는 누적으로 적지만 저장은 구간으로 한다.
-    usQ: [0, 0, 0, 0],
-    themQ: [0, 0, 0, 0],
-    players: [],
+    teams: [emptyTeam("혼 A"), emptyTeam("혼 B")],
   };
 }
 
@@ -93,26 +100,27 @@ export function gameScore(p) {
   );
 }
 
-// 그날의 MOM. 동점이면 GameScore → 득점 → 어시스트 순으로 가린다.
-// 원래 규칙은 "이긴 팀에서" 뽑는 것인데, 기록지 한 장은 한 팀뿐이라 여기서는
-// 우리 팀 안에서만 고른다. 졌을 때는 부르는 이름을 바꿔서 쓰면 된다.
-export function momOf(players) {
-  const ranked = [...players].sort((a, b) => {
-    const g = gameScore(b) - gameScore(a);
-    if (Math.abs(g) > 1e-9) return g;
-    const p = derive(b).pts - derive(a).pts;
-    if (p) return p;
-    return b.ast - a.ast;
-  });
-  return ranked[0] || null;
+// ── 팀 단위 계산 ─────────────────────────────────────────
+export const teamScore = (team) => team.q.reduce((a, b) => a + b, 0);
+
+// 이긴 팀 번호. 비기면 -1.
+export function winnerIndex(game) {
+  const [a, b] = game.teams.map(teamScore);
+  if (a === b) return -1;
+  return a > b ? 0 : 1;
 }
 
-export function teamTotals(game) {
+export function teamResult(game, i) {
+  const w = winnerIndex(game);
+  return w === -1 ? "무" : w === i ? "승" : "패";
+}
+
+export function teamTotals(team) {
   const acc = {
     min: 0, p2m: 0, p2a: 0, p3m: 0, p3a: 0, fgm: 0, fga: 0, ftm: 0, fta: 0,
     pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, pf: 0,
   };
-  for (const p of game.players) {
+  for (const p of team.players) {
     const d = derive(p);
     acc.min += d.min; acc.fgm += d.fgm; acc.fga += d.fga; acc.pts += d.pts;
     for (const k of ["p2m", "p2a", "p3m", "p3a", "ftm", "fta", "reb", "ast", "stl", "blk", "to", "pf"]) {
@@ -129,15 +137,30 @@ export function teamTotals(game) {
   };
 }
 
-export const usScore = (g) => g.usQ.reduce((a, b) => a + b, 0);
-export const themScore = (g) => g.themQ.reduce((a, b) => a + b, 0);
-export const result = (g) => (usScore(g) > themScore(g) ? "승" : usScore(g) < themScore(g) ? "패" : "무");
-
 // 쿼터별 코트 위 인원 — 출전 쿼터 표시에서 뽑는다. 엑셀의 Play 줄이 이것이다.
-export function lineups(game) {
+export function lineups(team) {
   return [1, 2, 3, 4].map((q) =>
-    game.players.filter((p) => p.quarters.includes(q)).map((p) => (p.no == null ? p.name : p.no))
+    team.players.filter((p) => p.quarters.includes(q)).map((p) => (p.no == null ? p.name : p.no))
   );
+}
+
+// ── MOM ──────────────────────────────────────────────────
+// 이긴 팀에서 GameScore 가 가장 높은 선수. 동점이면 GameScore → 득점 → 어시스트 순.
+// 비겼을 때는 이긴 팀이 없으니 두 팀을 통틀어 고른다.
+export function momOf(game) {
+  const w = winnerIndex(game);
+  const pool = (w === -1 ? game.teams : [game.teams[w]])
+    .flatMap((t) => t.players.map((p) => ({ p, team: t })));
+  if (!pool.length) return null;
+
+  const ranked = [...pool].sort((x, y) => {
+    const g = gameScore(y.p) - gameScore(x.p);
+    if (Math.abs(g) > 1e-9) return g;
+    const pt = derive(y.p).pts - derive(x.p).pts;
+    if (pt) return pt;
+    return y.p.ast - x.p.ast;
+  });
+  return { ...ranked[0], score: gameScore(ranked[0].p), tied: w === -1 };
 }
 
 // ── 검증 ────────────────────────────────────────────────
@@ -147,37 +170,48 @@ export function validate(game) {
   const issues = [];
   const add = (level, where, message) => issues.push({ level, where, message });
 
-  const teamPts = teamTotals(game).pts;
-  const scored = usScore(game);
-  if (game.players.length && teamPts !== scored) {
-    add("error", "점수",
-      `쿼터 점수 합(${scored}점)과 선수 득점 합(${teamPts}점)이 ${Math.abs(scored - teamPts)}점 다릅니다.`);
-  }
-
-  if (game.usQ.some((v) => v < 0) || game.themQ.some((v) => v < 0)) {
-    add("error", "점수", "쿼터 점수가 뒤로 줄었습니다 — 누적 점수를 잘못 적었을 수 있어요.");
-  }
-
-  for (const p of game.players) {
-    const who = p.name || `#${p.no}`;
-    if (p.p2m > p.p2a) add("error", who, `2점 성공(${p.p2m})이 시도(${p.p2a})보다 많습니다.`);
-    if (p.p3m > p.p3a) add("error", who, `3점 성공(${p.p3m})이 시도(${p.p3a})보다 많습니다.`);
-    if (p.ftm > p.fta) add("error", who, `자유투 성공(${p.ftm})이 시도(${p.fta})보다 많습니다.`);
-    if (!p.quarters.length && (derive(p).pts || p.reb || p.ast)) {
-      add("warn", who, "출전 쿼터가 비어 있는데 기록이 있습니다.");
+  game.teams.forEach((team, ti) => {
+    const label = team.name || `${ti + 1}팀`;
+    const scored = teamScore(team);
+    const teamPts = teamTotals(team).pts;
+    if (team.players.length && teamPts !== scored) {
+      add("error", label,
+        `쿼터 점수 합(${scored}점)과 선수 득점 합(${teamPts}점)이 ${Math.abs(scored - teamPts)}점 다릅니다.`);
     }
-    if (p.memo && p.memo.trim()) add("warn", who, `비고가 적혀 있습니다 — "${p.memo.trim()}"`);
-  }
-
-  const names = game.players.map((p) => p.name).filter(Boolean);
-  const dup = names.filter((n, i) => names.indexOf(n) !== i);
-  if (dup.length) add("error", "명단", `같은 선수가 두 번 있습니다: ${[...new Set(dup)].join(", ")}`);
-
-  lineups(game).forEach((five, i) => {
-    if (five.length && five.length !== 5) {
-      add("warn", `${i + 1}쿼터`, `코트 위 인원이 ${five.length}명입니다 (보통 5명).`);
+    if (team.q.some((v) => v < 0)) {
+      add("error", label, "쿼터 점수가 뒤로 줄었습니다 — 누적 점수를 잘못 적었을 수 있어요.");
     }
+
+    for (const p of team.players) {
+      const who = `${label} ${p.name || `#${p.no}`}`;
+      if (p.p2m > p.p2a) add("error", who, `2점 성공(${p.p2m})이 시도(${p.p2a})보다 많습니다.`);
+      if (p.p3m > p.p3a) add("error", who, `3점 성공(${p.p3m})이 시도(${p.p3a})보다 많습니다.`);
+      if (p.ftm > p.fta) add("error", who, `자유투 성공(${p.ftm})이 시도(${p.fta})보다 많습니다.`);
+      if (!p.quarters.length && (derive(p).pts || p.reb || p.ast)) {
+        add("warn", who, "출전 쿼터가 비어 있는데 기록이 있습니다.");
+      }
+      if (p.memo && p.memo.trim()) add("warn", who, `비고가 적혀 있습니다 — "${p.memo.trim()}"`);
+    }
+
+    const names = team.players.map((p) => p.name).filter(Boolean);
+    const dup = names.filter((n, i) => names.indexOf(n) !== i);
+    if (dup.length) add("error", label, `같은 선수가 두 번 있습니다: ${[...new Set(dup)].join(", ")}`);
+
+    lineups(team).forEach((five, i) => {
+      if (five.length && five.length !== 5) {
+        add("warn", `${label} ${i + 1}쿼터`, `코트 위 인원이 ${five.length}명입니다 (보통 5명).`);
+      }
+    });
   });
+
+  // 한 사람이 양 팀에 다 들어가 있으면 옮겨 적다 줄을 헷갈린 것이다.
+  const [a, b] = game.teams.map((t) => new Set(t.players.map((p) => p.name).filter(Boolean)));
+  const both = [...a].filter((n) => b.has(n));
+  if (both.length) add("error", "명단", `양 팀에 모두 있는 선수가 있습니다: ${both.join(", ")}`);
+
+  if (game.teams[0].name && game.teams[0].name === game.teams[1].name) {
+    add("error", "팀 이름", "두 팀 이름이 같습니다.");
+  }
 
   return issues;
 }
@@ -190,6 +224,10 @@ export const CUMULATIVE_HEADERS = [
   "전체성공", "전체시도", "전체야투", "자유투성공", "자유투시도", "자유투확률",
   "득점", "리바", "어시", "스틸", "블락", "턴오버", "파울", "비고", "기타",
 ];
+
+// 이미 들어 있는 경기를 찾을 때 쓰는 열 자리 (0부터).
+export const COL_DATE = CUMULATIVE_HEADERS.indexOf("날짜");
+export const COL_TEAM = CUMULATIVE_HEADERS.indexOf("팀");
 
 // 확률 열(0부터 센 자리). 값은 0.545 같은 분수로 넣고, 엑셀에서 0.00% 서식으로 보이게 한다.
 // 값을 54.5 로 넣어버리면 나중에 평균을 낼 때 100배 틀린 숫자가 나온다 — 서식만 바꾼다.
@@ -207,16 +245,19 @@ export function sheetDateKey(game) {
 }
 
 export function cumulativeRows(game) {
-  const r = result(game);
-  const score = usScore(game);
-  return game.players.map((p) => {
-    const d = derive(p);
-    return [
-      game.gameType, sheetDateKey(game), game.us, r, score, p.name, d.min,
-      p.p2m, p.p2a, roundPct(d.p2pct), p.p3m, p.p3a, roundPct(d.p3pct),
-      d.fgm, d.fga, roundPct(d.fgpct), p.ftm, p.fta, roundPct(d.ftpct),
-      d.pts, p.reb, p.ast, p.stl, p.blk, p.to, p.pf, p.memo || "", "",
-    ];
+  const key = sheetDateKey(game);
+  return game.teams.flatMap((team, ti) => {
+    const r = teamResult(game, ti);
+    const score = teamScore(team);
+    return team.players.map((p) => {
+      const d = derive(p);
+      return [
+        game.gameType, key, team.name, r, score, p.name, d.min,
+        p.p2m, p.p2a, roundPct(d.p2pct), p.p3m, p.p3a, roundPct(d.p3pct),
+        d.fgm, d.fga, roundPct(d.fgpct), p.ftm, p.fta, roundPct(d.ftpct),
+        d.pts, p.reb, p.ast, p.stl, p.blk, p.to, p.pf, p.memo || "", "",
+      ];
+    });
   });
 }
 
@@ -227,64 +268,74 @@ const roundPct = (v) => Math.round(v * 10000) / 10000;
 // ── 글로 남기는 요약 ─────────────────────────────────────
 // 이미지·엑셀과 별개로, 밴드에 붙여넣거나 눈으로 훑을 수 있는 텍스트.
 export function summaryText(game) {
-  const t = teamTotals(game);
-  const uS = usScore(game), tS = themScore(game);
+  const [A, B] = game.teams;
+  const aS = teamScore(A), bS = teamScore(B);
   const pct = (v) => `${Math.round(v * 100)}%`;
-  const byPts = [...game.players].sort((a, b) => derive(b).pts - derive(a).pts);
-  const top = (key, label, unit) => {
-    const sorted = [...game.players].sort((a, b) => (b[key] || 0) - (a[key] || 0));
-    const best = sorted[0];
-    return best && best[key] ? `${label} ${best.name} ${best[key]}${unit}` : null;
-  };
+  const w = winnerIndex(game);
 
   const lines = [
-    `[${game.date} ${game.gameNo}경기] ${game.us} ${uS} : ${tS} ${game.them} — ${result(game)}`,
+    `[${game.date} ${game.gameNo}경기] ${A.name} ${aS} : ${bS} ${B.name}` +
+      (w === -1 ? " — 무승부" : ` — ${game.teams[w].name} 승`),
     "",
-    `쿼터  ${game.us} ${perQuarterToCumulative(game.usQ).join(" / ")}`,
-    `      ${game.them} ${perQuarterToCumulative(game.themQ).join(" / ")}`,
-    "",
-    `팀 기록  ${t.pts}점 · 리바 ${t.reb} · 어시 ${t.ast} · 스틸 ${t.stl} · 블락 ${t.blk} · 턴오버 ${t.to} · 파울 ${t.pf}`,
-    `슛       2점 ${t.p2m}/${t.p2a} (${pct(t.p2pct)}) · 3점 ${t.p3m}/${t.p3a} (${pct(t.p3pct)}) · 자유투 ${t.ftm}/${t.fta} (${pct(t.ftpct)})`,
-    `야투     ${t.fgm}/${t.fga} (${pct(t.fgpct)})`,
-    "",
-    "오늘의 기록",
+    `쿼터  ${A.name} ${perQuarterToCumulative(A.q).join(" / ")}`,
+    `      ${B.name} ${perQuarterToCumulative(B.q).join(" / ")}`,
   ];
 
-  const best = momOf(game.players);
-  if (best && game.players.length) {
-    // 원래 MOM 은 "이긴 팀에서" 뽑는다. 기록지 한 장은 우리 팀뿐이라, 졌을 때는
-    // MOM 이라고 부르지 않고 우리 팀 최고 활약으로만 적는다.
-    const label = result(game) === "승" ? "MOM" : "우리 팀 최고";
-    lines.push(`  ${label} ${best.name} (GameScore ${gameScore(best).toFixed(1)})`);
+  const mom = momOf(game);
+  if (mom) {
+    lines.push("", `MOM  ${mom.p.name} (${mom.team.name}) · GameScore ${mom.score.toFixed(1)}` +
+      (mom.tied ? " — 무승부라 양 팀에서 골랐습니다" : ""));
   }
 
-  const highs = [
-    byPts[0] && derive(byPts[0]).pts ? `득점 ${byPts[0].name} ${derive(byPts[0]).pts}점` : null,
-    top("reb", "리바운드", "개"),
-    top("ast", "어시스트", "개"),
-    top("stl", "스틸", "개"),
-    top("blk", "블락", "개"),
-  ].filter(Boolean);
-  lines.push(highs.length ? "  " + highs.join(" · ") : "  (기록 없음)");
+  for (const team of game.teams) {
+    if (!team.players.length) continue;
+    const t = teamTotals(team);
+    const top = (key, label, unit) => {
+      const best = [...team.players].sort((a, b) => (b[key] || 0) - (a[key] || 0))[0];
+      return best && best[key] ? `${label} ${best.name} ${best[key]}${unit}` : null;
+    };
+    const byPts = [...team.players].sort((a, b) => derive(b).pts - derive(a).pts)[0];
+    const highs = [
+      byPts && derive(byPts).pts ? `득점 ${byPts.name} ${derive(byPts).pts}점` : null,
+      top("reb", "리바운드", "개"),
+      top("ast", "어시스트", "개"),
+      top("stl", "스틸", "개"),
+      top("blk", "블락", "개"),
+    ].filter(Boolean);
+
+    lines.push(
+      "",
+      `── ${team.name} ──`,
+      `팀 기록  ${t.pts}점 · 리바 ${t.reb} · 어시 ${t.ast} · 스틸 ${t.stl} · 블락 ${t.blk} · 턴오버 ${t.to} · 파울 ${t.pf}`,
+      `슛       2점 ${t.p2m}/${t.p2a} (${pct(t.p2pct)}) · 3점 ${t.p3m}/${t.p3a} (${pct(t.p3pct)}) · 자유투 ${t.ftm}/${t.fta} (${pct(t.ftpct)})`,
+      `야투     ${t.fgm}/${t.fga} (${pct(t.fgpct)})`,
+      highs.length ? `기록     ${highs.join(" · ")}` : "기록     (없음)",
+    );
+  }
 
   // 눈에 띄는 것 몇 가지만 짚는다 — 숫자를 다시 늘어놓지 않는다.
   const notes = [];
-  if (t.fga >= 10 && t.fgpct >= 0.45) notes.push(`야투 ${pct(t.fgpct)}로 잘 들어간 경기`);
-  if (t.fga >= 10 && t.fgpct <= 0.28) notes.push(`야투 ${pct(t.fgpct)}로 슛이 안 들어간 경기`);
-  if (t.p3a >= 8 && t.p3pct >= 0.4) notes.push(`3점 ${t.p3m}/${t.p3a}로 외곽이 터짐`);
-  if (t.to >= 15) notes.push(`턴오버 ${t.to}개로 많았음`);
-  if (t.reb >= 35) notes.push(`리바운드 ${t.reb}개로 우세`);
-  const diff = Math.abs(uS - tS);
-  if (diff <= 3) notes.push(`${diff}점 차 접전`);
+  for (const team of game.teams) {
+    if (!team.players.length) continue;
+    const t = teamTotals(team);
+    if (t.fga >= 10 && t.fgpct >= 0.45) notes.push(`${team.name} 야투 ${pct(t.fgpct)}로 잘 들어간 경기`);
+    if (t.fga >= 10 && t.fgpct <= 0.28) notes.push(`${team.name} 야투 ${pct(t.fgpct)}로 슛이 안 들어간 경기`);
+    if (t.p3a >= 8 && t.p3pct >= 0.4) notes.push(`${team.name} 3점 ${t.p3m}/${t.p3a}로 외곽이 터짐`);
+    if (t.to >= 15) notes.push(`${team.name} 턴오버 ${t.to}개로 많았음`);
+  }
+  const rebA = teamTotals(A).reb, rebB = teamTotals(B).reb;
+  if (A.players.length && B.players.length && Math.abs(rebA - rebB) >= 8) {
+    notes.push(`리바운드 ${Math.abs(rebA - rebB)}개 차로 ${(rebA > rebB ? A : B).name} 우세`);
+  }
+  const diff = Math.abs(aS - bS);
+  if (diff && diff <= 3) notes.push(`${diff}점 차 접전`);
   else if (diff >= 20) notes.push(`${diff}점 차`);
-  const qDiff = game.usQ.map((v, i) => v - game.themQ[i]);
+  const qDiff = A.q.map((v, i) => v - B.q[i]);
   const bestQ = qDiff.indexOf(Math.max(...qDiff));
   const worstQ = qDiff.indexOf(Math.min(...qDiff));
-  if (qDiff[bestQ] >= 6) notes.push(`${bestQ + 1}쿼터에 ${qDiff[bestQ]}점 앞섬`);
-  if (qDiff[worstQ] <= -6) notes.push(`${worstQ + 1}쿼터에 ${-qDiff[worstQ]}점 밀림`);
+  if (qDiff[bestQ] >= 6) notes.push(`${bestQ + 1}쿼터에 ${A.name}이 ${qDiff[bestQ]}점 앞섬`);
+  if (qDiff[worstQ] <= -6) notes.push(`${worstQ + 1}쿼터에 ${B.name}이 ${-qDiff[worstQ]}점 앞섬`);
 
-  if (notes.length) {
-    lines.push("", "짚어볼 점", "  " + notes.join("\n  "));
-  }
+  if (notes.length) lines.push("", "짚어볼 점", "  " + notes.join("\n  "));
   return lines.join("\n");
 }

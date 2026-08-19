@@ -2796,6 +2796,33 @@ body {
   color: var(--accent-text);
 }
 
+/* 팀 블록 — 이긴 팀만 테두리로 표시한다. */
+.stats-team.is-winner {
+  border-color: var(--accent-line);
+}
+
+.stats-team-tag {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.stats-table tr.is-mom .stats-sticky {
+  background: var(--accent-soft);
+}
+
+.stats-mom-star {
+  color: var(--accent-text);
+  margin-right: 3px;
+}
+
+.stats-issues li.is-ok {
+  border-left-color: var(--accent-line);
+}
+
 /* GameScore — 입력값이 아니라 계산 결과라, 입력 칸과 다른 색으로 구분한다. */
 .stats-gs {
   font-weight: 700;

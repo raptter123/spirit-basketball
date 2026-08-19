@@ -247,6 +247,12 @@ export async function openWorkbook(arrayBuffer) {
 // ── 시트 읽기 ────────────────────────────────────────────
 // 헤더 확인·마지막 줄 확인용. 값은 전부 문자열로 준다 (자릿수 비교가 아니라 눈으로 볼 용도).
 export async function readSheet(wb, sheetName, maxRows = 0) {
+  return (await readSheetRows(wb, sheetName, maxRows)).map((r) => r.cells);
+}
+
+// 엑셀에서 몇 번째 줄인지까지 알아야 할 때 쓴다 (이미 들어 있는 경기를 고쳐 넣을 때).
+// 줄 번호는 화면에 보이는 행 번호와 같다 — 사람에게 "N행"이라고 알려줄 수 있다.
+export async function readSheetRows(wb, sheetName, maxRows = 0) {
   const sheet = wb.sheets.find((s) => s.name === sheetName);
   if (!sheet) throw new Error(`"${sheetName}" 시트를 찾지 못했습니다.`);
   const xml = wb._dirty.get(sheet.path) ?? (await wb.text(sheet.path));
@@ -274,7 +280,7 @@ export async function readSheet(wb, sheetName, maxRows = 0) {
       cells[Math.max(0, idx - 1)] = value;
     }
     for (let i = 0; i < cells.length; i++) if (cells[i] === undefined) cells[i] = "";
-    rows.push(cells);
+    rows.push({ r: +(attr(`<row${rm[1]}>`, "r") || rows.length + 1), cells });
     if (maxRows && rows.length >= maxRows) break;
   }
   return rows;
@@ -361,6 +367,86 @@ export async function formatPercentColumns(wb, sheetName, colIndexes, skipRows =
   out.push(xml.slice(last));
   wb._dirty.set(sheet.path, out.join(""));
   return changed;
+}
+
+// ── 이미 들어 있는 줄 고쳐 넣기 ──────────────────────────
+// 사람이 옮겨 적다 틀린 걸 나중에 발견했을 때 쓴다. 다시 받으면 같은 경기가 두 번
+// 들어가니, 이미 있는 줄은 붙이지 말고 그 자리에서 값만 갈아끼운다.
+//
+// 줄을 지우지는 않는다. 지우면 뒤 줄 번호가 다 밀리고, 그 줄을 가리키던 수식이
+// 어긋난다. 지워야 할 줄은 몇 행인지 알려만 주고 사람이 엑셀에서 지우게 둔다.
+//
+// targets: [{ r: 엑셀 행 번호, values: [...] }]
+export async function overwriteRows(wb, sheetName, targets, percentCols = []) {
+  const sheet = wb.sheets.find((s) => s.name === sheetName);
+  if (!sheet) throw new Error(`"${sheetName}" 시트를 찾지 못했습니다.`);
+  const xml = wb._dirty.get(sheet.path) ?? (await wb.text(sheet.path));
+  if (xml == null) throw new Error(`"${sheetName}" 시트를 읽지 못했습니다.`);
+
+  const pctSet = new Set(percentCols);
+  const byRow = new Map(targets.map((t) => [t.r, t.values]));
+
+  // 고칠 줄들을 먼저 훑어서 셀마다 원래 서식과 수식을 기억해 둔다.
+  // 수식 칸은 건드리지 않는다 — 우리가 넣는 값으로 덮으면 수식이 사라진다.
+  const rowInfo = new Map();
+  for (const m of xml.matchAll(/<row\b([^>]*?)>([\s\S]*?)<\/row>/g)) {
+    const rowNo = +(attr(`<row${m[1]}>`, "r") || 0);
+    if (!byRow.has(rowNo)) continue;
+    const cells = new Map();
+    for (const cm of m[2].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const ref = attr(`<c${cm[1]}>`, "r");
+      if (!ref) continue;
+      cells.set(ref.replace(/\d+/g, ""), {
+        style: attr(`<c${cm[1]}>`, "s"),
+        formula: (cm[2] || "").includes("<f") ? cm[0] : null,
+      });
+    }
+    rowInfo.set(rowNo, { match: m, cells });
+  }
+
+  // 확률 칸에 쓸 서식 번호를 미리 만들어 둔다 (아래 치환은 동기로 돌아야 한다).
+  const pctStyle = new Map();
+  for (const { cells } of rowInfo.values()) {
+    for (const c of pctSet) {
+      const prev = cells.get(colLetter(c + 1));
+      const key = prev?.style ?? null;
+      if (pctStyle.has(key)) continue;
+      pctStyle.set(key, await percentStyleFor(wb, key == null ? null : +key));
+    }
+  }
+
+  const chunks = [];
+  const keptFormulas = [];
+  let last = 0;
+  for (const [rowNo, { match, cells: old }] of [...rowInfo].sort((a, b) => a[1].match.index - b[1].match.index)) {
+    let cells = "";
+    byRow.get(rowNo).forEach((value, c) => {
+      const col = colLetter(c + 1);
+      const prev = old.get(col);
+      if (prev?.formula) {
+        cells += prev.formula;
+        keptFormulas.push(`${col}${rowNo}`);
+        return;
+      }
+      if (value === null || value === undefined || value === "") return;
+      let style = prev?.style ?? null;
+      if (pctSet.has(c)) {
+        const idx = pctStyle.get(style);
+        if (idx != null) style = String(idx);
+      }
+      const sAttr = style != null ? ` s="${style}"` : "";
+      if (typeof value === "number" && Number.isFinite(value)) {
+        cells += `<c r="${col}${rowNo}"${sAttr}><v>${value}</v></c>`;
+      } else {
+        cells += `<c r="${col}${rowNo}"${sAttr} t="inlineStr"><is><t xml:space="preserve">${escXml(value)}</t></is></c>`;
+      }
+    });
+    chunks.push(xml.slice(last, match.index), `<row${match[1]}>${cells}</row>`);
+    last = match.index + match[0].length;
+  }
+  chunks.push(xml.slice(last));
+  wb._dirty.set(sheet.path, chunks.join(""));
+  return { changed: rowInfo.size, keptFormulas };
 }
 
 // ── 시트 끝에 줄 붙이기 ──────────────────────────────────

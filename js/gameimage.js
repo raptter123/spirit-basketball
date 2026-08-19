@@ -4,11 +4,16 @@
 // 열 순서와 이름을 바꾸지 않은 건 취향이 아니라, 보는 사람이 매번 새로 읽지
 // 않아도 되게 하기 위해서다.
 //
+// 두 팀을 위아래로 한 장에 담는다. 이긴 팀이 위로 온다.
+// 비고 열은 넣지 않는다 — 기록지 칸이 모자랐을 때 옮겨 적는 사람이 쓰는 메모라
+// 밴드에서 볼 사람에게는 뜻이 닿지 않는다. 엑셀에는 그대로 들어간다.
+//
 // 캔버스로 그리는 이유: 화면 캡처와 달리 기기·테마·글꼴에 상관없이 항상 같은
 // 그림이 나오고, 클립보드로 바로 복사할 수 있다 (팀 편성 이미지와 같은 방식).
 
 import {
-  derive, teamTotals, usScore, themScore, result, perQuarterToCumulative, lineups, gameScore, momOf,
+  derive, teamTotals, teamScore, teamResult, winnerIndex,
+  perQuarterToCumulative, lineups, gameScore, momOf,
 } from "./gamestats.js";
 
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
@@ -24,44 +29,45 @@ const C = {
   line: "#d7dbe6",
   zebra: "#f5f7fb",
   total: "#eaeef7",
-  mom: "#fff2e0",
+  mom: "#ffeccd",
   win: "#e8590c",
-  lose: "#4c6ef5",
   draw: "#7c7f8a",
 };
 
 // 열 정의 — w는 px. 합계가 이미지 너비를 정한다.
 const COLS = [
-  { key: "no", label: "No", w: 42, align: "center" },
-  { key: "name", label: "이름", w: 92, align: "left" },
-  { key: "min", label: "MIN", w: 46, group: null },
-  { key: "p2m", label: "성공", w: 44, group: "2점" },
-  { key: "p2a", label: "시도", w: 44, group: "2점" },
-  { key: "p2pct", label: "%", w: 50, group: "2점", pct: true },
-  { key: "p3m", label: "성공", w: 44, group: "3점" },
-  { key: "p3a", label: "시도", w: 44, group: "3점" },
-  { key: "p3pct", label: "%", w: 50, group: "3점", pct: true },
-  { key: "fgm", label: "성공", w: 44, group: "야투" },
-  { key: "fga", label: "시도", w: 44, group: "야투" },
-  { key: "fgpct", label: "%", w: 50, group: "야투", pct: true },
-  { key: "ftm", label: "성공", w: 44, group: "자유투" },
-  { key: "fta", label: "시도", w: 44, group: "자유투" },
-  { key: "ftpct", label: "%", w: 50, group: "자유투", pct: true },
-  { key: "pts", label: "득점", w: 52, strong: true },
-  { key: "reb", label: "리바", w: 46 },
-  { key: "ast", label: "어시", w: 46 },
-  { key: "stl", label: "스틸", w: 46 },
-  { key: "blk", label: "블락", w: 46 },
-  { key: "to", label: "턴오버", w: 52 },
-  { key: "pf", label: "파울", w: 46 },
-  { key: "gs", label: "GS", w: 50, strong: true },
-  { key: "memo", label: "비고", w: 122, align: "left" },
+  { key: "no", label: "No", w: 44, align: "center" },
+  { key: "name", label: "이름", w: 100, align: "left" },
+  { key: "min", label: "MIN", w: 48 },
+  { key: "p2m", label: "성공", w: 46, group: "2점" },
+  { key: "p2a", label: "시도", w: 46, group: "2점" },
+  { key: "p2pct", label: "%", w: 52, group: "2점", pct: true },
+  { key: "p3m", label: "성공", w: 46, group: "3점" },
+  { key: "p3a", label: "시도", w: 46, group: "3점" },
+  { key: "p3pct", label: "%", w: 52, group: "3점", pct: true },
+  { key: "fgm", label: "성공", w: 46, group: "야투" },
+  { key: "fga", label: "시도", w: 46, group: "야투" },
+  { key: "fgpct", label: "%", w: 52, group: "야투", pct: true },
+  { key: "ftm", label: "성공", w: 46, group: "자유투" },
+  { key: "fta", label: "시도", w: 46, group: "자유투" },
+  { key: "ftpct", label: "%", w: 52, group: "자유투", pct: true },
+  { key: "pts", label: "득점", w: 54, strong: true },
+  { key: "reb", label: "리바", w: 48 },
+  { key: "ast", label: "어시", w: 48 },
+  { key: "stl", label: "스틸", w: 48 },
+  { key: "blk", label: "블락", w: 48 },
+  { key: "to", label: "턴오버", w: 54 },
+  { key: "pf", label: "파울", w: 48 },
+  { key: "gs", label: "GS", w: 54, strong: true },
 ];
 
 const PAD = 26;
 const ROW_H = 32;
 const HEAD_H = 44;
 const GROUP_H = 22;
+const TEAM_BAR_H = 34;
+const SCORE_H = 92;
+const QUARTER_H = 26 + 2 * 30 + 34;
 
 function createScaledCanvas(width, height, scale = 2) {
   const canvas = document.createElement("canvas");
@@ -97,7 +103,6 @@ function cellText(col, row) {
   const v = row[col.key];
   if (col.key === "gs") return v == null ? "" : v.toFixed(1);
   if (col.pct) return pctText(v);
-  if (col.key === "memo") return v || "";
   if (col.key === "name") return v || "";
   if (col.key === "no") return v == null || v === "" ? "" : String(v);
   return v ? String(v) : "-";
@@ -107,12 +112,18 @@ function tableWidth() {
   return COLS.reduce((a, c) => a + c.w, 0);
 }
 
+// 이긴 팀을 위로. 비기면 적힌 순서 그대로 둔다.
+function orderedTeams(game) {
+  const w = winnerIndex(game);
+  return (w === 1 ? [1, 0] : [0, 1]).map((i) => ({ team: game.teams[i], index: i }));
+}
+
 // ── 상단: 점수판 ──────────────────────────────────────────
 function drawScoreboard(ctx, game, x, y, w) {
-  const uS = usScore(game), tS = themScore(game), r = result(game);
-  const h = 92;
+  const [A, B] = game.teams;
+  const aS = teamScore(A), bS = teamScore(B);
   ctx.fillStyle = C.band;
-  roundRect(ctx, x, y, w, h, 12);
+  roundRect(ctx, x, y, w, SCORE_H, 12);
   ctx.fill();
 
   ctx.textBaseline = "middle";
@@ -122,25 +133,25 @@ function drawScoreboard(ctx, game, x, y, w) {
   const dateLabel = (game.date || "").replaceAll("-", ".");
   ctx.fillText(`${dateLabel}  ·  ${game.gameNo}경기  ·  ${game.gameType}`, x + 22, y + 26);
 
-  // [우리팀 45 : 38 상대팀] 을 한 덩어리로 재서 가운데에 놓는다.
+  // [A팀 45 : 38 B팀] 을 한 덩어리로 재서 가운데에 놓는다.
   // 칸마다 따로 계산하면 팀 이름 길이나 점수 자릿수가 바뀔 때마다 글자가 겹친다.
   const cx = x + w / 2;
   const baseline = y + 61;
   const NAME_GAP = 16;
   const COLON_GAP = 14;
   // 좌우로 날짜(왼쪽)와 승패 배지(오른쪽)가 있으니 그만큼은 비워둔다.
-  const avail = w - 2 * 190;
+  const avail = w - 2 * 220;
 
   let scoreSize = 40;
   let nameSize = 20;
   const measure = () => {
     ctx.font = `900 ${scoreSize}px ${FONT}`;
-    const uW = ctx.measureText(String(uS)).width;
-    const tW = ctx.measureText(String(tS)).width;
+    const uW = ctx.measureText(String(aS)).width;
+    const tW = ctx.measureText(String(bS)).width;
     const cW = ctx.measureText(":").width;
     ctx.font = `700 ${nameSize}px ${FONT}`;
-    const unW = ctx.measureText(game.us).width;
-    const tnW = ctx.measureText(game.them).width;
+    const unW = ctx.measureText(A.name).width;
+    const tnW = ctx.measureText(B.name).width;
     return { uW, tW, cW, unW, tnW, total: unW + NAME_GAP + uW + COLON_GAP + cW + COLON_GAP + tW + NAME_GAP + tnW };
   };
   let m = measure();
@@ -153,16 +164,15 @@ function drawScoreboard(ctx, game, x, y, w) {
 
   let px = cx - m.total / 2;
   ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
 
   ctx.font = `700 ${nameSize}px ${FONT}`;
   ctx.fillStyle = "rgba(255,255,255,.85)";
-  ctx.fillText(game.us, px, baseline);
+  ctx.fillText(A.name, px, baseline);
   px += m.unW + NAME_GAP;
 
   ctx.font = `900 ${scoreSize}px ${FONT}`;
   ctx.fillStyle = C.bandText;
-  ctx.fillText(String(uS), px, baseline);
+  ctx.fillText(String(aS), px, baseline);
   px += m.uW + COLON_GAP;
 
   ctx.fillStyle = "rgba(255,255,255,.4)";
@@ -170,38 +180,34 @@ function drawScoreboard(ctx, game, x, y, w) {
   px += m.cW + COLON_GAP;
 
   ctx.fillStyle = C.bandText;
-  ctx.fillText(String(tS), px, baseline);
+  ctx.fillText(String(bS), px, baseline);
   px += m.tW + NAME_GAP;
 
   ctx.font = `700 ${nameSize}px ${FONT}`;
   ctx.fillStyle = "rgba(255,255,255,.85)";
-  ctx.fillText(game.them, px, baseline);
+  ctx.fillText(B.name, px, baseline);
 
-  // 승/패 배지
-  const badge = { 승: C.win, 패: C.lose, 무: C.draw }[r];
-  ctx.font = `900 17px ${FONT}`;
-  const bw = 52, bh = 28;
-  ctx.fillStyle = badge;
+  // 이긴 팀 배지
+  const w0 = winnerIndex(game);
+  const badgeText = w0 === -1 ? "무승부" : `${game.teams[w0].name} 승`;
+  ctx.font = `900 16px ${FONT}`;
+  const bw = Math.max(52, ctx.measureText(badgeText).width + 26);
+  const bh = 28;
+  ctx.fillStyle = w0 === -1 ? C.draw : C.win;
   roundRect(ctx, x + w - 22 - bw, y + 20, bw, bh, 8);
   ctx.fill();
   ctx.fillStyle = "#fff";
   ctx.textAlign = "center";
-  ctx.fillText(r, x + w - 22 - bw / 2, y + 20 + bh / 2 + 1);
+  ctx.fillText(badgeText, x + w - 22 - bw / 2, y + 20 + bh / 2 + 1);
 
-  return h;
+  return SCORE_H;
 }
 
 // ── 쿼터 점수 + 코트 위 5명 ───────────────────────────────
 function drawQuarterBlock(ctx, game, x, y, w) {
-  const labelW = 96;
+  const labelW = 110;
   const colW = (w - labelW) / 4;
-  const rows = [
-    { label: game.us, values: perQuarterToCumulative(game.usQ), strong: true },
-    { label: game.them, values: perQuarterToCumulative(game.themQ) },
-  ];
-  const five = lineups(game);
   const rowH = 30;
-  const h = 26 + rows.length * rowH + 34;
 
   ctx.strokeStyle = C.line;
   ctx.lineWidth = 1;
@@ -216,19 +222,20 @@ function drawQuarterBlock(ctx, game, x, y, w) {
   ctx.textAlign = "left";
   ctx.fillText("누적 점수", x + 2, y + 13);
 
-  rows.forEach((row, i) => {
+  game.teams.forEach((team, i) => {
     const ry = y + 26 + i * rowH;
     if (i % 2 === 0) {
       ctx.fillStyle = C.zebra;
       ctx.fillRect(x, ry, w, rowH);
     }
+    const won = teamResult(game, i) === "승";
     ctx.fillStyle = C.ink;
-    ctx.font = `${row.strong ? 800 : 600} 15px ${FONT}`;
+    ctx.font = `${won ? 800 : 600} 15px ${FONT}`;
     ctx.textAlign = "left";
-    ctx.fillText(row.label, x + 6, ry + rowH / 2);
+    ctx.fillText(team.name, x + 6, ry + rowH / 2, labelW - 12);
     ctx.textAlign = "center";
-    ctx.font = `${row.strong ? 800 : 600} 16px ${FONT}`;
-    row.values.forEach((v, q) => {
+    ctx.font = `${won ? 800 : 600} 16px ${FONT}`;
+    perQuarterToCumulative(team.q).forEach((v, q) => {
       ctx.fillText(String(v), x + labelW + colW * (q + 0.5), ry + rowH / 2);
     });
     ctx.beginPath();
@@ -238,26 +245,50 @@ function drawQuarterBlock(ctx, game, x, y, w) {
   });
 
   // Play 줄 — 그 쿼터에 코트에 있던 등번호. 엑셀에서 쓰던 이름 그대로 둔다.
-  const py = y + 26 + rows.length * rowH;
+  // 두 팀을 "A쪽 번호  /  B쪽 번호"로 한 줄에 겹쳐 놓는다.
+  const py = y + 26 + game.teams.length * rowH;
   ctx.fillStyle = C.ink2;
   ctx.font = `700 12px ${FONT}`;
   ctx.textAlign = "left";
   ctx.fillText("Play", x + 6, py + 17);
   ctx.textAlign = "center";
   ctx.font = `600 12px ${FONT}`;
-  five.forEach((list, q) => {
-    ctx.fillText(list.length ? list.join(" ") : "-", x + labelW + colW * (q + 0.5), py + 17);
-  });
+  const fives = game.teams.map((t) => lineups(t));
+  for (let q = 0; q < 4; q++) {
+    const text = fives.map((f) => (f[q].length ? f[q].join(" ") : "-")).join("  /  ");
+    ctx.fillText(text, x + labelW + colW * (q + 0.5), py + 17, colW - 8);
+  }
 
-  return h;
+  return QUARTER_H;
 }
 
-// ── 기록표 ────────────────────────────────────────────────
-function drawTable(ctx, game, x, y, w) {
-  const players = game.players.map((p) => ({ ...p, ...derive(p), gs: gameScore(p) }));
-  const totals = teamTotals(game);
-  const totalRow = { ...totals, no: "", name: "TEAM", memo: "", gs: null };
-  const best = momOf(game.players);
+// ── 팀 이름 띠 ────────────────────────────────────────────
+function drawTeamBar(ctx, game, index, x, y, w) {
+  const team = game.teams[index];
+  const res = teamResult(game, index);
+  ctx.fillStyle = res === "승" ? "#fdf0e4" : C.zebra;
+  ctx.fillRect(x, y, w, TEAM_BAR_H);
+  ctx.fillStyle = res === "승" ? C.win : "#aeb4c4";
+  ctx.fillRect(x, y, 4, TEAM_BAR_H);
+
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.font = `800 16px ${FONT}`;
+  ctx.fillStyle = C.ink;
+  ctx.fillText(team.name, x + 16, y + TEAM_BAR_H / 2);
+  const nameW = ctx.measureText(team.name).width;
+
+  ctx.font = `700 13px ${FONT}`;
+  ctx.fillStyle = res === "승" ? C.win : C.ink2;
+  ctx.fillText(`${res} · ${teamScore(team)}점`, x + 16 + nameW + 16, y + TEAM_BAR_H / 2);
+  return TEAM_BAR_H;
+}
+
+// ── 기록표 하나 ───────────────────────────────────────────
+function drawTable(ctx, team, mom, x, y, w) {
+  const players = team.players.map((p) => ({ ...p, ...derive(p), gs: gameScore(p) }));
+  const totals = teamTotals(team);
+  const totalRow = { ...totals, no: "", name: "TEAM", gs: null };
 
   // 머리 — 위는 묶음 이름(2점/3점/…), 아래는 개별 열
   let cx = x;
@@ -308,14 +339,21 @@ function drawTable(ctx, game, x, y, w) {
     COLS.forEach((col) => {
       const text = cellText(col, row);
       const strong = col.strong || opts.strong;
-      ctx.font = `${strong ? 800 : 600} ${col.key === "memo" ? 12 : 14}px ${FONT}`;
-      ctx.fillStyle = text === "-" ? "#b9bfcd" : col.key === "memo" ? C.ink2 : C.ink;
+      ctx.font = `${strong ? 800 : 600} 14px ${FONT}`;
+      ctx.fillStyle = text === "-" ? "#b9bfcd" : C.ink;
       const align = col.align || "center";
       ctx.textAlign = align;
       const tx = align === "left" ? px + 8 : px + col.w / 2;
       ctx.fillText(text, tx, ry + ROW_H / 2, col.w - 10);
       px += col.w;
     });
+    // MOM 표시. 이름 칸 오른쪽 끝에 둔다 — 왼쪽에 두면 이름과 겹친다.
+    if (opts.mom) {
+      ctx.font = `800 14px ${FONT}`;
+      ctx.fillStyle = C.win;
+      ctx.textAlign = "right";
+      ctx.fillText("★", x + COLS[0].w + COLS[1].w - 10, ry + ROW_H / 2);
+    }
     ctx.strokeStyle = C.line;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -325,8 +363,8 @@ function drawTable(ctx, game, x, y, w) {
   };
 
   players.forEach((p, r) => {
-    const isMom = best && p.name === best.name;
-    drawRow(p, bodyTop + r * ROW_H, { fill: isMom ? C.mom : r % 2 ? C.zebra : null, strong: isMom });
+    const isMom = !!mom && mom.team === team && p.name === mom.p.name;
+    drawRow(p, bodyTop + r * ROW_H, { fill: isMom ? C.mom : r % 2 ? C.zebra : null, strong: isMom, mom: isMom });
   });
   const totalY = bodyTop + players.length * ROW_H;
   drawRow(totalRow, totalY, { fill: C.total, strong: true });
@@ -342,48 +380,58 @@ function drawTable(ctx, game, x, y, w) {
   return GROUP_H + HEAD_H + (players.length + 1) * ROW_H;
 }
 
+function tableHeight(team) {
+  return GROUP_H + HEAD_H + (team.players.length + 1) * ROW_H;
+}
+
 export function drawGameImage(game) {
   const w = tableWidth();
   const width = w + PAD * 2;
-  const scoreH = 92;
-  const quarterH = 26 + 2 * 30 + 34;
-  const tableH = GROUP_H + HEAD_H + (game.players.length + 1) * ROW_H;
-  const height = PAD + scoreH + 18 + quarterH + 14 + tableH + 16 + 30 + PAD;
+  const order = orderedTeams(game);
+  const blocks = order.reduce((a, { team }) => a + TEAM_BAR_H + tableHeight(team), 0);
+  const height = PAD + SCORE_H + 18 + QUARTER_H + 16 + blocks + 18 + 16 + 30 + PAD;
 
   const { canvas, ctx } = createScaledCanvas(width, height);
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, width, height);
 
+  const mom = momOf(game);
+
   let y = PAD;
   y += drawScoreboard(ctx, game, PAD, y, w) + 18;
-  y += drawQuarterBlock(ctx, game, PAD, y, w) + 14;
-  y += drawTable(ctx, game, PAD, y, w) + 16;
+  y += drawQuarterBlock(ctx, game, PAD, y, w) + 16;
+  order.forEach(({ team, index }, i) => {
+    if (i) y += 18;
+    y += drawTeamBar(ctx, game, index, PAD, y, w);
+    y += drawTable(ctx, team, mom, PAD, y, w);
+  });
+  y += 16;
 
-  const t = teamTotals(game);
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  ctx.fillStyle = C.ink2;
-
-  // 표에서 색이 깔린 줄이 왜 그런지 여기서 밝힌다 — 색만 두면 무슨 뜻인지 모른다.
-  const best = momOf(game.players);
   let fx = PAD;
-  if (best) {
-    const label = result(game) === "승" ? "MOM" : "우리 팀 최고";
+  if (mom) {
     ctx.font = `800 13px ${FONT}`;
     ctx.fillStyle = C.win;
-    const text = `${label} ${best.name} · GS ${gameScore(best).toFixed(1)}`;
+    const text = `★ MOM  ${mom.p.name} (${mom.team.name}) · GS ${mom.score.toFixed(1)}`;
     ctx.fillText(text, fx, y + 14);
     fx += ctx.measureText(text).width + 14;
     ctx.fillStyle = "#c8cdda";
     ctx.fillText("|", fx, y + 14);
     fx += 12;
   }
+  // 진 팀에 GS 가 더 높은 선수가 있으면 별이 안 붙은 이유를 밝혀 둔다.
+  // 안 그러면 "16.4 인데 왜 11.5 가 MOM 이지?" 로 읽힌다.
+  const topAll = game.teams
+    .flatMap((t) => t.players.map((p) => ({ p, t, gs: gameScore(p) })))
+    .sort((a, b) => b.gs - a.gs)[0];
   ctx.font = `600 13px ${FONT}`;
   ctx.fillStyle = C.ink2;
-  ctx.fillText(
-    `야투 ${t.fgm}/${t.fga} · 3점 ${t.p3m}/${t.p3a} · 자유투 ${t.ftm}/${t.fta} · 리바 ${t.reb} · 어시 ${t.ast} · 턴오버 ${t.to}`,
-    fx, y + 14
-  );
+  const note = mom && topAll && topAll.p.name !== mom.p.name
+    ? `MOM 은 이긴 팀에서 뽑습니다 — 전체 최고는 ${topAll.p.name} ${topAll.gs.toFixed(1)} (${topAll.t.name})`
+    : "GS = GameScore (John Hollinger)";
+  ctx.fillText(note, fx, y + 14);
+
   ctx.textAlign = "right";
   ctx.font = `700 13px ${FONT}`;
   ctx.fillStyle = "#aeb4c4";

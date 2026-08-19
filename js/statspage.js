@@ -4,22 +4,27 @@
 // 그 결과가 이 화면의 입력값을 채워주는 식으로 들어온다 — 그래서 입력·검토·내보내기를
 // 한 화면에 두었다. 판독이 붙어도 사람이 마지막으로 눈으로 확인하는 자리는 여기다.
 //
+// 한 경기 = 두 팀이다. 두 팀을 같이 넣어야 MOM 을 이긴 팀에서 뽑을 수 있다.
+//
 // 내보내기는 세 가지다.
 //   글    — 밴드에 붙여넣을 최종 점수와 짚어볼 점
-//   이미지 — 밴드에 올리는 경기 결과표
+//   이미지 — 밴드에 올리는 경기 결과표 (두 팀)
 //   엑셀  — 누적 기록. 기존 파일을 올리면 그 아래에 덧붙이고, 안 올리면 새로 만든다.
+//           이미 들어 있는 경기면 붙이지 않고 그 자리에서 고쳐 넣는다.
 
 import { ROSTER } from "./roster.js";
 import { getNextEventDate } from "./events.js";
 import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft } from "./storage.js";
 import {
-  emptyGame, emptyPlayer, derive, teamTotals, usScore, themScore, result,
-  perQuarterToCumulative, cumulativeToPerQuarter, validate, gameScore,
-  CUMULATIVE_HEADERS, PERCENT_COLUMNS, cumulativeRows, sheetDateKey, summaryText,
+  emptyGame, emptyTeam, emptyPlayer, derive, teamTotals, teamScore, teamResult, winnerIndex,
+  perQuarterToCumulative, cumulativeToPerQuarter, validate, gameScore, momOf,
+  CUMULATIVE_HEADERS, PERCENT_COLUMNS, COL_DATE, COL_TEAM,
+  cumulativeRows, sheetDateKey, summaryText,
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
 import {
-  openWorkbook, readSheet, appendRows, saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
+  openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
+  saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
 } from "./xlsx-lite.js";
 
 const STAT_FIELDS = [
@@ -82,25 +87,42 @@ async function copyCanvas(canvas) {
 }
 
 // 저장해둔 초안은 예전 버전이 남긴 것일 수도 있다. 모양이 맞는 것만 살려 쓴다.
+// 한 팀만 담던 시절(us/them/players)의 초안도 두 팀 구조로 옮겨 준다.
 function cleanGame(saved) {
   const g = emptyGame();
-  if (!saved) return g;
+  if (!saved || typeof saved !== "object") return g;
   const num = (v, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
-  g.date = typeof saved.date === "string" ? saved.date : g.date;
+  const str = (v, d) => (typeof v === "string" ? v : d);
+
+  g.date = str(saved.date, g.date);
   g.gameNo = num(saved.gameNo, 1);
-  g.gameType = typeof saved.gameType === "string" ? saved.gameType : g.gameType;
-  g.us = typeof saved.us === "string" ? saved.us : g.us;
-  g.them = typeof saved.them === "string" ? saved.them : g.them;
-  const q = (arr) => (Array.isArray(arr) && arr.length === 4 ? arr.map((v) => num(v)) : [0, 0, 0, 0]);
-  g.usQ = q(saved.usQ);
-  g.themQ = q(saved.themQ);
-  g.players = (Array.isArray(saved.players) ? saved.players : []).map((p) => {
-    const np = emptyPlayer(typeof p?.no === "number" ? p.no : null, String(p?.name ?? ""));
-    np.quarters = Array.isArray(p?.quarters) ? p.quarters.filter((n) => [1, 2, 3, 4].includes(n)) : [];
-    for (const f of STAT_FIELDS) np[f.key] = num(p?.[f.key]);
-    np.memo = typeof p?.memo === "string" ? p.memo : "";
-    return np;
-  });
+  g.gameType = str(saved.gameType, g.gameType);
+
+  const cleanPlayers = (arr) =>
+    (Array.isArray(arr) ? arr : []).map((p) => {
+      const np = emptyPlayer(typeof p?.no === "number" ? p.no : null, str(p?.name, ""));
+      np.quarters = Array.isArray(p?.quarters) ? p.quarters.filter((n) => [1, 2, 3, 4].includes(n)) : [];
+      for (const f of STAT_FIELDS) np[f.key] = num(p?.[f.key]);
+      np.memo = str(p?.memo, "");
+      return np;
+    });
+  const cleanQ = (arr) => (Array.isArray(arr) && arr.length === 4 ? arr.map((v) => num(v)) : [0, 0, 0, 0]);
+
+  if (Array.isArray(saved.teams)) {
+    g.teams = [0, 1].map((i) => {
+      const t = emptyTeam(str(saved.teams[i]?.name, i === 0 ? "혼 A" : "혼 B"));
+      t.q = cleanQ(saved.teams[i]?.q);
+      t.players = cleanPlayers(saved.teams[i]?.players);
+      return t;
+    });
+  } else if (saved.us || saved.players) {
+    // 예전 초안 — 우리 팀만 있던 것을 첫 번째 팀으로 옮긴다.
+    g.teams[0].name = str(saved.us, "혼 A");
+    g.teams[0].q = cleanQ(saved.usQ);
+    g.teams[0].players = cleanPlayers(saved.players);
+    g.teams[1].name = str(saved.them, "혼 B");
+    g.teams[1].q = cleanQ(saved.themQ);
+  }
   return g;
 }
 
@@ -108,9 +130,12 @@ export function mountStatsPage(container) {
   const game = cleanGame(getGameStatsDraft());
   if (!game.date) game.date = getNextEventDate("자체전", todayStr()) || todayStr();
 
-  // 엑셀 쪽 상태. 원본 바이트를 들고 있다가 내려받을 때마다 새로 열어 덧붙인다
+  // 엑셀 쪽 상태. 원본 바이트를 들고 있다가 내려받을 때마다 새로 열어 손본다
   // (한 번 열어둔 걸 계속 쓰면 버튼을 두 번 누를 때 같은 줄이 두 번 붙는다).
-  const excel = { buffer: null, fileName: "", sheets: [], sheetName: "", header: null, lastRow: 0, error: "" };
+  const excel = {
+    buffer: null, fileName: "", sheets: [], sheetName: "",
+    header: null, lastRow: 0, error: "", existing: [],
+  };
 
   container.innerHTML = `
     <div class="stats-page">
@@ -124,12 +149,7 @@ export function mountStatsPage(container) {
         <div class="stats-quarters" id="st-quarters"></div>
       </section>
 
-      <section class="stats-block">
-        <h2>선수 기록</h2>
-        <div class="stats-add" id="st-add"></div>
-        <div class="stats-table-wrap"><table class="stats-table" id="st-table"></table></div>
-        <p class="stats-note stats-scroll-hint">표를 옆으로 밀면 나머지 칸이 나옵니다. 선수 이름은 왼쪽에 붙어 따라옵니다.</p>
-      </section>
+      <div id="st-teams"></div>
 
       <section class="stats-block">
         <h2>검토</h2>
@@ -157,7 +177,8 @@ export function mountStatsPage(container) {
       <section class="stats-block">
         <h2>누적 엑셀</h2>
         <p class="hint">쓰던 누적 파일을 올리면 <b>맨 아래에 이어서</b> 붙입니다. 셀 서식과 다른 시트는 그대로 둡니다.
-          아무것도 올리지 않으면 이번 경기만 담은 새 파일을 만듭니다.</p>
+          같은 경기가 이미 들어 있으면 붙이지 않고 <b>그 자리에서 고쳐 넣습니다</b> — 숫자를 잘못 옮겼을 때
+          여기서 고치고 다시 받으면 됩니다. 아무것도 올리지 않으면 이번 경기만 담은 새 파일을 만듭니다.</p>
         <div class="stats-excel">
           <label class="btn" for="st-xlsx">엑셀 파일 선택</label>
           <input type="file" id="st-xlsx" accept=".xlsx" hidden />
@@ -178,7 +199,7 @@ export function mountStatsPage(container) {
     </div>
   `;
 
-  const $ = (id) => container.querySelector(id);
+  const $ = (sel) => container.querySelector(sel);
 
   // ── 그리기 ─────────────────────────────────────────────
   function renderMeta() {
@@ -192,76 +213,52 @@ export function mountStatsPage(container) {
           ${["자체전", "대회", "친선전"].map((t) =>
             `<option value="${t}"${game.gameType === t ? " selected" : ""}>${t}</option>`).join("")}
         </select></label>
-      <label class="stats-field"><span>우리 팀</span>
-        <input type="text" id="m-us" value="${escapeHtml(game.us)}" /></label>
-      <label class="stats-field"><span>상대</span>
-        <input type="text" id="m-them" value="${escapeHtml(game.them)}" /></label>
+      ${game.teams.map((t, i) => `
+        <label class="stats-field"><span>${i === 0 ? "팀 1" : "팀 2"}</span>
+          <input type="text" data-team-name="${i}" value="${escapeHtml(t.name)}" /></label>`).join("")}
     `;
     $("#m-date").addEventListener("change", (e) => { game.date = e.target.value; touch(); });
     $("#m-no").addEventListener("input", (e) => { game.gameNo = Math.max(1, +e.target.value || 1); touch(); });
     $("#m-type").addEventListener("change", (e) => { game.gameType = e.target.value; touch(); });
-    $("#m-us").addEventListener("input", (e) => { game.us = e.target.value; touch(); });
-    $("#m-them").addEventListener("input", (e) => { game.them = e.target.value; touch(); });
+    $("#st-meta").querySelectorAll("[data-team-name]").forEach((input) => {
+      input.addEventListener("input", (e) => {
+        game.teams[+e.target.dataset.teamName].name = e.target.value;
+        touch({ skipMeta: true });
+      });
+    });
   }
 
   function renderQuarters() {
-    const usCum = perQuarterToCumulative(game.usQ);
-    const themCum = perQuarterToCumulative(game.themQ);
-    const row = (label, cum, side) => `
-      <div class="stats-qrow">
-        <span class="stats-qteam">${escapeHtml(label)}</span>
-        ${cum.map((v, i) =>
-          `<input type="number" inputmode="numeric" min="0" data-side="${side}" data-q="${i}" value="${v}" />`).join("")}
-        <span class="stats-qtotal">${cum[3]}점</span>
-      </div>`;
+    const row = (team, i) => {
+      const cum = perQuarterToCumulative(team.q);
+      return `
+        <div class="stats-qrow">
+          <span class="stats-qteam">${escapeHtml(team.name || `${i + 1}팀`)}</span>
+          ${cum.map((v, q) =>
+            `<input type="number" inputmode="numeric" min="0" data-team="${i}" data-q="${q}" value="${v}" />`).join("")}
+          <span class="stats-qtotal">${cum[3]}점</span>
+        </div>`;
+    };
     $("#st-quarters").innerHTML = `
       <div class="stats-qhead"><span></span><span>1Q</span><span>2Q</span><span>3Q</span><span>4Q</span><span></span></div>
-      ${row(game.us || "우리", usCum, "us")}
-      ${row(game.them || "상대", themCum, "them")}
+      ${game.teams.map(row).join("")}
     `;
     $("#st-quarters").querySelectorAll("input").forEach((input) => {
       input.addEventListener("input", (e) => {
-        const side = e.target.dataset.side === "us" ? "usQ" : "themQ";
-        const cum = perQuarterToCumulative(game[side]);
+        const team = game.teams[+e.target.dataset.team];
+        const cum = perQuarterToCumulative(team.q);
         cum[+e.target.dataset.q] = Math.max(0, +e.target.value || 0);
-        game[side] = cumulativeToPerQuarter(cum);
+        team.q = cumulativeToPerQuarter(cum);
         touch({ skipQuarters: true });
         e.target.closest(".stats-qrow").querySelector(".stats-qtotal").textContent = `${cum[3]}점`;
       });
     });
   }
 
-  function renderAdd() {
-    const taken = new Set(game.players.map((p) => p.name));
-    const options = ROSTER.filter((p) => !taken.has(p.name))
-      .map((p) => `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}${
-        typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
-    $("#st-add").innerHTML = `
-      <select id="st-add-pick"><option value="">선수 선택…</option>${options}</select>
-      <button type="button" class="btn" id="st-add-btn">추가</button>
-      <button type="button" class="btn" id="st-add-guest">게스트 추가</button>
-      <span class="stats-note">${game.players.length}명</span>
-    `;
-    const add = (name, no) => {
-      game.players.push(emptyPlayer(no, name));
-      touch();
-    };
-    $("#st-add-btn").addEventListener("click", () => {
-      const name = $("#st-add-pick").value;
-      if (!name) return;
-      const p = ROSTER.find((r) => r.name === name);
-      add(name, typeof p?.number === "number" ? p.number : null);
-    });
-    $("#st-add-guest").addEventListener("click", () => {
-      const name = prompt("게스트 이름을 적어주세요");
-      if (name && name.trim()) add(name.trim(), null);
-    });
-  }
-
   // TEAM 줄만 따로 만든다. 숫자를 치는 동안에는 표 전체를 다시 그리지 않는데(커서가 튄다),
   // 그때도 합계는 따라 움직여야 한다 — tfoot만 갈아끼우면 입력 칸은 건드리지 않는다.
-  function totalsRowHTML() {
-    const t = teamTotals(game);
+  function totalsRowHTML(team) {
+    const t = teamTotals(team);
     return `<tr>
       <th class="stats-sticky">TEAM</th><th></th>
       ${STAT_FIELDS.map((f) => `<td>${t[f.key]}</td>`).join("")}
@@ -270,13 +267,63 @@ export function mountStatsPage(container) {
   }
 
   function renderTotals() {
-    const foot = $("#st-table").querySelector("tfoot");
-    if (foot) foot.innerHTML = totalsRowHTML();
+    game.teams.forEach((team, ti) => {
+      const foot = $(`#st-table-${ti}`)?.querySelector("tfoot");
+      if (foot) foot.innerHTML = totalsRowHTML(team);
+    });
   }
 
-  function renderTable() {
-    if (!game.players.length) {
-      $("#st-table").innerHTML = `<tbody><tr><td class="stats-empty">위에서 선수를 추가해주세요.</td></tr></tbody>`;
+  // 두 팀을 같은 모양의 블록으로 하나씩 그린다.
+  function renderTeams() {
+    const mom = momOf(game);
+    $("#st-teams").innerHTML = game.teams.map((team, ti) => {
+      const res = teamResult(game, ti);
+      const taken = new Set(game.teams.flatMap((t) => t.players.map((p) => p.name)));
+      const options = ROSTER.filter((p) => !taken.has(p.name))
+        .map((p) => `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}${
+          typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
+
+      return `
+        <section class="stats-block stats-team${res === "승" ? " is-winner" : ""}">
+          <h2>${escapeHtml(team.name || `${ti + 1}팀`)}
+            <span class="stats-team-tag">${res} · ${teamScore(team)}점</span>
+            <span class="stats-note">${team.players.length}명</span></h2>
+          <div class="stats-add">
+            <select data-pick="${ti}"><option value="">선수 선택…</option>${options}</select>
+            <button type="button" class="btn btn-sm" data-add="${ti}">추가</button>
+            <button type="button" class="btn btn-sm" data-guest="${ti}">게스트 추가</button>
+          </div>
+          <div class="stats-table-wrap"><table class="stats-table" id="st-table-${ti}"></table></div>
+        </section>`;
+    }).join("");
+
+    game.teams.forEach((team, ti) => renderTable(team, ti, mom));
+
+    $("#st-teams").querySelectorAll("[data-add]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const ti = +btn.dataset.add;
+        const name = $(`select[data-pick="${ti}"]`).value;
+        if (!name) return;
+        const p = ROSTER.find((r) => r.name === name);
+        game.teams[ti].players.push(emptyPlayer(typeof p?.number === "number" ? p.number : null, name));
+        touch();
+      });
+    });
+    $("#st-teams").querySelectorAll("[data-guest]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const name = prompt("게스트 이름을 적어주세요");
+        if (name && name.trim()) {
+          game.teams[+btn.dataset.guest].players.push(emptyPlayer(null, name.trim()));
+          touch();
+        }
+      });
+    });
+  }
+
+  function renderTable(team, ti, mom) {
+    const table = $(`#st-table-${ti}`);
+    if (!team.players.length) {
+      table.innerHTML = `<tbody><tr><td class="stats-empty">위에서 선수를 추가해주세요.</td></tr></tbody>`;
       return;
     }
     const head = `
@@ -285,42 +332,45 @@ export function mountStatsPage(container) {
         ${STAT_FIELDS.map((f) => `<th title="${f.label}">${f.short}</th>`).join("")}
         <th>득점</th><th title="GameScore — 활약을 한 숫자로">GS</th><th>비고</th><th></th>
       </tr></thead>`;
-    const body = game.players.map((p, i) => {
+
+    const body = team.players.map((p, i) => {
       const d = derive(p);
-      return `<tr>
+      const isMom = !!mom && mom.team === team && mom.p.name === p.name;
+      return `<tr${isMom ? ' class="is-mom"' : ""}>
         <td class="stats-sticky">
+          ${isMom ? '<span class="stats-mom-star" title="MOM">★</span>' : ""}
           <b>${escapeHtml(p.name)}</b>${p.no == null ? "" : `<span class="stats-no">#${p.no}</span>`}
         </td>
         <td class="stats-qpick">${[1, 2, 3, 4].map((q) =>
           `<button type="button" class="stats-qchip${p.quarters.includes(q) ? " is-on" : ""}"
-             data-row="${i}" data-q="${q}">${q}</button>`).join("")}</td>
+             data-team="${ti}" data-row="${i}" data-q="${q}">${q}</button>`).join("")}</td>
         ${STAT_FIELDS.map((f) =>
-          `<td><input type="number" inputmode="numeric" min="0" data-row="${i}" data-key="${f.key}" value="${p[f.key]}" /></td>`).join("")}
+          `<td><input type="number" inputmode="numeric" min="0" data-team="${ti}" data-row="${i}" data-key="${f.key}" value="${p[f.key]}" /></td>`).join("")}
         <td class="stats-pts">${d.pts}</td>
         <td class="stats-gs">${gameScore(p).toFixed(1)}</td>
-        <td><input type="text" class="stats-memo" data-row="${i}" data-key="memo" value="${escapeHtml(p.memo)}"
+        <td><input type="text" class="stats-memo" data-team="${ti}" data-row="${i}" data-key="memo" value="${escapeHtml(p.memo)}"
               placeholder="칸이 모자랐던 것 등" /></td>
-        <td><button type="button" class="stats-del" data-del="${i}" aria-label="${escapeHtml(p.name)} 삭제">✕</button></td>
+        <td><button type="button" class="stats-del" data-team="${ti}" data-del="${i}" aria-label="${escapeHtml(p.name)} 삭제">✕</button></td>
       </tr>`;
     }).join("");
 
-    $("#st-table").innerHTML = head + `<tbody>${body}</tbody><tfoot>${totalsRowHTML()}</tfoot>`;
+    table.innerHTML = head + `<tbody>${body}</tbody><tfoot>${totalsRowHTML(team)}</tfoot>`;
 
-    $("#st-table").querySelectorAll(".stats-qchip").forEach((btn) => {
+    table.querySelectorAll(".stats-qchip").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const p = game.players[+btn.dataset.row];
+        const p = game.teams[+btn.dataset.team].players[+btn.dataset.row];
         const q = +btn.dataset.q;
         p.quarters = p.quarters.includes(q) ? p.quarters.filter((n) => n !== q) : [...p.quarters, q].sort();
         touch();
       });
     });
-    $("#st-table").querySelectorAll("input[data-key]").forEach((input) => {
+    table.querySelectorAll("input[data-key]").forEach((input) => {
       input.addEventListener("input", (e) => {
-        const p = game.players[+e.target.dataset.row];
+        const p = game.teams[+e.target.dataset.team].players[+e.target.dataset.row];
         const key = e.target.dataset.key;
         p[key] = key === "memo" ? e.target.value : Math.max(0, +e.target.value || 0);
         // 입력 중에 표를 다시 그리면 커서가 튄다 — 표 밖의 것만 갱신한다.
-        touch({ skipTable: true });
+        touch({ skipTeams: true });
         const tr = e.target.closest("tr");
         if (tr) {
           tr.querySelector(".stats-pts").textContent = derive(p).pts;
@@ -328,9 +378,9 @@ export function mountStatsPage(container) {
         }
       });
     });
-    $("#st-table").querySelectorAll(".stats-del").forEach((btn) => {
+    table.querySelectorAll(".stats-del").forEach((btn) => {
       btn.addEventListener("click", () => {
-        game.players.splice(+btn.dataset.del, 1);
+        game.teams[+btn.dataset.team].players.splice(+btn.dataset.del, 1);
         touch();
       });
     });
@@ -338,8 +388,9 @@ export function mountStatsPage(container) {
 
   function renderIssues() {
     const issues = validate(game);
+    const hasPlayers = game.teams.some((t) => t.players.length);
     if (!issues.length) {
-      $("#st-issues").innerHTML = game.players.length
+      $("#st-issues").innerHTML = hasPlayers
         ? `<p class="stats-ok">숫자가 서로 맞습니다.</p>`
         : `<p class="hint">선수 기록을 넣으면 여기서 맞는지 검사합니다.</p>`;
       return;
@@ -363,10 +414,34 @@ export function mountStatsPage(container) {
     $("#st-image").appendChild(img);
   }
 
+  // ── 엑셀 ───────────────────────────────────────────────
+  // 이 경기가 이미 시트에 들어 있는지 본다. 있으면 붙이지 않고 그 줄을 고친다.
+  // 짝은 (팀, 이름)으로 맞춘다 — 사람이 고치는 건 보통 숫자이지 이름이 아니다.
+  function planExcel() {
+    const rows = cumulativeRows(game);
+    const byKey = new Map(excel.existing.map((e) => [`${e.team} ${e.name}`, e.r]));
+    const used = new Set();
+    const update = [];
+    const insert = [];
+    for (const values of rows) {
+      const key = `${values[COL_TEAM]} ${values[5]}`;
+      const at = byKey.get(key);
+      if (at != null && !used.has(at)) {
+        used.add(at);
+        update.push({ r: at, values });
+      } else {
+        insert.push(values);
+      }
+    }
+    // 이제 우리 기록에 없는데 시트에는 남아 있는 줄 (선수를 뺐거나 이름을 고친 경우)
+    const stale = excel.existing.filter((e) => !used.has(e.r));
+    return { update, insert, stale };
+  }
+
   function renderExcelDetail() {
     const el = $("#st-xlsx-detail");
     if (excel.error) {
-      el.innerHTML = `<p class="stats-issues"><li class="is-error">${escapeHtml(excel.error)}</li></p>`;
+      el.innerHTML = `<ul class="stats-issues"><li class="is-error">${escapeHtml(excel.error)}</li></ul>`;
       return;
     }
     if (!excel.buffer) { el.innerHTML = ""; return; }
@@ -379,19 +454,33 @@ export function mountStatsPage(container) {
       if (got !== want) mismatch.push(`${i + 1}번째 열: 파일은 "${got || "(빈칸)"}", 우리는 "${want}"`);
     });
 
+    const { update, insert, stale } = planExcel();
+    const rowList = (arr) => arr.map((e) => e.r).sort((a, b) => a - b).join(", ");
+
     el.innerHTML = `
       <div class="stats-excel-detail">
         <label class="stats-field"><span>붙일 시트</span>
           <select id="st-xlsx-sheet">${excel.sheets.map((s) =>
             `<option value="${escapeHtml(s)}"${s === excel.sheetName ? " selected" : ""}>${escapeHtml(s)}</option>`).join("")}
           </select></label>
-        <p class="stats-note">지금 ${excel.lastRow}줄 · 이번에 ${game.players.length}줄이 ${excel.lastRow + 1}번째 줄부터 붙습니다.</p>
-        ${mismatch.length
-          ? `<ul class="stats-issues"><li class="is-warn"><span class="stats-issue-tag">열 이름</span>
+        <p class="stats-note">지금 ${excel.lastRow}줄 · 이 경기(${escapeHtml(sheetDateKey(game))})는
+          ${excel.existing.length ? `이미 ${excel.existing.length}줄 들어 있습니다` : "아직 없습니다"}.</p>
+        <ul class="stats-issues">
+          ${update.length ? `<li class="is-ok"><span class="stats-issue-tag">고쳐 넣기</span>
+            ${update.length}줄을 그 자리에서 고칩니다 (${rowList(update)}행).</li>` : ""}
+          ${insert.length ? `<li class="is-ok"><span class="stats-issue-tag">새로 붙이기</span>
+            ${insert.length}줄을 ${excel.lastRow + 1}행부터 붙입니다.</li>` : ""}
+          ${stale.length ? `<li class="is-warn"><span class="stats-issue-tag">남는 줄</span>
+            이 경기에 있었지만 지금 기록에는 없는 줄이 ${stale.length}개입니다 (${rowList(stale)}행:
+            ${escapeHtml(stale.map((e) => `${e.team} ${e.name}`).join(", "))}).
+            줄을 지우면 뒷줄 번호가 밀려 수식이 어긋날 수 있어 저희가 지우지는 않습니다 —
+            엑셀에서 직접 지워주세요.</li>` : ""}
+          ${mismatch.length ? `<li class="is-warn"><span class="stats-issue-tag">열 이름</span>
                이 시트의 열 이름이 우리 형식과 다릅니다. 다른 시트인지 확인해주세요.</li>
              ${mismatch.slice(0, 5).map((m) => `<li class="is-warn">${escapeHtml(m)}</li>`).join("")}
-             ${mismatch.length > 5 ? `<li class="is-warn">…외 ${mismatch.length - 5}개</li>` : ""}</ul>`
-          : `<p class="stats-ok">열 이름이 우리 형식과 같습니다.</p>`}
+             ${mismatch.length > 5 ? `<li class="is-warn">…외 ${mismatch.length - 5}개</li>` : ""}` : ""}
+        </ul>
+        ${mismatch.length ? "" : `<p class="stats-ok">열 이름이 우리 형식과 같습니다.</p>`}
       </div>`;
 
     $("#st-xlsx-sheet").addEventListener("change", async (e) => {
@@ -404,20 +493,25 @@ export function mountStatsPage(container) {
   // 화면을 다시 그리고 저장한다. 입력 중인 칸을 다시 그리면 커서가 튀므로 건너뛸 수 있게 했다.
   function touch(opts = {}) {
     saveGameStatsDraft(game);
+    if (!opts.skipMeta && !opts.skipTeams) renderMeta();
     if (!opts.skipQuarters) renderQuarters();
-    if (opts.skipTable) renderTotals();
-    else { renderAdd(); renderTable(); }
+    if (opts.skipTeams) renderTotals();
+    else renderTeams();
     renderIssues();
     renderSummary();
     if (excel.buffer) renderExcelDetail();
   }
 
-  // ── 엑셀 ───────────────────────────────────────────────
   async function inspectSheet() {
     const wb = await openWorkbook(excel.buffer.slice(0));
-    const rows = await readSheet(wb, excel.sheetName);
-    excel.header = rows[0] || [];
-    excel.lastRow = rows.length;
+    const rows = await readSheetRows(wb, excel.sheetName);
+    excel.header = rows[0]?.cells || [];
+    excel.lastRow = rows.length ? rows[rows.length - 1].r : 0;
+    const key = sheetDateKey(game);
+    excel.existing = rows
+      .slice(1)
+      .filter((row) => (row.cells[COL_DATE] || "").trim() === key)
+      .map((row) => ({ r: row.r, team: (row.cells[COL_TEAM] || "").trim(), name: (row.cells[5] || "").trim() }));
   }
 
   async function loadExcel(file) {
@@ -441,6 +535,7 @@ export function mountStatsPage(container) {
     } catch (err) {
       excel.buffer = null;
       excel.sheets = [];
+      excel.existing = [];
       excel.error = err?.message || "엑셀 파일을 읽지 못했습니다.";
     }
     $("#st-xlsx-name").textContent = excel.buffer
@@ -451,23 +546,34 @@ export function mountStatsPage(container) {
 
   async function downloadExcel() {
     const msg = $("#st-xlsx-msg");
-    if (!game.players.length) { msg.textContent = "선수 기록이 없습니다."; return; }
+    const rows = cumulativeRows(game);
+    if (!rows.length) { msg.textContent = "선수 기록이 없습니다."; return; }
     if (!zipSupported()) { msg.textContent = "이 브라우저에서는 엑셀 내보내기가 안 됩니다. 크롬에서 열어주세요."; return; }
     msg.textContent = "만드는 중…";
     try {
-      const rows = cumulativeRows(game);
       let bytes, name;
       if (excel.buffer) {
-        // 항상 원본에서 새로 열어 덧붙인다 — 버튼을 두 번 눌러도 두 번 붙지 않는다.
+        // 항상 원본에서 새로 열어 손본다 — 버튼을 두 번 눌러도 두 번 붙지 않는다.
         const wb = await openWorkbook(excel.buffer.slice(0));
-        const where = await appendRows(wb, excel.sheetName, rows, PERCENT_COLUMNS);
+        const { update, insert, stale } = planExcel();
+        const done = [];
+        if (update.length) {
+          const res = await overwriteRows(wb, excel.sheetName, update, PERCENT_COLUMNS);
+          done.push(`${update.length}줄 고쳐 넣음`);
+          if (res.keptFormulas.length) done.push(`수식 칸 ${res.keptFormulas.length}개는 그대로 둠`);
+        }
+        if (insert.length) {
+          const where = await appendRows(wb, excel.sheetName, insert, PERCENT_COLUMNS);
+          done.push(`${where.firstRow}~${where.lastRow}행에 ${insert.length}줄 붙임`);
+        }
         // 새 줄만 퍼센트로 보이면 한 열이 두 가지 모양으로 갈린다. 원래 있던 줄도 같이 맞춘다
         // (값은 그대로, 보이는 모양만).
         await formatPercentColumns(wb, excel.sheetName, PERCENT_COLUMNS);
         bytes = await saveWorkbook(wb);
         const stem = excel.fileName.replace(/\.xlsx$/i, "");
         name = asciiName(`${stem}_${sheetDateKey(game)}.xlsx`, `spirit-stats-${sheetDateKey(game)}.xlsx`);
-        msg.textContent = `${where.firstRow}~${where.lastRow}번째 줄에 붙였습니다.`;
+        if (stale.length) done.push(`남는 ${stale.length}줄은 엑셀에서 직접 지워주세요`);
+        msg.textContent = done.join(" · ");
       } else {
         bytes = await createWorkbook("누적기록", [CUMULATIVE_HEADERS, ...rows], PERCENT_COLUMNS);
         name = `spirit-stats-${sheetDateKey(game)}.xlsx`;
@@ -482,8 +588,7 @@ export function mountStatsPage(container) {
   // ── 붙이기 ─────────────────────────────────────────────
   renderMeta();
   renderQuarters();
-  renderAdd();
-  renderTable();
+  renderTeams();
   renderIssues();
   renderSummary();
   renderImage();

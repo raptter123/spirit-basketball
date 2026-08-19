@@ -211,7 +211,10 @@ export function getGameStatsDraft() {
   try {
     const raw = localStorage.getItem(GAME_STATS_KEY);
     const saved = raw ? JSON.parse(raw) : null;
-    return saved && typeof saved === "object" && Array.isArray(saved.players) ? saved : null;
+    if (!saved || typeof saved !== "object") return null;
+    // teams = 지금 모양(두 팀), players = 한 팀만 담던 예전 모양.
+    // 예전 초안도 돌려준다 — 옮기는 건 statspage.js 의 cleanGame 이 한다.
+    return Array.isArray(saved.teams) || Array.isArray(saved.players) ? saved : null;
   } catch {
     return null;
   }
