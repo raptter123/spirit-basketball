@@ -202,3 +202,33 @@ export function clearBoardState() {
     // no-op
   }
 }
+
+const GAME_STATS_KEY = "spirit-game-stats";
+
+// 기록 입력은 한 번에 끝나지 않는다 — 종이를 보며 옮겨 적다가 전화도 받고, 실수로
+// 뒤로 가기도 누른다. 그래서 작전판처럼 화면을 떠나도 남겨두고, 지우는 건 "새 경기"뿐이다.
+export function getGameStatsDraft() {
+  try {
+    const raw = localStorage.getItem(GAME_STATS_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    return saved && typeof saved === "object" && Array.isArray(saved.players) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGameStatsDraft(game) {
+  try {
+    localStorage.setItem(GAME_STATS_KEY, JSON.stringify(game));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearGameStatsDraft() {
+  try {
+    localStorage.removeItem(GAME_STATS_KEY);
+  } catch {
+    // no-op
+  }
+}
