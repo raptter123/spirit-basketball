@@ -2740,9 +2740,10 @@ body {
   white-space: nowrap;
 }
 
+/* 예전에 thead 에 position:sticky 를 걸었더니, 표가 둘로 늘어난 뒤부터 첫 표의
+   머리줄이 화면 위에 붙은 채 두 번째 표 위로 떠서 글자가 겹쳤다. 세로로 붙는 이점보다
+   겹치는 손해가 커서 뗐다. 가로로 미는 이름 칸(.stats-sticky)만 남긴다. */
 .stats-table thead th {
-  position: sticky;
-  top: 0;
   background: var(--surface-2);
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -2760,7 +2761,6 @@ body {
 }
 
 .stats-table thead .stats-sticky {
-  z-index: 3;
   background: var(--surface-2);
 }
 
@@ -2797,8 +2797,16 @@ body {
 }
 
 /* 팀 블록 — 이긴 팀만 테두리로 표시한다. */
+.stats-team {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 2px 0 8px;
+  margin-bottom: 14px;
+}
+
 .stats-team.is-winner {
   border-color: var(--accent-line);
+  padding: 2px 10px 8px;
 }
 
 .stats-team-tag {
@@ -2980,11 +2988,13 @@ body {
   border-color: var(--defense);
 }
 
-/* 승률왕 카드를 누르고 있는 동안만 테두리가 차오른다 — 문이 있다는 걸
-   이미 아는 사람에게만 "누르고 있는 중"이라고 알려주는 정도의 표시다. */
-.highlight-card.is-opening {
+/* 승률왕 카드는 기록 정리 화면으로 가는 문이다. 눌리는 곳이라는 것만 손끝에 남긴다. */
+.highlight-card[data-stats-door] {
+  cursor: pointer;
+}
+
+.highlight-card[data-stats-door]:hover {
   border-color: var(--accent);
-  transition: border-color 0.15s ease;
 }
 
 @media (max-width: 640px) {
@@ -3006,4 +3016,142 @@ body {
   .stats-meta .stats-field select {
     width: 100%;
   }
+}
+
+/* ── 기록지 사진 올리기 ─────────────────────────────────── */
+.sheet-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 26px 16px;
+  border: 2px dashed var(--surface-2);
+  border-radius: 12px;
+  background: var(--bg);
+  cursor: pointer;
+  text-align: center;
+}
+
+.sheet-drop:hover,
+.sheet-drop.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.sheet-drop-icon {
+  font-size: 1.6rem;
+}
+
+.sheet-drop-main {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.sheet-drop-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* 썸네일은 칸 수를 화면 폭에 맞춰 접는다. 고정 개수로 잡으면 좁은 화면에서 넘친다. */
+.sheet-thumbs:not(:empty) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sheet-thumb {
+  position: relative;
+  margin: 0;
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.sheet-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.sheet-thumb figcaption {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-thumb-del {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* ── 접히는 칸 ─────────────────────────────────────────── */
+.stats-fold > summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1.02rem;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  list-style: none;
+}
+
+.stats-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.stats-fold > summary::before {
+  content: "▸";
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.stats-fold[open] > summary::before {
+  content: "▾";
+}
+
+.stats-edit-body {
+  margin-top: 16px;
+}
+
+.stats-h3 {
+  font-size: 0.92rem;
+  margin: 20px 0 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.stats-note.is-bad {
+  color: var(--defense);
+  font-weight: 700;
+}
+
+/* 결과 이미지는 원래 크기가 커서 폭에 맞춰 줄여 보여준다.
+   가로 스크롤을 두면 화면이 좌우로 흔들려서, 줄이는 쪽을 택했다. */
+.stats-image-preview {
+  overflow: hidden;
+}
+
+.stats-image-preview img {
+  width: 100%;
+  height: auto;
 }
