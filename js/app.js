@@ -4,6 +4,7 @@ import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { mountBoard } from "./board.js";
+import { mountStatsPage } from "./statspage.js";
 import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
@@ -403,8 +404,8 @@ function renderRoster() {
       <div class="highlight-grid">
         ${highlights
           .map(
-            (h) => `
-            <div class="highlight-card">
+            (h, i) => `
+            <div class="highlight-card"${i === STATS_DOOR_INDEX ? ` data-stats-door="1"` : ""}>
               <span class="highlight-label">${h.label}</span>
               <strong>${escapeHtml(h.player.name)}</strong>
               <span class="highlight-value">${h.value(h.player)}</span>
@@ -420,6 +421,48 @@ function renderRoster() {
       }
     </section>
   `;
+
+  bindStatsDoor(app.querySelector("[data-stats-door]"));
+}
+
+// 기록 입력 화면으로 가는 숨은 문. 승률왕 카드를 1초 길게 누르면 열린다.
+// 카드에 걸린 이름(지금은 김성훈)이 아니라 '승률왕 자리'에 건 이유는, 그 자리의
+// 주인이 기록에 따라 바뀌기 때문이다 — 이름으로 걸면 어느 날 문이 사라진다.
+// 기록 정리는 한 사람이 경기 뒤에 하는 일이라 메뉴에 내놓지 않았다.
+const STATS_DOOR_INDEX = 3; // computeHighlights()의 🏆 승률왕
+const STATS_DOOR_HOLD_MS = 1000;
+
+function bindStatsDoor(card) {
+  if (!card) return;
+  let timer = null;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = null;
+    card.classList.remove("is-opening");
+  };
+  card.addEventListener("pointerdown", () => {
+    cancel();
+    card.classList.add("is-opening");
+    timer = setTimeout(() => {
+      cancel();
+      location.hash = "#/stats";
+    }, STATS_DOOR_HOLD_MS);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => card.addEventListener(ev, cancel));
+  // 길게 누르면 브라우저가 글자를 선택하거나 메뉴를 띄운다 — 그 쪽을 막는다.
+  card.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+function renderStats() {
+  app.innerHTML = `
+    <section class="stats-view">
+      <a class="back-link tap-wide" href="#/roster">← 로스터로</a>
+      <h1>경기 기록 정리</h1>
+      <p class="hint">종이 기록지를 보며 옮겨 적으면, 숫자가 맞는지 검사해서 밴드용 글·이미지와 누적 엑셀을 만들어줍니다.</p>
+      <div id="stats-container"></div>
+    </section>
+  `;
+  mountStatsPage(document.getElementById("stats-container"));
 }
 
 function renderTeamShuffle() {
@@ -1250,7 +1293,7 @@ function updateNavActive() {
   let active = null;
   if (hash.startsWith("#/tactic/") || hash === "#/tactics" || hash === "#/new-tactic") {
     active = "tactics";
-  } else if (hash === "#/roster") {
+  } else if (hash === "#/roster" || hash === "#/stats") {
     active = "roster";
   } else if (hash === "#/team-shuffle") {
     active = "team-shuffle";
@@ -1325,6 +1368,8 @@ function router() {
     renderPlayer(decodeURIComponent(hash.slice("#/player/".length)));
   } else if (hash === "#/team-shuffle") {
     renderTeamShuffle();
+  } else if (hash === "#/stats") {
+    renderStats();
   } else {
     renderHome();
   }

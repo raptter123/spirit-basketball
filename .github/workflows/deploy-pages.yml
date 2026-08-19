@@ -37,7 +37,9 @@ jobs:
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
           sed -i -E "s#src=\"js/app\.js\"#src=\"js/app.js?v=${SHA_SHORT}\"#" index.html
           sed -i -E "s#href=\"css/style\.css\"#href=\"css/style.css?v=${SHA_SHORT}\"#" index.html
-          find js -name "*.js" -exec sed -i -E "s#from \"(\./[a-zA-Z]+\.js)\"#from \"\1?v=${SHA_SHORT}\"#g" {} \;
+          # 파일명에 하이픈이 들어간 모듈(team-shuffle.js, xlsx-lite.js …)도 잡아야 한다.
+          # [a-zA-Z]+ 로는 안 잡혀서 그 파일들만 캐시가 안 비워지고 있었다.
+          find js -name "*.js" -exec sed -i -E "s#from \"(\./[a-zA-Z0-9_-]+\.js)\"#from \"\1?v=${SHA_SHORT}\"#g" {} \;
       - uses: actions/configure-pages@v5
         with:
           enablement: true

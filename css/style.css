@@ -2591,3 +2591,419 @@ body {
 .preview-controls {
   margin-bottom: 12px;
 }
+
+/* ── 경기 기록 정리 (#/stats) ───────────────────────────────
+   로스터의 승률왕 카드를 길게 눌러 들어오는 숨은 화면. 표가 가로로 길어서
+   .stats-table-wrap 안에서만 옆으로 밀리고, 선수 이름 칸은 붙어서 따라온다. */
+.stats-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.stats-block {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+
+.stats-block h2 {
+  font-size: 1.02rem;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stats-note {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.stats-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stats-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stats-field input,
+.stats-field select,
+.stats-add select,
+.stats-table input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+
+.stats-field input:focus-visible,
+.stats-field select:focus-visible,
+.stats-table input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.stats-field #m-no {
+  width: 76px;
+}
+
+/* 쿼터 점수 — 팀 이름 / 1~4Q / 합계가 세로로 줄맞춰 보이도록 같은 격자를 쓴다. */
+.stats-qhead,
+.stats-qrow {
+  display: grid;
+  /* 넓은 화면에서 1fr 이 남는 공간을 다 먹으면 팀 이름과 점수 칸이 양 끝으로 갈라진다. */
+  grid-template-columns: minmax(64px, 1fr) repeat(4, 68px) 56px;
+  max-width: 540px;
+  gap: 8px;
+  align-items: center;
+}
+
+.stats-qhead {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.stats-qrow {
+  margin-bottom: 8px;
+}
+
+.stats-qrow input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 6px;
+  font-size: 0.95rem;
+  text-align: center;
+  font-family: inherit;
+  width: 100%;
+}
+
+.stats-qteam {
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-qtotal {
+  font-size: 0.85rem;
+  color: var(--accent-text);
+  font-weight: 700;
+  text-align: right;
+}
+
+.stats-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.stats-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+}
+
+.stats-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-size: 0.85rem;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 6px 7px;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stats-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* 선수 이름은 표를 옆으로 밀어도 왼쪽에 붙어 있어야 어느 줄인지 안 놓친다. */
+.stats-table .stats-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  text-align: left;
+  min-width: 108px;
+}
+
+.stats-table thead .stats-sticky {
+  z-index: 3;
+  background: var(--surface-2);
+}
+
+.stats-table tfoot .stats-sticky {
+  background: var(--surface-2);
+}
+
+.stats-table tfoot td,
+.stats-table tfoot th {
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.stats-no {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-left: 5px;
+}
+
+.stats-table input[type="number"] {
+  width: 58px;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.stats-memo {
+  width: 150px;
+  padding: 6px 8px;
+}
+
+.stats-pts {
+  font-weight: 800;
+  color: var(--accent-text);
+}
+
+/* 팀 블록 — 이긴 팀만 테두리로 표시한다. */
+.stats-team.is-winner {
+  border-color: var(--accent-line);
+}
+
+.stats-team-tag {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.stats-table tr.is-mom .stats-sticky {
+  background: var(--accent-soft);
+}
+
+.stats-mom-star {
+  color: var(--accent-text);
+  margin-right: 3px;
+}
+
+.stats-issues li.is-ok {
+  border-left-color: var(--accent-line);
+}
+
+/* GameScore — 입력값이 아니라 계산 결과라, 입력 칸과 다른 색으로 구분한다. */
+.stats-gs {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.stats-qpick {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.stats-qchip {
+  width: 28px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--surface-2);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.stats-qchip.is-on {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-text);
+}
+
+.stats-del {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 4px 8px;
+}
+
+.stats-del:hover {
+  color: var(--defense);
+}
+
+.stats-empty {
+  padding: 18px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.stats-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.stats-issues li {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border-left: 3px solid var(--surface-2);
+  background: var(--bg);
+}
+
+.stats-issues li.is-error {
+  border-left-color: var(--defense);
+}
+
+.stats-issues li.is-warn {
+  border-left-color: var(--holiday);
+}
+
+.stats-issue-tag {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stats-ok {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.stats-summary {
+  background: var(--bg);
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.stats-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stats-scroll-hint {
+  margin: 8px 0 0;
+}
+
+.stats-image-preview {
+  overflow-x: auto;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-2);
+}
+
+.stats-image-preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.stats-excel {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.stats-excel label.btn {
+  display: inline-block;
+}
+
+.stats-excel-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.btn-danger {
+  border-color: var(--defense);
+  color: var(--defense);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--defense);
+}
+
+/* 승률왕 카드를 누르고 있는 동안만 테두리가 차오른다 — 문이 있다는 걸
+   이미 아는 사람에게만 "누르고 있는 중"이라고 알려주는 정도의 표시다. */
+.highlight-card.is-opening {
+  border-color: var(--accent);
+  transition: border-color 0.15s ease;
+}
+
+@media (max-width: 640px) {
+  .stats-block {
+    padding: 14px 12px;
+  }
+
+  .stats-qhead,
+  .stats-qrow {
+    grid-template-columns: minmax(50px, 1fr) repeat(4, 1fr) 46px;
+    gap: 5px;
+  }
+
+  .stats-meta .stats-field {
+    flex: 1 1 132px;
+  }
+
+  .stats-meta .stats-field input,
+  .stats-meta .stats-field select {
+    width: 100%;
+  }
+}
