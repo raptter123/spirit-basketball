@@ -7,7 +7,8 @@
 // 한 사람이 여러 번호로 적힌 경우가 두 건 있었는데 둘 다 옮겨 적을 때의 오타로 보여 많이 쓰인 쪽을 골랐다.
 //   - 배준혁: 10번 67회 / 14번 3회 (14번은 홍재현)
 //   - 손걸:   42번 65회 / 41번 7회 (41번은 황재웅, 게스트)
-// 아직 기록지에 등번호가 없는 선수는 number를 비워둔다 — 화면에는 번호 없는 유니폼으로 나온다.
+// 용원식(77)은 경기 기록지에 등장한 적이 없어 팀에서 직접 알려준 번호다.
+// 아직 등번호를 모르는 선수는 number를 비워둔다 — 화면에는 번호 없는 유니폼으로 나온다.
 // 심인보는 실제로 0번이다. 0은 거짓 값이라 `p.number ? ...`로 판단하면 사라지니, 반드시
 // `typeof p.number === "number"`로 확인해야 한다.
 export const ROSTER = [
@@ -32,7 +33,7 @@ export const ROSTER = [
   { name: "신윤호", number: 5, games: 32, winRate: 0.5, ppg: 6.656, rpg: 6.75, apg: 1.438, spg: 0.531, fgPct: 0.321, topg: 1, ts: 0.36 },
   { name: "신호철", number: 19, games: 7, winRate: 0.571, ppg: 4, rpg: 2.571, apg: 1.143, spg: 1, fgPct: 0.56, topg: 0.143, ts: 0.532 },
   { name: "심인보", number: 0, games: 4, winRate: 0.5, ppg: 4.75, rpg: 0.75, apg: 1, spg: 0, fgPct: 0.286, topg: 0.5, ts: 0.339 },
-  { name: "용원식", games: 16, winRate: 0.438, ppg: 7, rpg: 5.188, apg: 1.5, spg: 0.875, fgPct: 0.46, topg: 1.312, ts: 0.447 },
+  { name: "용원식", number: 77, games: 16, winRate: 0.438, ppg: 7, rpg: 5.188, apg: 1.5, spg: 0.875, fgPct: 0.46, topg: 1.312, ts: 0.447 },
   { name: "유우진", number: 27, games: 24, winRate: 0.667, ppg: 7.417, rpg: 5.333, apg: 2.417, spg: 0.5, fgPct: 0.466, topg: 0.958, ts: 0.498 },
   { name: "유지원", number: 30, games: 24, winRate: 0.375, ppg: 3, rpg: 4.917, apg: 0.458, spg: 0.708, fgPct: 0.228, topg: 0.958, ts: 0.242 },
   { name: "이남희", number: 54, games: 26, winRate: 0.462, ppg: 6.885, rpg: 3.038, apg: 1.769, spg: 0.846, fgPct: 0.346, topg: 1.231, ts: 0.388 },
