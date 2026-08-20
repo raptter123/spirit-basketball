@@ -27,6 +27,7 @@ const COLS = "22mm 9mm 9mm 9mm 53.0mm 35.7mm 44.8mm 25.1mm 13.4mm 9.5mm 9.5mm 9.
 
 export const SHEET_CSS = `
 .sheet{position:relative;width:297mm;height:210mm;background:#fff;padding:6mm 8mm;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact;
        display:flex;flex-direction:column;gap:2mm;box-sizing:border-box;
        font-family:"IBM Plex Sans KR","Malgun Gothic",sans-serif;color:#111726;
        --line:#9aa2b4;--line-2:#c9cfdb;--hdbg:#1f2a52;--ink:#111726;--ink-2:#5a6377;

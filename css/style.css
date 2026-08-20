@@ -3296,3 +3296,7 @@ body {
 @media (min-width: 900px) {
   .sheet-page { zoom: 0.62; }
 }
+
+.sheet-assign.is-bad {
+  border-color: var(--defense);
+}

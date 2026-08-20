@@ -21,7 +21,7 @@ import {
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
 import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
-import { detectFiducials, readBubbles, readingsToTeam, debugOverlay } from "./sheetread.js";
+import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading } from "./sheetread.js";
 import {
   openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
   saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
@@ -261,6 +261,7 @@ export function mountStatsPage(container) {
       sheet.filled = res.filled;
       sheet.quarterPoints = res.quarterPoints;
       sheet.readings = readings;
+      sheet.judge = judgeReading(res, res.filled);
       sheet.state = "read";
       sheet.names = sheet.names || res.players.map(() => "");
       fillNames(sheet);
@@ -292,7 +293,9 @@ export function mountStatsPage(container) {
     if (sheet.state === "reading") return `<span class="sheet-state">읽는 중…</span>`;
     if (sheet.state === "read") {
       const live = sheet.rows.filter(rowHasMarks).length;
-      return `<span class="sheet-state is-ok">${sheet.filled}칸 읽음 · ${live}명</span>
+      const bad = sheet.judge && !sheet.judge.ok;
+      return `<span class="sheet-state ${bad ? "is-bad" : "is-ok"}">${
+        bad ? "판독 실패" : `${sheet.filled}칸 읽음 · ${live}명`}</span>
         <button type="button" class="btn btn-sm" data-check="${i}">판독 확인</button>
         <button type="button" class="btn btn-sm" data-corners="${i}">귀퉁이 다시</button>`;
     }
@@ -309,25 +312,49 @@ export function mountStatsPage(container) {
     if (sheet.state !== "read") return "";
     const live = sheet.rows.map((r, ri) => ({ r, ri })).filter(({ r }) => rowHasMarks(r));
     if (!live.length) return `<p class="stats-note">칠해진 칸이 없습니다.</p>`;
-    const opts = (sel) => `<option value="">선수…</option>` + ROSTER.map((p) =>
-      `<option value="${escapeHtml(p.name)}"${sel === p.name ? " selected" : ""}>${escapeHtml(p.name)}${
-        typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
+
+    // 판독이 어긋나면 숫자가 안 나오는 게 아니라 그럴듯한 헛것이 나온다.
+    // 그대로 보여주면 사람이 믿고 엑셀에 넣는다 — 못 믿겠으면 대놓고 말한다.
+    if (sheet.judge && !sheet.judge.ok) {
+      return `
+        <div class="sheet-assign is-bad">
+          <ul class="stats-issues">
+            <li class="is-error"><span class="stats-issue-tag">${escapeHtml(sheet.name)}</span><span>
+              <b>이 판독은 믿을 수 없습니다.</b> 아래 숫자를 그대로 넣지 마세요.</span></li>
+            ${sheet.judge.problems.map((m) => `<li class="is-error"><span>${escapeHtml(m)}</span></li>`).join("")}
+            <li class="is-warn"><span class="stats-issue-tag">해볼 것</span><span>
+              <b>판독 확인</b>으로 어디가 어긋났는지 보고, <b>귀퉁이 다시</b>로 표식을 직접 찍어보세요.
+              그래도 안 맞으면 <b>숫자 고치기</b>에서 손으로 넣는 게 빠릅니다.</span></li>
+          </ul>
+          <details class="stats-fold">
+            <summary>그래도 읽은 값 보기</summary>
+            ${assignRowsHTML(sheet, i, live)}
+          </details>
+        </div>`;
+    }
     return `
       <div class="sheet-assign">
         <label class="stats-field"><span>이 기록지는</span>
           <select data-team="${i}">
             ${game.teams.map((t, ti) => `<option value="${ti}"${sheet.team === ti ? " selected" : ""}>${escapeHtml(t.name || `${ti + 1}팀`)}</option>`).join("")}
           </select></label>
-        <div class="sheet-rows">
-          ${live.map(({ r, ri }) => `
-            <div class="sheet-row">
-              <span class="sheet-row-no">${ri + 1}줄</span>
-              <select data-sheet="${i}" data-row="${ri}">${opts(sheet.names[ri])}</select>
-              <span class="sheet-row-stat">${r.quarters.length ? `${r.quarters.join("·")}Q` : "출전 없음"} ·
-                ${r.p2m * 2 + r.p3m * 3 + r.ftm}점 · 리바 ${r.reb}</span>
-            </div>`).join("")}
-        </div>
+        ${assignRowsHTML(sheet, i, live)}
       </div>`;
+  }
+
+  function assignRowsHTML(sheet, i, live) {
+    const opts = (sel) => `<option value="">선수…</option>` + ROSTER.map((p) =>
+      `<option value="${escapeHtml(p.name)}"${sel === p.name ? " selected" : ""}>${escapeHtml(p.name)}${
+        typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
+    return `<div class="sheet-rows">
+      ${live.map(({ r, ri }) => `
+        <div class="sheet-row">
+          <span class="sheet-row-no">${ri + 1}줄</span>
+          <select data-sheet="${i}" data-row="${ri}">${opts(sheet.names[ri])}</select>
+          <span class="sheet-row-stat">${r.quarters.length ? `${r.quarters.join("·")}Q` : "출전 없음"} ·
+            ${r.p2m * 2 + r.p3m * 3 + r.ftm}점 · 리바 ${r.reb}</span>
+        </div>`).join("")}
+    </div>`;
   }
 
   function renderSheets() {
@@ -465,9 +492,11 @@ export function mountStatsPage(container) {
   // 판독 결과를 경기 기록으로 옮긴다. 이름을 고른 줄만 넣는다.
   function applySheets() {
     let moved = 0;
+    let skipped = 0;
     const scored = [];
     for (const sh of sheets) {
       if (sh.state !== "read") continue;
+      if (sh.judge && !sh.judge.ok) { skipped++; continue; }
       const ti = sh.team ?? 0;
       const team = game.teams[ti];
       // 쿼터 점수는 넣은 슛에서 바로 나온다 — 색이 쿼터를 알려주니까.
@@ -490,9 +519,10 @@ export function mountStatsPage(container) {
       });
     }
     touch();
-    $("#sh-apply-msg").textContent = moved
+    const skipNote = skipped ? ` 판독 실패한 기록지 ${skipped}장은 넣지 않았습니다.` : "";
+    $("#sh-apply-msg").textContent = (moved
       ? `${moved}명을 넣었습니다.` + (scored.length ? ` 쿼터 점수도 계산했습니다 (${scored.join(", ")}).` : "")
-      : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.";
+      : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.") + skipNote;
   }
 
   async function addFiles(fileList) {

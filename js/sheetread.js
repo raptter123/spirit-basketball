@@ -351,6 +351,50 @@ export function debugOverlay(imageData, corners, readings) {
   return cv;
 }
 
+// ── 판독을 믿어도 되는가 ─────────────────────────────────
+//
+// 판독이 어긋나면 숫자가 안 나오는 게 아니라 **그럴듯한 헛것**이 나온다. 마킹이
+// 엉뚱한 줄로 몰려서 빈 줄에 67점이 찍히는 식이다. 조용히 보여주면 사람이
+// 그걸 진짜로 믿고 엑셀에 넣는다. 그래서 대놓고 못 믿겠다고 말하게 한다.
+//
+// 기준은 실제 기록지에서 나온 것이다:
+//   - 한 장에 칠하는 칸은 대략 60~350개
+//   - 한 사람이 한 경기에 40점을 넘기는 일은 거의 없다
+//   - 마킹이 한 줄에 몰리면 세로가 어긋난 것이다
+//   - 기록이 있는데 출전 표시가 없는 줄이 많으면 왼쪽 끝이 어긋난 것이다
+export function judgeReading(team, filled) {
+  const problems = [];
+  const live = team.players.filter((p) =>
+    p.quarters.length || p.p2a || p.p3a || p.fta || p.reb || p.ast || p.stl || p.blk || p.to || p.pf);
+
+  if (filled < 20) {
+    problems.push("칠해진 칸이 너무 적습니다 — 종이를 못 찾았거나 마킹이 흐립니다.");
+  }
+  if (filled > 420) {
+    problems.push(`칠해진 칸이 ${filled}개로 너무 많습니다 — 빈 칸까지 칠한 걸로 읽고 있습니다.`);
+  }
+
+  const pts = (p) => p.p2m * 2 + p.p3m * 3 + p.ftm;
+  const top = Math.max(0, ...team.players.map(pts));
+  if (top > 40) {
+    problems.push(`한 줄에 ${top}점이 몰렸습니다 — 여러 줄의 마킹이 한 줄로 쏠린 것으로 보입니다.`);
+  }
+
+  const attempts = team.players.map((p) => p.p2a + p.p3a + p.fta);
+  const totalAtt = attempts.reduce((a, b) => a + b, 0);
+  const maxAtt = Math.max(0, ...attempts);
+  if (totalAtt > 0 && maxAtt / totalAtt > 0.55 && live.length > 2) {
+    problems.push("슛 기록이 한 줄에 쏠려 있습니다 — 세로 위치가 어긋났을 수 있습니다.");
+  }
+
+  const noQuarter = live.filter((p) => !p.quarters.length).length;
+  if (live.length >= 3 && noQuarter >= live.length - 1) {
+    problems.push("기록은 있는데 출전 표시가 거의 없습니다 — 왼쪽 끝이 어긋났을 수 있습니다.");
+  }
+
+  return { ok: problems.length === 0, problems };
+}
+
 // ── 읽은 값 → 한 팀 기록 ─────────────────────────────────
 // 색이 쿼터를 알려준다: 검정 = 홀수 쿼터, 빨강 = 짝수 쿼터.
 // 전반 줄이면 검정 1Q · 빨강 2Q, 후반 줄이면 검정 3Q · 빨강 4Q.
