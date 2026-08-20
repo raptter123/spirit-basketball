@@ -1,0 +1,141 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>판독 시험</title>
+<style>body{margin:0;background:#333;font-family:sans-serif;color:#fff}
+#stage{position:absolute;left:0;top:0}</style></head><body>
+<div id="stage"></div><canvas id="warp"></canvas>
+<script type="module">
+import { sheetHTML, measureSheet, SHEET_CSS } from "./js/sheetform.js";
+import { detectFiducials, readBubbles, readingsToTeam } from "./js/sheetread.js";
+
+const style = document.createElement("style");
+style.textContent = SHEET_CSS;
+document.head.appendChild(style);
+
+const ROSTER = [[55,"조보규"],[1,"김창범"],[35,"황규철"],[23,"김준석"],[2,"김웅기"],
+                [69,"조우진"],[10,"배준혁"],[24,"김도여"],[null,""]];
+
+// 시험용 정답. 이 값들을 칠해 두고, 판독기가 같은 값을 돌려주는지 본다.
+const TRUTH = {
+  0: { q:[1,3], p2:{1:[["m","black"],["x","black"],["x","black"]],2:[["m","black"],["x","black"]]},
+       p3:{1:[["x","black"]],2:[]}, ft:{1:[["m","black"],["x","black"]],2:[]},
+       reb:[["black",4]], ast:[["black",2]], stl:[["black",1]], blk:[], to:[["black",1]], pf:[["black",2]] },
+  1: { q:[1,2,3,4], p2:{1:[["m","black"],["m","red"],["x","red"]],2:[["m","black"],["x","red"]]},
+       p3:{1:[["m","red"]],2:[["x","black"]]}, ft:{1:[],2:[["m","black"],["m","black"]]},
+       reb:[["black",3],["red",4]], ast:[["red",2]], stl:[["black",2]], blk:[["red",1]], to:[["black",1],["red",1]], pf:[["red",1]] },
+  2: { q:[2,4], p2:{1:[["m","red"],["m","red"],["x","red"]],2:[["x","red"]]},
+       p3:{1:[],2:[["m","red"]]}, ft:{1:[["x","red"]],2:[]},
+       reb:[["red",6]], ast:[["red",1]], stl:[], blk:[["red",2]], to:[["red",3]], pf:[["red",2]] },
+};
+
+// 정답대로 칠하기
+function paint(sheet) {
+  const set = (id, color) => {
+    const el = sheet.querySelector(`[data-bub="${id}"]`);
+    if (!el) throw new Error("없는 버블: " + id);
+    el.style.background = color === "red" ? "#cf2b20" : "#111111";
+    el.style.borderColor = color === "red" ? "#cf2b20" : "#111111";
+  };
+  for (const [pi, d] of Object.entries(TRUTH)) {
+    for (const q of d.q) set(`q:${pi}:${q}`, "black");
+    for (const stat of ["p2","p3","ft"]) {
+      for (const half of [1,2]) {
+        (d[stat][half] || []).forEach(([res, color], i) => set(`s:${pi}:${stat}:${half}:${i}:${res}`, color));
+      }
+    }
+    for (const stat of ["reb","ast","stl","blk","to","pf"]) {
+      let k = 0;
+      for (const [color, n] of (d[stat] || [])) for (let j = 0; j < n; j++, k++) set(`c:${pi}:${stat}:${k}`, color);
+    }
+  }
+}
+
+// 정답을 기대 기록으로 환산
+function expectedTeam() {
+  const players = ROSTER.map(([no,name]) => ({no,name,quarters:[],p2m:0,p2a:0,p3m:0,p3a:0,ftm:0,fta:0,
+    reb:0,ast:0,stl:0,blk:0,to:0,pf:0}));
+  for (const [pi, d] of Object.entries(TRUTH)) {
+    const p = players[pi];
+    p.quarters = [...d.q].sort();
+    for (const stat of ["p2","p3","ft"]) for (const half of [1,2])
+      for (const [res] of (d[stat][half]||[])) { p[stat+"a"]++; if (res==="m") p[stat+"m"]++; }
+    for (const stat of ["reb","ast","stl","blk","to","pf"])
+      for (const [,n] of (d[stat]||[])) p[stat] += n;
+  }
+  return players;
+}
+
+// 1단계: 종이를 그리고 정답대로 칠한다. 좌표를 재서 남겨둔다.
+window.__setup = () => {
+  const stage = document.getElementById("stage");
+  stage.innerHTML = sheetHTML({ date:"2026-08-23", gameNo:1, us:"혼 A", them:"혼 B",
+    roster: ROSTER, code:"SPIRIT-260823-G1-A" });
+  const sheet = stage.querySelector(".sheet");
+  paint(sheet);
+  window.__geom = measureSheet(sheet);
+  return { bubbles: window.__geom.bubbles.length };
+};
+
+// 2단계: 찍힌 사진(dataURL)을 기울여 놓고, 찾아서 읽고, 정답과 대조한다.
+window.__run = async (dataUrl, opts) => {
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("사진 못 읽음")); img.src = dataUrl; });
+
+  const W = Math.round(img.width * 1.15), H = Math.round(img.height * 1.15);
+  const cv = document.getElementById("warp");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.fillStyle = opts.bg || "#8a8f99";
+  ctx.fillRect(0, 0, W, H);
+  const k = opts.warp ?? 0;
+  const q = [
+    { x: W*0.05 + W*k, y: H*0.05 },
+    { x: W*0.95,        y: H*0.05 + H*k*0.6 },
+    { x: W*0.95 - W*k,  y: H*0.95 },
+    { x: W*0.05,        y: H*0.95 - H*k*0.6 },
+  ];
+  drawQuad(ctx, img, q);
+  if (opts.shade) {
+    const g = ctx.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.35)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+
+  const idata = ctx.getImageData(0, 0, W, H);
+  const found = detectFiducials(idata);
+  if (!found) return { ok:false, why:"귀퉁이 못 찾음" };
+  const readings = readBubbles(idata, found, window.__geom);
+  const got = readingsToTeam(readings, ROSTER);
+
+  const want = expectedTeam();
+  const diffs = [];
+  const KEYS = ["p2m","p2a","p3m","p3a","ftm","fta","reb","ast","stl","blk","to","pf"];
+  want.forEach((w, i) => {
+    const g2 = got.players[i];
+    if (w.quarters.join() !== g2.quarters.join())
+      diffs.push(`${w.name||"(예비)"} 출전 기대[${w.quarters}] 실제[${g2.quarters}]`);
+    for (const k2 of KEYS) if (w[k2] !== g2[k2]) diffs.push(`${w.name||"(예비)"} ${k2} 기대${w[k2]} 실제${g2[k2]}`);
+  });
+  return { ok: diffs.length === 0, filled: got.filled, diffs: diffs.slice(0, 20), total: diffs.length };
+};
+
+// 사변형에 이미지 채우기 — 삼각형 두 개 아핀 변환으로 근사
+function drawQuad(ctx, img, q) {
+  const w = img.width, h = img.height;
+  tri(ctx, img, [[0,0],[w,0],[0,h]], [q[0],q[1],q[3]]);
+  tri(ctx, img, [[w,0],[w,h],[0,h]], [q[1],q[2],q[3]]);
+}
+function tri(ctx, img, s, d) {
+  const [[x0,y0],[x1,y1],[x2,y2]] = s;
+  const den = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
+  const a = ((d[1].x-d[0].x)*(y2-y0) - (d[2].x-d[0].x)*(y1-y0)) / den;
+  const b = ((d[2].x-d[0].x)*(x1-x0) - (d[1].x-d[0].x)*(x2-x0)) / den;
+  const c = ((d[1].y-d[0].y)*(y2-y0) - (d[2].y-d[0].y)*(y1-y0)) / den;
+  const dd= ((d[2].y-d[0].y)*(x1-x0) - (d[1].y-d[0].y)*(x2-x0)) / den;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(d[0].x,d[0].y); ctx.lineTo(d[1].x,d[1].y); ctx.lineTo(d[2].x,d[2].y); ctx.closePath();
+  ctx.clip();
+  ctx.transform(a,c,b,dd, d[0].x - a*x0 - b*y0, d[0].y - c*x0 - dd*y0);
+  ctx.drawImage(img,0,0);
+  ctx.restore();
+}
+</script></body></html>

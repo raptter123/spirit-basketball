@@ -2890,11 +2890,12 @@ body {
   gap: 7px;
 }
 
+/* 태그와 본문 두 칸짜리 flex 다. 본문은 반드시 span 하나로 감싸서 넘길 것 —
+   <b> 같은 인라인 요소를 그냥 두면 그것까지 별개 칸이 되어 줄이 엉뚱하게 잘린다. */
 .stats-issues li {
   display: flex;
   gap: 9px;
   align-items: baseline;
-  flex-wrap: wrap;
   font-size: 0.88rem;
   padding: 9px 12px;
   border-radius: 9px;
@@ -2910,7 +2911,14 @@ body {
   border-left-color: var(--holiday);
 }
 
+.stats-issues li > span:last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.55;
+}
+
 .stats-issue-tag {
+  flex: 0 0 auto;
   font-weight: 700;
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -3154,4 +3162,110 @@ body {
 .stats-image-preview img {
   width: 100%;
   height: auto;
+}
+
+/* ── 기록지 판독 ────────────────────────────────────────── */
+.sheet-thumb-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 0 8px 8px;
+}
+
+.sheet-state {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.sheet-state.is-ok {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.sheet-state.is-warn {
+  color: var(--holiday);
+  font-weight: 700;
+}
+
+.sheet-state.is-bad {
+  color: var(--defense);
+}
+
+.sheet-assign {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.sheet-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sheet-row-no {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 30px;
+}
+
+.sheet-row select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.sheet-row-stat {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+/* 네 귀퉁이 찍기 */
+.sheet-corner-modal {
+  max-width: min(94vw, 720px);
+}
+
+.sheet-corner-wrap {
+  position: relative;
+  margin: 10px 0;
+  line-height: 0;
+}
+
+.sheet-corner-wrap img {
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  border-radius: 8px;
+}
+
+.cn-dot {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px #fff;
 }

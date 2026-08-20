@@ -20,6 +20,8 @@ import {
   cumulativeRows, sheetDateKey, summaryText,
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
+import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
+import { detectFiducials, readBubbles, readingsToTeam } from "./sheetread.js";
 import {
   openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
   saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
@@ -118,7 +120,29 @@ export function mountStatsPage(container) {
   if (!game.date) game.date = getNextEventDate("자체전", todayStr()) || todayStr();
 
   // 올린 기록지 사진. 새로고침하면 사라진다 (브라우저 밖으로 나가지 않는 대신 안 남는다).
+  // 항목: { name, url, file, state, corners, rows, team, note }
+  //   state: "wait" | "reading" | "read" | "needCorners" | "error"
+  //   rows:  판독한 9줄 (readingsToTeam 결과). 누가 몇 번째 줄인지는 사람이 골라준다.
   const sheets = [];
+
+  // 종이 좌표는 한 번만 재면 된다 — 화면 밖에 기록지를 한 장 그려 놓고 잰다.
+  let geometry = null;
+  function sheetGeometry() {
+    if (geometry) return geometry;
+    if (!document.getElementById("sheet-css")) {
+      const st = document.createElement("style");
+      st.id = "sheet-css";
+      st.textContent = SHEET_CSS;
+      document.head.appendChild(st);
+    }
+    const host = document.createElement("div");
+    host.style.cssText = "position:absolute;left:-99999px;top:0;pointer-events:none";
+    host.innerHTML = sheetHTML({ roster: [] });
+    document.body.appendChild(host);
+    geometry = measureSheet(host.querySelector(".sheet"));
+    host.remove();
+    return geometry;
+  }
 
   // 누적 엑셀. 원본 바이트를 들고 있다가 내려받을 때마다 새로 열어 손본다
   // — 한 번 열어둔 걸 계속 쓰면 버튼을 두 번 누를 때 같은 줄이 두 번 붙는다.
@@ -140,6 +164,11 @@ export function mountStatsPage(container) {
           <span class="sheet-drop-sub">여기로 끌어다 놓아도 됩니다</span>
         </label>
         <div class="sheet-thumbs" id="sh-thumbs"></div>
+        <div id="sh-assign"></div>
+        <div class="stats-actions">
+          <button type="button" class="btn btn-primary" id="sh-apply" hidden>읽은 기록 넣기</button>
+          <span class="stats-note" id="sh-apply-msg"></span>
+        </div>
         <div id="sh-status"></div>
       </section>
 
@@ -195,13 +224,106 @@ export function mountStatsPage(container) {
   const $ = (sel) => container.querySelector(sel);
 
   // ── 1. 기록지 사진 ──────────────────────────────────────
+  // 사진을 넣으면 바로 읽어본다. 네 귀퉁이 표식을 못 찾으면(잘려 찍혔거나 그늘)
+  // 사람이 네 귀퉁이를 찍어 주는 쪽으로 넘어간다 — 그 뒤 과정은 똑같다.
+
+  async function imageDataOf(file) {
+    const bmp = await createImageBitmap(file);
+    // 너무 큰 사진은 줄인다. 버블이 3mm 니까 가로 1600px 이면 한 칸이 16px 쯤 된다.
+    const scale = Math.min(1, 1600 / bmp.width);
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    return ctx.getImageData(0, 0, w, h);
+  }
+
+  async function readOne(sheet) {
+    sheet.state = "reading";
+    sheet.note = "";
+    renderSheets();
+    try {
+      const idata = await imageDataOf(sheet.file);
+      sheet.imageData = idata;
+      const corners = sheet.corners || detectFiducials(idata);
+      if (!corners) {
+        sheet.state = "needCorners";
+        sheet.note = "네 귀퉁이의 검은 표식을 못 찾았습니다.";
+        renderSheets();
+        return;
+      }
+      sheet.corners = corners;
+      const readings = readBubbles(idata, corners, sheetGeometry());
+      const res = readingsToTeam(readings, Array.from({ length: PLAYER_ROWS }, () => [null, ""]));
+      sheet.rows = res.players;
+      sheet.filled = res.filled;
+      sheet.quarterPoints = res.quarterPoints;
+      sheet.state = "read";
+      // 줄마다 누구인지는 아직 모른다 — 표시가 하나라도 있는 줄만 사람이 골라준다.
+      sheet.names = sheet.names || res.players.map(() => "");
+    } catch (err) {
+      sheet.state = "error";
+      sheet.note = err?.message || "읽지 못했습니다.";
+    }
+    renderSheets();
+  }
+
+  function rowHasMarks(r) {
+    return r.quarters.length || r.p2a || r.p3a || r.fta || r.reb || r.ast || r.stl || r.blk || r.to || r.pf;
+  }
+
+  function statusHTML(sheet, i) {
+    if (sheet.state === "reading") return `<span class="sheet-state">읽는 중…</span>`;
+    if (sheet.state === "read") {
+      const live = sheet.rows.filter(rowHasMarks).length;
+      return `<span class="sheet-state is-ok">${sheet.filled}칸 읽음 · ${live}명</span>`;
+    }
+    if (sheet.state === "needCorners") {
+      return `<span class="sheet-state is-warn">귀퉁이 못 찾음</span>
+        <button type="button" class="btn btn-sm" data-corners="${i}">네 귀퉁이 찍기</button>`;
+    }
+    if (sheet.state === "error") return `<span class="sheet-state is-bad">${escapeHtml(sheet.note)}</span>`;
+    return "";
+  }
+
+  // 판독한 줄을 어느 팀 누구에게 붙일지 고르는 표
+  function assignHTML(sheet, i) {
+    if (sheet.state !== "read") return "";
+    const live = sheet.rows.map((r, ri) => ({ r, ri })).filter(({ r }) => rowHasMarks(r));
+    if (!live.length) return `<p class="stats-note">칠해진 칸이 없습니다.</p>`;
+    const opts = (sel) => `<option value="">선수…</option>` + ROSTER.map((p) =>
+      `<option value="${escapeHtml(p.name)}"${sel === p.name ? " selected" : ""}>${escapeHtml(p.name)}${
+        typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
+    return `
+      <div class="sheet-assign">
+        <label class="stats-field"><span>이 기록지는</span>
+          <select data-team="${i}">
+            ${game.teams.map((t, ti) => `<option value="${ti}"${sheet.team === ti ? " selected" : ""}>${escapeHtml(t.name || `${ti + 1}팀`)}</option>`).join("")}
+          </select></label>
+        <div class="sheet-rows">
+          ${live.map(({ r, ri }) => `
+            <div class="sheet-row">
+              <span class="sheet-row-no">${ri + 1}줄</span>
+              <select data-sheet="${i}" data-row="${ri}">${opts(sheet.names[ri])}</select>
+              <span class="sheet-row-stat">${r.quarters.length ? `${r.quarters.join("·")}Q` : "출전 없음"} ·
+                ${r.p2m * 2 + r.p3m * 3 + r.ftm}점 · 리바 ${r.reb}</span>
+            </div>`).join("")}
+        </div>
+      </div>`;
+  }
+
   function renderSheets() {
-    $("#sh-thumbs").innerHTML = sheets.map((s, i) => `
+    $("#sh-thumbs").innerHTML = sheets.map((s2, i) => `
       <figure class="sheet-thumb">
-        <img src="${s.url}" alt="기록지 ${i + 1}" />
-        <figcaption>${escapeHtml(s.name)}</figcaption>
-        <button type="button" class="sheet-thumb-del" data-del="${i}" aria-label="${escapeHtml(s.name)} 빼기">✕</button>
+        <img src="${s2.url}" alt="기록지 ${i + 1}" />
+        <figcaption>${escapeHtml(s2.name)}</figcaption>
+        <div class="sheet-thumb-foot">${statusHTML(s2, i)}</div>
+        <button type="button" class="sheet-thumb-del" data-del="${i}" aria-label="${escapeHtml(s2.name)} 빼기">✕</button>
       </figure>`).join("");
+
+    $("#sh-assign").innerHTML = sheets.map((s2, i) => assignHTML(s2, i)).join("");
 
     $("#sh-thumbs").querySelectorAll("[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -210,27 +332,123 @@ export function mountStatsPage(container) {
         renderSheets();
       });
     });
+    $("#sh-thumbs").querySelectorAll("[data-corners]").forEach((btn) => {
+      btn.addEventListener("click", () => pickCorners(sheets[+btn.dataset.corners]));
+    });
+    $("#sh-assign").querySelectorAll("select[data-team]").forEach((sel) => {
+      sel.addEventListener("change", (e) => { sheets[+e.target.dataset.team].team = +e.target.value; });
+    });
+    $("#sh-assign").querySelectorAll("select[data-sheet]").forEach((sel) => {
+      sel.addEventListener("change", (e) => {
+        sheets[+e.target.dataset.sheet].names[+e.target.dataset.row] = e.target.value;
+      });
+    });
 
-    // 판독기가 붙기 전까지는 여기서 솔직하게 말한다. 안 되는 걸 되는 척하지 않는다.
+    const anyRead = sheets.some((s2) => s2.state === "read");
+    $("#sh-apply").hidden = !anyRead;
     $("#sh-status").innerHTML = !sheets.length
       ? `<p class="hint">사진은 이 기기 밖으로 나가지 않습니다. 새로고침하면 사라지니 한 번에 올려주세요.</p>`
       : `<ul class="stats-issues">
-           <li class="is-warn"><span class="stats-issue-tag">준비 중</span>
-             사진에서 마킹을 읽어오는 판독기는 아직 만드는 중입니다.
-             지금은 아래 <b>숫자 고치기</b>를 펴서 사진을 보며 넣어주세요.</li>
-           <li class="is-ok"><span class="stats-issue-tag">사진 찍을 때</span>
+           <li class="is-ok"><span class="stats-issue-tag">사진 찍을 때</span><span>
              기록지 <b>네 귀퉁이의 검은 사각형</b>이 모두 나오게, 그늘 없이 위에서 찍어주세요.
-             판독기는 그 사각형으로 종이의 기울기를 바로잡습니다.</li>
+             판독기는 그 사각형으로 종이의 기울기를 바로잡습니다. 못 찾으면 직접 찍어줄 수도 있습니다.</span></li>
          </ul>`;
   }
 
-  function addFiles(fileList) {
+  // 귀퉁이를 사람이 찍는 화면. 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 순서.
+  function pickCorners(sheet) {
+    const order = ["tl", "tr", "br", "bl"];
+    const labels = ["왼쪽 위", "오른쪽 위", "오른쪽 아래", "왼쪽 아래"];
+    const picked = [];
+    const back = document.createElement("div");
+    back.className = "modal-backdrop";
+    back.innerHTML = `
+      <div class="modal sheet-corner-modal">
+        <h3>네 귀퉁이를 순서대로 눌러주세요</h3>
+        <p class="hint" id="cn-hint">① ${labels[0]} 검은 사각형의 <b>가운데</b></p>
+        <div class="sheet-corner-wrap"><img src="${sheet.url}" alt="기록지" id="cn-img" /><div id="cn-dots"></div></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cn-cancel">취소</button>
+          <button type="button" class="btn" id="cn-undo">되돌리기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(back);
+
+    const img = back.querySelector("#cn-img");
+    const dots = back.querySelector("#cn-dots");
+    const hint = back.querySelector("#cn-hint");
+    const redraw = () => {
+      dots.innerHTML = picked.map((p, i) =>
+        `<span class="cn-dot" style="left:${p.rx * 100}%;top:${p.ry * 100}%">${i + 1}</span>`).join("");
+      hint.innerHTML = picked.length < 4
+        ? `${"①②③④"[picked.length]} ${labels[picked.length]} 검은 사각형의 <b>가운데</b>`
+        : `다 찍었습니다 — 읽는 중…`;
+    };
+    img.addEventListener("click", async (e) => {
+      if (picked.length >= 4) return;
+      const r = img.getBoundingClientRect();
+      picked.push({ rx: (e.clientX - r.left) / r.width, ry: (e.clientY - r.top) / r.height });
+      redraw();
+      if (picked.length === 4) {
+        // 화면 비율 → 판독에 쓰는 사진 픽셀로 옮긴다.
+        const idata = sheet.imageData || (sheet.imageData = await imageDataOf(sheet.file));
+        sheet.corners = {};
+        order.forEach((k, i) => {
+          sheet.corners[k] = { x: picked[i].rx * idata.width, y: picked[i].ry * idata.height };
+        });
+        back.remove();
+        readOne(sheet);
+      }
+    });
+    back.querySelector("#cn-undo").addEventListener("click", () => { picked.pop(); redraw(); });
+    back.querySelector("#cn-cancel").addEventListener("click", () => back.remove());
+    back.addEventListener("click", (e) => { if (e.target === back) back.remove(); });
+  }
+
+  // 판독 결과를 경기 기록으로 옮긴다. 이름을 고른 줄만 넣는다.
+  function applySheets() {
+    let moved = 0;
+    const scored = [];
+    for (const sh of sheets) {
+      if (sh.state !== "read") continue;
+      const ti = sh.team ?? 0;
+      const team = game.teams[ti];
+      // 쿼터 점수는 넣은 슛에서 바로 나온다 — 색이 쿼터를 알려주니까.
+      // 손글씨 표를 읽을 필요가 없다.
+      if (sh.quarterPoints && sh.quarterPoints.some((v) => v)) {
+        team.q = [...sh.quarterPoints];
+        scored.push(team.name || `${ti + 1}팀`);
+      }
+      sh.rows.forEach((r, ri) => {
+        const name = sh.names[ri];
+        if (!name || !rowHasMarks(r)) return;
+        const known = ROSTER.find((p) => p.name === name);
+        const p = emptyPlayer(typeof known?.number === "number" ? known.number : null, name);
+        for (const f of STAT_FIELDS) p[f.key] = r[f.key] || 0;
+        p.quarters = [...r.quarters];
+        const at = team.players.findIndex((x) => x.name === name);
+        if (at >= 0) team.players[at] = p;
+        else team.players.push(p);
+        moved++;
+      });
+    }
+    touch();
+    $("#sh-apply-msg").textContent = moved
+      ? `${moved}명을 넣었습니다.` + (scored.length ? ` 쿼터 점수도 계산했습니다 (${scored.join(", ")}).` : "")
+      : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.";
+  }
+
+  async function addFiles(fileList) {
     const imgs = [...fileList].filter((f) => f.type.startsWith("image/"));
+    const added = [];
     for (const f of imgs) {
       if (sheets.length >= MAX_SHEETS) break;
-      sheets.push({ name: f.name, url: URL.createObjectURL(f), file: f });
+      const item = { name: f.name, url: URL.createObjectURL(f), file: f, state: "wait", team: added.length % 2 };
+      sheets.push(item);
+      added.push(item);
     }
     renderSheets();
+    for (const item of added) await readOne(item);
   }
 
   $("#sh-input").addEventListener("change", (e) => {
@@ -244,6 +462,8 @@ export function mountStatsPage(container) {
   ["dragleave", "drop"].forEach((ev) =>
     drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("is-over"); }));
   drop.addEventListener("drop", (e) => addFiles(e.dataTransfer?.files || []));
+
+  $("#sh-apply").addEventListener("click", applySheets);
 
   // ── 2. 오늘 경기 결과 ───────────────────────────────────
   let previewCanvas = null;
@@ -282,7 +502,7 @@ export function mountStatsPage(container) {
   function renderExcelDetail() {
     const el = $("#st-xlsx-detail");
     if (excel.error) {
-      el.innerHTML = `<ul class="stats-issues"><li class="is-error">${escapeHtml(excel.error)}</li></ul>`;
+      el.innerHTML = `<ul class="stats-issues"><li class="is-error"><span>${escapeHtml(excel.error)}</span></li></ul>`;
       return;
     }
     if (!excel.buffer) { el.innerHTML = ""; return; }
@@ -306,19 +526,19 @@ export function mountStatsPage(container) {
         <p class="stats-note">지금 ${excel.lastRow}줄 · 이 경기(${escapeHtml(sheetDateKey(game))})는
           ${excel.existing.length ? `이미 ${excel.existing.length}줄 들어 있습니다` : "아직 없습니다"}.</p>
         <ul class="stats-issues">
-          ${update.length ? `<li class="is-ok"><span class="stats-issue-tag">고쳐 넣기</span>
-            ${update.length}줄을 그 자리에서 고칩니다 (${rowList(update)}행).</li>` : ""}
-          ${insert.length ? `<li class="is-ok"><span class="stats-issue-tag">새로 붙이기</span>
-            ${insert.length}줄을 ${excel.lastRow + 1}행부터 붙입니다.</li>` : ""}
-          ${stale.length ? `<li class="is-warn"><span class="stats-issue-tag">남는 줄</span>
+          ${update.length ? `<li class="is-ok"><span class="stats-issue-tag">고쳐 넣기</span><span>
+            ${update.length}줄을 그 자리에서 고칩니다 (${rowList(update)}행).</span></li>` : ""}
+          ${insert.length ? `<li class="is-ok"><span class="stats-issue-tag">새로 붙이기</span><span>
+            ${insert.length}줄을 ${excel.lastRow + 1}행부터 붙입니다.</span></li>` : ""}
+          ${stale.length ? `<li class="is-warn"><span class="stats-issue-tag">남는 줄</span><span>
             이 경기에 있었지만 지금 기록에는 없는 줄이 ${stale.length}개입니다 (${rowList(stale)}행:
             ${escapeHtml(stale.map((e) => `${e.team} ${e.name}`).join(", "))}).
             줄을 지우면 뒷줄 번호가 밀려 수식이 어긋날 수 있어 저희가 지우지는 않습니다 —
-            엑셀에서 직접 지워주세요.</li>` : ""}
-          ${mismatch.length ? `<li class="is-warn"><span class="stats-issue-tag">열 이름</span>
-               이 시트의 열 이름이 우리 형식과 다릅니다. 다른 시트인지 확인해주세요.</li>
-             ${mismatch.slice(0, 5).map((m) => `<li class="is-warn">${escapeHtml(m)}</li>`).join("")}
-             ${mismatch.length > 5 ? `<li class="is-warn">…외 ${mismatch.length - 5}개</li>` : ""}` : ""}
+            엑셀에서 직접 지워주세요.</span></li>` : ""}
+          ${mismatch.length ? `<li class="is-warn"><span class="stats-issue-tag">열 이름</span><span>
+               이 시트의 열 이름이 우리 형식과 다릅니다. 다른 시트인지 확인해주세요.</span></li>
+             ${mismatch.slice(0, 5).map((m) => `<li class="is-warn"><span>${escapeHtml(m)}</span></li>`).join("")}
+             ${mismatch.length > 5 ? `<li class="is-warn"><span>…외 ${mismatch.length - 5}개</span></li>` : ""}` : ""}
         </ul>
       </div>`;
 
@@ -606,7 +826,7 @@ export function mountStatsPage(container) {
       return;
     }
     $("#st-issues").innerHTML = `<ul class="stats-issues">${issues.map((it) =>
-      `<li class="is-${it.level}"><span class="stats-issue-tag">${escapeHtml(it.where)}</span>${escapeHtml(it.message)}</li>`
+      `<li class="is-${it.level}"><span class="stats-issue-tag">${escapeHtml(it.where)}</span><span>${escapeHtml(it.message)}</span></li>`
     ).join("")}</ul>`;
   }
 
