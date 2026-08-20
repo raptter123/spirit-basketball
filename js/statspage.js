@@ -12,7 +12,7 @@
 
 import { ROSTER } from "./roster.js";
 import { getNextEventDate } from "./events.js";
-import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft } from "./storage.js";
+import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft, getSheetRoster } from "./storage.js";
 import {
   emptyGame, emptyTeam, emptyPlayer, derive, teamTotals, teamScore, teamResult,
   perQuarterToCumulative, cumulativeToPerQuarter, validate, gameScore, momOf,
@@ -21,7 +21,7 @@ import {
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
 import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
-import { detectFiducials, readBubbles, readingsToTeam } from "./sheetread.js";
+import { detectFiducials, readBubbles, readingsToTeam, debugOverlay } from "./sheetread.js";
 import {
   openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
   saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
@@ -260,14 +260,28 @@ export function mountStatsPage(container) {
       sheet.rows = res.players;
       sheet.filled = res.filled;
       sheet.quarterPoints = res.quarterPoints;
+      sheet.readings = readings;
       sheet.state = "read";
-      // 줄마다 누구인지는 아직 모른다 — 표시가 하나라도 있는 줄만 사람이 골라준다.
       sheet.names = sheet.names || res.players.map(() => "");
+      fillNames(sheet);
     } catch (err) {
       sheet.state = "error";
       sheet.note = err?.message || "읽지 못했습니다.";
     }
     renderSheets();
+  }
+
+  // 기록지를 사이트에서 뽑았다면 그때 적어둔 명단이 있다. 줄 번호로 이름을 되찾는다.
+  // (판독기는 인쇄된 글자를 못 읽는다 — 그래서 뽑을 때 적어두는 쪽을 택했다.)
+  function fillNames(sheet) {
+    const team = game.teams[sheet.team ?? 0];
+    const saved = getSheetRoster(`${sheetDateKey(game)}|${team?.name}`);
+    if (!saved) return false;
+    let hit = 0;
+    saved.forEach(([, name], i) => {
+      if (name && !sheet.names[i]) { sheet.names[i] = name; hit++; }
+    });
+    return hit > 0;
   }
 
   function rowHasMarks(r) {
@@ -278,7 +292,9 @@ export function mountStatsPage(container) {
     if (sheet.state === "reading") return `<span class="sheet-state">읽는 중…</span>`;
     if (sheet.state === "read") {
       const live = sheet.rows.filter(rowHasMarks).length;
-      return `<span class="sheet-state is-ok">${sheet.filled}칸 읽음 · ${live}명</span>`;
+      return `<span class="sheet-state is-ok">${sheet.filled}칸 읽음 · ${live}명</span>
+        <button type="button" class="btn btn-sm" data-check="${i}">판독 확인</button>
+        <button type="button" class="btn btn-sm" data-corners="${i}">귀퉁이 다시</button>`;
     }
     if (sheet.state === "needCorners") {
       return `<span class="sheet-state is-warn">귀퉁이 못 찾음</span>
@@ -335,8 +351,17 @@ export function mountStatsPage(container) {
     $("#sh-thumbs").querySelectorAll("[data-corners]").forEach((btn) => {
       btn.addEventListener("click", () => pickCorners(sheets[+btn.dataset.corners]));
     });
+    $("#sh-thumbs").querySelectorAll("[data-check]").forEach((btn) => {
+      btn.addEventListener("click", () => showCheck(sheets[+btn.dataset.check]));
+    });
     $("#sh-assign").querySelectorAll("select[data-team]").forEach((sel) => {
-      sel.addEventListener("change", (e) => { sheets[+e.target.dataset.team].team = +e.target.value; });
+      sel.addEventListener("change", (e) => {
+        const sh = sheets[+e.target.dataset.team];
+        sh.team = +e.target.value;
+        sh.names = sh.rows.map(() => "");
+        fillNames(sh);
+        renderSheets();
+      });
     });
     $("#sh-assign").querySelectorAll("select[data-sheet]").forEach((sel) => {
       sel.addEventListener("change", (e) => {
@@ -355,10 +380,34 @@ export function mountStatsPage(container) {
          </ul>`;
   }
 
+  // 판독이 어디를 봤는지 사진 위에 겹쳐 보여준다. 안 맞을 때 원인을 눈으로 찾는 자리다.
+  function showCheck(sheet) {
+    if (!sheet.imageData || !sheet.corners || !sheet.readings) return;
+    const cv = debugOverlay(sheet.imageData, sheet.corners, sheet.readings);
+    const back = document.createElement("div");
+    back.className = "modal-backdrop";
+    back.innerHTML = `
+      <div class="modal sheet-corner-modal">
+        <h3>판독 확인</h3>
+        <p class="hint">노란 테두리가 판독기가 잡은 종이입니다. 이게 실제 종이와 어긋나 있으면
+          <b>귀퉁이 다시</b>로 네 점을 직접 찍어주세요.
+          동그라미가 각 칸을 본 자리 — <b>파랑</b>은 검정 마킹, <b>빨강</b>은 빨강 마킹으로 읽은 것입니다.
+          ${sheet.readings.split ? "가운데 표식을 찾아 좌우를 따로 폈습니다." : "가운데 표식이 없어 종이 전체를 한 번에 폈습니다 — 접힌 기록지는 가운데가 어긋날 수 있습니다."}</p>
+        <div class="sheet-corner-wrap"><img alt="판독 확인" id="ck-img" /></div>
+        <div class="modal-actions"><button type="button" class="btn" id="ck-close">닫기</button></div>
+      </div>`;
+    document.body.appendChild(back);
+    back.querySelector("#ck-img").src = cv.toDataURL("image/png");
+    const close = () => back.remove();
+    back.querySelector("#ck-close").addEventListener("click", close);
+    back.addEventListener("click", (e) => { if (e.target === back) close(); });
+  }
+
   // 귀퉁이를 사람이 찍는 화면. 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 순서.
   function pickCorners(sheet) {
-    const order = ["tl", "tr", "br", "bl"];
-    const labels = ["왼쪽 위", "오른쪽 위", "오른쪽 아래", "왼쪽 아래"];
+    // 가운데 위·아래까지 여섯 점을 받는다 — 접힌 기록지는 이 두 점이 있어야 제대로 펴진다.
+    const order = ["tl", "tr", "br", "bl", "tm", "bm"];
+    const labels = ["왼쪽 위", "오른쪽 위", "오른쪽 아래", "왼쪽 아래", "위쪽 가운데", "아래쪽 가운데"];
     const picked = [];
     const back = document.createElement("div");
     back.className = "modal-backdrop";
@@ -370,6 +419,7 @@ export function mountStatsPage(container) {
         <div class="modal-actions">
           <button type="button" class="btn" id="cn-cancel">취소</button>
           <button type="button" class="btn" id="cn-undo">되돌리기</button>
+          <button type="button" class="btn" id="cn-skip">네 귀퉁이만 쓰고 건너뛰기</button>
         </div>
       </div>`;
     document.body.appendChild(back);
@@ -380,27 +430,34 @@ export function mountStatsPage(container) {
     const redraw = () => {
       dots.innerHTML = picked.map((p, i) =>
         `<span class="cn-dot" style="left:${p.rx * 100}%;top:${p.ry * 100}%">${i + 1}</span>`).join("");
-      hint.innerHTML = picked.length < 4
-        ? `${"①②③④"[picked.length]} ${labels[picked.length]} 검은 사각형의 <b>가운데</b>`
+      hint.innerHTML = picked.length < order.length
+        ? `${"①②③④⑤⑥"[picked.length]} ${labels[picked.length]} 검은 표식의 <b>가운데</b>` +
+          (picked.length >= 4 ? ` <span class="stats-note">(예전 기록지엔 없을 수 있어요 — 없으면 <b>건너뛰기</b>)</span>` : "")
         : `다 찍었습니다 — 읽는 중…`;
     };
     img.addEventListener("click", async (e) => {
-      if (picked.length >= 4) return;
+      if (picked.length >= order.length) return;
       const r = img.getBoundingClientRect();
       picked.push({ rx: (e.clientX - r.left) / r.width, ry: (e.clientY - r.top) / r.height });
       redraw();
-      if (picked.length === 4) {
+      if (picked.length === order.length) apply();
+    });
+
+    // 네 귀퉁이만 찍고 끝낼 수 있게 — 가운데 표식이 없는 예전 기록지용.
+    async function apply() {
+      {
         // 화면 비율 → 판독에 쓰는 사진 픽셀로 옮긴다.
         const idata = sheet.imageData || (sheet.imageData = await imageDataOf(sheet.file));
         sheet.corners = {};
-        order.forEach((k, i) => {
-          sheet.corners[k] = { x: picked[i].rx * idata.width, y: picked[i].ry * idata.height };
+        picked.forEach((p, i) => {
+          sheet.corners[order[i]] = { x: p.rx * idata.width, y: p.ry * idata.height };
         });
         back.remove();
         readOne(sheet);
       }
-    });
+    }
     back.querySelector("#cn-undo").addEventListener("click", () => { picked.pop(); redraw(); });
+    back.querySelector("#cn-skip").addEventListener("click", () => { if (picked.length >= 4) apply(); });
     back.querySelector("#cn-cancel").addEventListener("click", () => back.remove());
     back.addEventListener("click", (e) => { if (e.target === back) back.remove(); });
   }
