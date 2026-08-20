@@ -141,28 +141,95 @@ export function detectFiducials(imageData) {
     Math.hypot(picked.bl.x - picked.tl.x, picked.bl.y - picked.tl.y)
   );
   if (span < Math.min(W, H) * 0.35) return null;
+
+  // 가운데 위·아래 표식은 네 귀퉁이를 잡은 뒤에 찾는다. 사진에 원근이 있으면 종이의
+  // 가운데가 사진의 가운데가 아니라서, 귀퉁이 사이의 중점 근처를 뒤져야 맞는다.
+  // 없으면 없는 대로 둔다 — 예전에 뽑은 기록지에는 이 표식이 없다.
+  const near = (ax, ay, tol) => {
+    let bestB = null, bestD = tol * tol;
+    for (const c of cands) {
+      if (used.has(c)) continue;
+      const d = (c.cx - ax) ** 2 + (c.cy - ay) ** 2;
+      if (d < bestD) { bestD = d; bestB = c; }
+    }
+    if (bestB) used.add(bestB);
+    return bestB && { x: bestB.cx, y: bestB.cy };
+  };
+  const tol = span * 0.12;
+  const tm = near((picked.tl.x + picked.tr.x) / 2, (picked.tl.y + picked.tr.y) / 2, tol);
+  const bm = near((picked.bl.x + picked.br.x) / 2, (picked.bl.y + picked.br.y) / 2, tol);
+  if (tm && bm) { picked.tm = tm; picked.bm = bm; }
   return picked;
 }
 
 // ── 버블 읽기 ────────────────────────────────────────────
-const BLANK_RATIO = 0.78;  // 주변 종이 대비 이보다 밝으면 빈 칸
-const RED_MARGIN = 26;     // R 이 G·B 평균보다 이만큼 크면 빨강
+//
+// 기준값을 어디서 얻느냐가 전부다. 처음에는 버블 바로 바깥의 "종이"를 찍어 비교했는데,
+// 버블 간격이 가로 4.1mm / 세로 3.5mm 인데 표본을 3.4mm / 3.1mm 떨어진 곳에서 찍고
+// 있었다 — 이웃 버블 중심의 82~89% 지점, 사실상 이웃 버블 위였다. 그래서 옆 칸이
+// 칠해졌는지에 따라 기준값이 널뛰었고, 어떤 사진은 넘치게 어떤 사진은 모자라게 읽혔다.
+//
+// 지금은 **이웃 버블들의 중앙값**을 기준으로 쓴다. 기록지는 대부분의 칸이 비어 있어서
+// (한 장 1,728칸 중 칠하는 건 백 몇 개) 중앙값은 거의 항상 빈 칸이다. 조명이 한쪽만
+// 어두워도 그 근처 중앙값이 같이 어두워지니 따라간다.
+//
+// 문턱값도 고정하지 않고 오츠로 정한다 — 잉크 짙기와 인쇄 농도가 종이마다 다르다.
+
+// 이웃을 모으는 격자 칸 크기(mm). 한 칸에 수십 개가 들어가야 중앙값이 의미가 있다.
+const CELL_MM = 22;
+
+function otsuOn(values) {
+  if (values.length < 8) return 0.8;
+  const lo = Math.min(...values), hi = Math.max(...values);
+  if (hi - lo < 0.06) return lo - 1; // 다 비슷하면 = 칠한 게 없다
+  const B = 64;
+  const hist = new Uint32Array(B);
+  for (const v of values) hist[Math.min(B - 1, Math.floor(((v - lo) / (hi - lo)) * B))]++;
+  const total = values.length;
+  let sum = 0;
+  for (let t = 0; t < B; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, best = -1, cut = 0;
+  for (let t = 0; t < B; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const between = wB * wF * (sumB / wB - (sum - sumB) / wF) ** 2;
+    if (between > best) { best = between; cut = t; }
+  }
+  return lo + ((cut + 1) / B) * (hi - lo);
+}
+
+const RED_MARGIN = 22; // R 이 G·B 평균보다 이만큼 크면 빨강
 
 /**
  * corners: 사진 px 기준 {tl,tr,br,bl} — 표식의 중심.
  * geometry: sheetform.measureSheet() 결과.
- * 돌려주는 값: Map<버블 id, {v:"blank"|"black"|"red", ink:0~1}>
+ * 돌려주는 값: Map<버블 id, {v:"blank"|"black"|"red", ratio, x, y}>
+ *   x,y 는 사진 위 좌표 — 판독 확인 그림을 그릴 때 쓴다.
  */
 export function readBubbles(imageData, corners, geometry) {
   const { width: W, height: H, data } = imageData;
   const f = geometry.fiducials;
-  const src = [
-    { x: f.tl.cx, y: f.tl.cy }, { x: f.tr.cx, y: f.tr.cy },
-    { x: f.br.cx, y: f.br.cy }, { x: f.bl.cx, y: f.bl.cy },
-  ];
-  const dst = [corners.tl, corners.tr, corners.br, corners.bl];
-  const h = solveHomography(src, dst);
-  if (!h) throw new Error("네 귀퉁이로 종이 모양을 잡지 못했습니다.");
+  const P = (k) => ({ x: f[k].cx, y: f[k].cy });
+
+  // 종이를 반으로 접었다 펴면 접힌 선을 경계로 좌우가 서로 다른 면이 된다. 네 귀퉁이
+  // 하나로만 펴면 가운데가 몇 mm씩 어긋나 옆 칸을 읽는다. 가운데 표식이 있으면
+  // 왼쪽·오른쪽을 따로 편다 — 접힌 선이 곧 경계라 딱 맞는다.
+  const split = corners.tm && corners.bm && f.tm && f.bm;
+  const hL = solveHomography(
+    split ? [P("tl"), P("tm"), P("bm"), P("bl")] : [P("tl"), P("tr"), P("br"), P("bl")],
+    split ? [corners.tl, corners.tm, corners.bm, corners.bl]
+          : [corners.tl, corners.tr, corners.br, corners.bl]
+  );
+  const hR = split
+    ? solveHomography([P("tm"), P("tr"), P("br"), P("bm")],
+                      [corners.tm, corners.tr, corners.br, corners.bm])
+    : hL;
+  if (!hL || !hR) throw new Error("네 귀퉁이로 종이 모양을 잡지 못했습니다.");
+  const midX = split ? f.tm.cx : Infinity;
+  const hAt = (mmX) => (mmX < midX ? hL : hR);
 
   const at = (x, y) => {
     const px = Math.round(x), py = Math.round(y);
@@ -172,37 +239,116 @@ export function readBubbles(imageData, corners, geometry) {
   };
   const lum = (c) => (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000;
 
-  const out = new Map();
-  for (const b of geometry.bubbles) {
-    // 버블 안쪽 — 인쇄된 테두리에 닿지 않게 60%만 본다.
-    const inside = [];
-    for (const [dx, dy] of [[0, 0], [-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5], [-0.35, -0.35], [0.35, 0.35], [-0.35, 0.35], [0.35, -0.35]]) {
-      const p = applyHomography(h, b.cx + dx * b.rx * 1.2, b.cy + dy * b.ry * 1.2);
+  // 1단계 — 버블마다 안쪽 밝기와 색을 잰다. 인쇄된 테두리에 닿지 않게 안쪽만 본다.
+  const OFFSETS = [[0, 0], [-0.45, 0], [0.45, 0], [0, -0.45], [0, 0.45],
+                   [-0.3, -0.3], [0.3, 0.3], [-0.3, 0.3], [0.3, -0.3]];
+  const cells = new Map();
+  const items = geometry.bubbles.map((b) => {
+    const hb = hAt(b.cx);
+    const px = [];
+    for (const [dx, dy] of OFFSETS) {
+      const p = applyHomography(hb, b.cx + dx * b.rx, b.cy + dy * b.ry);
       const c = at(p.x, p.y);
-      if (c) inside.push(c);
+      if (c) px.push(c);
     }
-    // 버블 바깥쪽 종이 — 그늘이 져도 그 자리 종이와 견주면 된다.
-    const paper = [];
-    for (const [dx, dy] of [[-2.1, 0], [2.1, 0], [0, -2.4], [0, 2.4]]) {
-      const p = applyHomography(h, b.cx + dx * b.rx, b.cy + dy * b.ry);
-      const c = at(p.x, p.y);
-      if (c) paper.push(c);
-    }
-    if (!inside.length) { out.set(b.id, { v: "blank", ink: 0 }); continue; }
+    const center = applyHomography(hb, b.cx, b.cy);
+    if (!px.length) return { b, L: null, rgb: null, x: center.x, y: center.y };
+    const rgb = px.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / px.length);
+    const item = { b, L: lum(rgb), rgb, x: center.x, y: center.y };
+    const key = `${Math.floor(b.cx / CELL_MM)},${Math.floor(b.cy / CELL_MM)}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(item);
+    return item;
+  });
 
-    const mean = (arr) => arr.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / arr.length);
-    const mi = mean(inside);
-    // 종이 밝기는 네 점 중 가장 밝은 값을 쓴다 — 옆 칸 마킹이 걸려 어두워지는 걸 피한다.
-    const paperL = paper.length ? Math.max(...paper.map(lum)) : 255;
-    const ratio = lum(mi) / Math.max(paperL, 1);
-
-    let v = "blank";
-    if (ratio < BLANK_RATIO) {
-      v = mi[0] - (mi[1] + mi[2]) / 2 > RED_MARGIN ? "red" : "black";
+  // 2단계 — 근처 버블들의 중앙값을 "빈 칸" 기준으로 삼는다.
+  const median = (arr) => {
+    const a = [...arr].sort((x, y) => x - y);
+    return a[a.length >> 1];
+  };
+  // 표본이 모자라면 칸을 한 겹씩 넓혀 가며 모은다. 출전 열처럼 버블이 성긴 곳
+  // (22mm 칸에 다섯 개뿐)에서 기준값을 못 구해 통째로 빈 칸으로 읽히던 것을 고친다.
+  const NEED = 24;
+  const allL = items.map((it) => it.L).filter((v) => v != null);
+  const globalRef = allL.length ? median(allL) : null;
+  const refOf = (b) => {
+    const gx = Math.floor(b.cx / CELL_MM), gy = Math.floor(b.cy / CELL_MM);
+    const pool = [];
+    for (let ring = 1; ring <= 4; ring++) {
+      pool.length = 0;
+      for (let dx = -ring; dx <= ring; dx++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+          const c = cells.get(`${gx + dx},${gy + dy}`);
+          if (c) for (const it of c) if (it.L != null) pool.push(it.L);
+        }
+      }
+      if (pool.length >= NEED) return median(pool);
     }
-    out.set(b.id, { v, ink: Math.max(0, Math.min(1, 1 - ratio)) });
+    return pool.length >= 6 ? median(pool) : globalRef;
+  };
+
+  const refCache = new Map();
+  for (const it of items) {
+    if (it.L == null) { it.ratio = 1; continue; }
+    const key = `${Math.floor(it.b.cx / CELL_MM)},${Math.floor(it.b.cy / CELL_MM)}`;
+    if (!refCache.has(key)) refCache.set(key, refOf(it.b));
+    const ref = refCache.get(key);
+    it.ratio = ref && ref > 1 ? it.L / ref : 1;
   }
+
+  // 3단계 — 문턱값은 오츠로. 칠한 칸은 확실히 어두운 쪽에 몰린다.
+  const ratios = items.filter((it) => it.L != null).map((it) => it.ratio);
+  // 빈 칸이 압도적이라 오츠가 잡음을 자를 수 있다. 0.62~0.90 밖으로는 안 나가게 묶는다.
+  const cut = Math.max(0.62, Math.min(otsuOn(ratios), 0.90));
+
+  const out = new Map();
+  for (const it of items) {
+    let v = "blank";
+    if (it.L != null && it.ratio < cut) {
+      v = it.rgb[0] - (it.rgb[1] + it.rgb[2]) / 2 > RED_MARGIN ? "red" : "black";
+    }
+    out.set(it.b.id, { v, ratio: it.ratio, x: it.x, y: it.y });
+  }
+  out.threshold = cut;
+  out.split = !!split;
   return out;
+}
+
+/**
+ * 판독이 어디를 봤는지 그림으로 보여준다. 안 맞을 때 원인을 눈으로 찾기 위한 것.
+ * 초록 = 빈 칸으로 봄, 빨강/파랑 = 칠한 것으로 봄, 노랑 큰 원 = 귀퉁이로 잡은 자리.
+ */
+export function debugOverlay(imageData, corners, readings) {
+  const cv = document.createElement("canvas");
+  cv.width = imageData.width;
+  cv.height = imageData.height;
+  const ctx = cv.getContext("2d");
+  ctx.putImageData(imageData, 0, 0);
+
+  const r = Math.max(2, imageData.width / 500);
+  for (const [, b] of readings) {
+    if (b.x == null) continue;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+    if (b.v === "blank") { ctx.strokeStyle = "rgba(0,220,90,0.55)"; ctx.lineWidth = 1; ctx.stroke(); }
+    else { ctx.fillStyle = b.v === "red" ? "rgba(255,60,60,0.9)" : "rgba(40,120,255,0.9)"; ctx.fill(); }
+  }
+  ctx.lineWidth = Math.max(3, imageData.width / 300);
+  ctx.strokeStyle = "#ffd400";
+  for (const k of ["tl", "tr", "br", "bl", "tm", "bm"]) {
+    const c = corners[k];
+    if (!c) continue;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r * 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // 네 귀퉁이를 이어 종이 테두리가 맞는지 보여준다
+  ctx.beginPath();
+  ctx.moveTo(corners.tl.x, corners.tl.y);
+  for (const k of ["tr", "br", "bl"]) ctx.lineTo(corners[k].x, corners[k].y);
+  ctx.closePath();
+  ctx.stroke();
+  return cv;
 }
 
 // ── 읽은 값 → 한 팀 기록 ─────────────────────────────────

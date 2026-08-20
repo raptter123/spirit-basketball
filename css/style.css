@@ -3269,3 +3269,30 @@ body {
   pointer-events: none;
   box-shadow: 0 0 0 2px #fff;
 }
+
+/* 기록지 인쇄 미리보기 — 297mm 짜리를 화면 폭에 맞춰 줄여 보여준다. */
+.sheet-print-modal {
+  max-width: min(96vw, 1100px);
+}
+
+.sheet-print-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 60vh;
+  overflow: auto;
+  margin: 12px 0;
+  background: #6b7080;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.sheet-page {
+  transform-origin: top left;
+  /* 297mm 를 상자 폭에 맞춘다. 인쇄할 때는 print CSS 가 이 축소를 되돌린다. */
+  zoom: 0.34;
+}
+
+@media (min-width: 900px) {
+  .sheet-page { zoom: 0.62; }
+}

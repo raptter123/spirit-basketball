@@ -39,6 +39,13 @@ export const SHEET_CSS = `
 .sheet .fid.tl{left:2.5mm;top:2.5mm}.sheet .fid.tr{right:2.5mm;top:2.5mm}
 .sheet .fid.bl{left:2.5mm;bottom:2.5mm}.sheet .fid.br{right:2.5mm;bottom:2.5mm;border-radius:50%}
 
+/* 가운데 위·아래 표식. 종이를 반으로 접었다 펴면 접힌 선을 경계로 좌우가 서로 다른
+   면이 되어, 네 귀퉁이만으로 편 좌표가 가운데에서 몇 mm씩 어긋난다. 이 두 개가 있으면
+   접힌 선을 경계로 왼쪽·오른쪽을 따로 펼 수 있다. 실제로 접어 온 기록지 때문에 넣었다.
+   여백 안에 들어가야 해서 귀퉁이보다 작다. */
+.sheet .fid.tm,.sheet .fid.bm{width:5mm;height:5mm;left:50%;margin-left:-2.5mm}
+.sheet .fid.tm{top:0.6mm}.sheet .fid.bm{bottom:0.6mm}
+
 .sheet .head{display:flex;gap:3mm;align-items:stretch}
 .sheet .title{display:flex;flex-direction:column;justify-content:center;gap:0.6mm;
        padding-right:3mm;border-right:0.4mm solid var(--line)}
@@ -193,6 +200,7 @@ export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = 
 
   return `<div class="sheet">
     <div class="fid tl"></div><div class="fid tr"></div><div class="fid bl"></div><div class="fid br"></div>
+    <div class="fid tm"></div><div class="fid bm"></div>
 
     <div class="head">
       <div class="title"><b>혼 SPIRIT</b><span>STAT SHEET</span></div>
@@ -247,7 +255,7 @@ export function measureSheet(sheetEl) {
   });
 
   const fiducials = {};
-  for (const key of ["tl", "tr", "bl", "br"]) {
+  for (const key of ["tl", "tr", "bl", "br", "tm", "bm"]) {
     const el = sheetEl.querySelector(`.fid.${key}`);
     if (el) fiducials[key] = toMm(el.getBoundingClientRect());
   }

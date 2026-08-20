@@ -235,3 +235,32 @@ export function clearGameStatsDraft() {
     // no-op
   }
 }
+
+const SHEET_ROSTER_KEY = "spirit-sheet-rosters";
+
+// 기록지를 뽑을 때 그 종이에 인쇄한 명단을 적어 둔다.
+// 판독기는 "몇 번째 줄"까지만 알고 이름은 인쇄된 글자라 못 읽는다. 뽑을 때 적어 두면
+// 사진을 올렸을 때 줄 번호로 이름을 되찾을 수 있다 — 사람이 여덟 번 고를 일이 없어진다.
+// 열쇠는 "260823_1|혼 A" 처럼 날짜·경기·팀이다.
+export function saveSheetRoster(key, roster) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SHEET_ROSTER_KEY) || "{}");
+    all[key] = roster;
+    // 오래된 건 버린다 — 한 시즌 치가 쌓일 이유가 없다.
+    const keys = Object.keys(all);
+    if (keys.length > 60) for (const k of keys.slice(0, keys.length - 60)) delete all[k];
+    localStorage.setItem(SHEET_ROSTER_KEY, JSON.stringify(all));
+  } catch {
+    // no-op
+  }
+}
+
+export function getSheetRoster(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SHEET_ROSTER_KEY) || "{}");
+    const r = all[key];
+    return Array.isArray(r) ? r : null;
+  } catch {
+    return null;
+  }
+}

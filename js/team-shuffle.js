@@ -1,5 +1,6 @@
 import { ROSTER } from "./roster.js";
-import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft } from "./storage.js";
+import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft, saveSheetRoster } from "./storage.js";
+import { sheetHTML, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
 import {
   jerseyHTML,
@@ -527,6 +528,65 @@ function showTeamImageModal(rows, gameDate, teamCount) {
   });
 }
 
+// 기록지 인쇄. 뽑는 김에 그 종이에 인쇄한 명단을 적어 둔다 — 나중에 사진을 올리면
+// 판독기가 줄 번호로 이름을 되찾을 수 있다(판독기는 인쇄된 글자를 못 읽는다).
+function showSheetPrintModal(teams, gameDate) {
+  const date = gameDate || "";
+  const key = `${date.replaceAll("-", "").slice(2)}_1`;
+
+  if (!document.getElementById("sheet-css")) {
+    const st = document.createElement("style");
+    st.id = "sheet-css";
+    st.textContent = SHEET_CSS;
+    document.head.appendChild(st);
+  }
+
+  const pages = teams.map((t, i) => {
+    saveSheetRoster(`${key}|${t.name}`, t.roster);
+    const them = teams.length === 2 ? teams[1 - i].name : teams.filter((x) => x !== t).map((x) => x.name).join(" / ");
+    return sheetHTML({
+      date, gameNo: 1, us: t.name, them,
+      roster: t.roster,
+      code: `SPIRIT-${key.replace("_", "-G")}-${TEAM_LETTERS[i]}`,
+    });
+  });
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "modal-backdrop";
+  backdrop.innerHTML = `
+    <div class="modal sheet-print-modal">
+      <h3>기록지 ${teams.length}장</h3>
+      <p class="hint">A4 <b>가로</b>로, 여백 없이(배율 100%) 인쇄해주세요.
+        네 귀퉁이와 위·아래 가운데의 검은 표식이 잘리면 사진 판독이 안 됩니다.
+        ${teams.length}팀 명단을 적어두었으니, 나중에 사진을 올리면 선수 이름이 자동으로 채워집니다.</p>
+      <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="sp-close">닫기</button>
+        <button type="button" class="btn btn-primary" id="sp-print">인쇄</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  // 인쇄할 때는 기록지만 남기고 나머지 화면은 감춘다.
+  const printCss = document.createElement("style");
+  printCss.textContent = `@media print{
+    @page{size:A4 landscape;margin:0}
+    body>*{display:none!important}
+    body>.modal-backdrop{display:block!important;position:static;background:#fff;padding:0}
+    .modal-backdrop .modal{max-width:none;width:auto;background:#fff;box-shadow:none;padding:0;border:0}
+    .sheet-print-modal h3,.sheet-print-modal .hint,.sheet-print-modal .modal-actions{display:none!important}
+    .sheet-print-preview{display:block!important;overflow:visible!important;transform:none!important}
+    .sheet-page{page-break-after:always;transform:none!important;width:auto!important;height:auto!important}
+    .sheet-page:last-child{page-break-after:auto}
+  }`;
+  document.head.appendChild(printCss);
+
+  const close = () => { backdrop.remove(); printCss.remove(); };
+  backdrop.querySelector("#sp-close").addEventListener("click", close);
+  backdrop.querySelector("#sp-print").addEventListener("click", () => window.print());
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+}
+
 export function mountTeamBuilder(container) {
   const draft = getTeamBuilderDraft();
   const knownNames = new Set(getAllPlayers().map((p) => p.name));
@@ -661,6 +721,7 @@ export function mountTeamBuilder(container) {
       </div>
 
       <button type="button" class="btn btn-primary" id="ts-image-btn" ${anyAssigned ? "" : "disabled"}>🖼 공지 이미지 만들기</button>
+      <button type="button" class="btn" id="ts-sheet-btn" ${anyAssigned ? "" : "disabled"}>📄 기록지 출력</button>
     `;
 
     document.getElementById("ts-date").addEventListener("input", (e) => {
@@ -753,6 +814,18 @@ export function mountTeamBuilder(container) {
       })).filter((t) => t.players.length > 0);
       if (!rows.length) return;
       showTeamImageModal(rows, gameDate, teamCount);
+    });
+
+    document.getElementById("ts-sheet-btn").addEventListener("click", () => {
+      const teams = Array.from({ length: teamCount }, (_, i) => ({
+        name: `혼 ${TEAM_LETTERS[i]}`,
+        // 기록지에는 (C) 같은 꼬리표 없이 이름만 — 판독 뒤 로스터와 짝을 맞춰야 한다.
+        roster: teamsPlayers[i].map((n) => [
+          typeof playersByName[n]?.number === "number" ? playersByName[n].number : null, n,
+        ]),
+      })).filter((t) => t.roster.length > 0);
+      if (!teams.length) return;
+      showSheetPrintModal(teams, gameDate);
     });
   }
 
