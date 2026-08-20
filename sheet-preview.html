@@ -1,0 +1,16 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>기록지 미리보기</title>
+<style>body{margin:0;background:#5b6172;padding:10mm;font-family:sans-serif}
+@page{size:A4 landscape;margin:0}
+@media print{body{background:#fff;padding:0}}</style>
+</head><body><div id="host"></div>
+<script type="module">
+import { sheetHTML, measureSheet, SHEET_CSS } from "./js/sheetform.js";
+const style = document.createElement("style");
+style.textContent = SHEET_CSS;
+document.head.appendChild(style);
+const roster = [[55,"조보규"],[1,"김창범"],[35,"황규철"],[23,"김준석"],[2,"김웅기"],
+                [69,"조우진"],[10,"배준혁"],[24,"김도여"]];
+document.getElementById("host").innerHTML = sheetHTML({
+  date:"2026-08-23", gameNo:1, us:"혼 A", them:"혼 B", roster, code:"SPIRIT-260823-G1-A" });
+window.__measure = () => measureSheet(document.querySelector(".sheet"));
+</script></body></html>
