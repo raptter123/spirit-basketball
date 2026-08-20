@@ -556,8 +556,9 @@ function showSheetPrintModal(teams, gameDate) {
   backdrop.innerHTML = `
     <div class="modal sheet-print-modal">
       <h3>기록지 ${teams.length}장</h3>
-      <p class="hint">A4 <b>가로</b>로, 여백 없이(배율 100%) 인쇄해주세요.
-        네 귀퉁이와 위·아래 가운데의 검은 표식이 잘리면 사진 판독이 안 됩니다.
+      <p class="hint">인쇄 창에서 <b>배율 100%</b>, <b>여백 없음</b>, 그리고 <b>배경 그래픽 켜기</b>를
+        확인해주세요 — 배경 그래픽이 꺼져 있으면 <b>네 귀퉁이 검은 표식이 안 찍혀서</b> 사진 판독이 아예 안 됩니다.
+        용지는 자동으로 A4 가로로 잡힙니다.
         ${teams.length}팀 명단을 적어두었으니, 나중에 사진을 올리면 선수 이름이 자동으로 채워집니다.</p>
       <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
       <div class="modal-actions">
@@ -568,16 +569,33 @@ function showSheetPrintModal(teams, gameDate) {
   document.body.appendChild(backdrop);
 
   // 인쇄할 때는 기록지만 남기고 나머지 화면은 감춘다.
+  //
+  // 여기서 세 가지를 놓쳐서 처음에 인쇄가 통째로 망가졌다. 다 다시 밟기 쉬운 것들이라
+  // 적어 둔다.
+  //   1) 미리보기를 zoom 으로 줄여 놨는데 인쇄에서 zoom 을 되돌리지 않았다.
+  //      transform 만 지웠더니 종이가 34% 크기로 찍혔다. zoom 은 transform 이 아니다.
+  //   2) @page{size:A4 landscape} 가 안 먹어서 210×297 세로로 나왔다. 기록지는 297mm
+  //      폭이라 세로 종이에는 안 들어간다. 치수를 직접 적으니 먹는다.
+  //   3) 네 귀퉁이 표식은 CSS background 다. 크롬은 "배경 그래픽"이 기본으로 꺼져 있어서
+  //      그냥 두면 **표식이 아예 안 찍힌다** — 그러면 사진 판독이 원천적으로 불가능하다.
+  //      print-color-adjust:exact 로 강제한다.
   const printCss = document.createElement("style");
-  printCss.textContent = `@media print{
-    @page{size:A4 landscape;margin:0}
+  printCss.textContent = `
+  @page{size:297mm 210mm;margin:0}
+  @media print{
+    html,body{width:297mm;margin:0!important;padding:0!important;background:#fff!important}
     body>*{display:none!important}
-    body>.modal-backdrop{display:block!important;position:static;background:#fff;padding:0}
-    .modal-backdrop .modal{max-width:none;width:auto;background:#fff;box-shadow:none;padding:0;border:0}
+    body>.modal-backdrop{display:block!important;position:static!important;background:#fff!important;
+      padding:0!important;margin:0!important;overflow:visible!important}
+    .modal-backdrop .modal{max-width:none!important;width:auto!important;background:#fff!important;
+      box-shadow:none!important;padding:0!important;border:0!important;margin:0!important}
     .sheet-print-modal h3,.sheet-print-modal .hint,.sheet-print-modal .modal-actions{display:none!important}
-    .sheet-print-preview{display:block!important;overflow:visible!important;transform:none!important}
-    .sheet-page{page-break-after:always;transform:none!important;width:auto!important;height:auto!important}
-    .sheet-page:last-child{page-break-after:auto}
+    .sheet-print-preview{display:block!important;overflow:visible!important;max-height:none!important;
+      background:#fff!important;padding:0!important;margin:0!important;gap:0!important}
+    .sheet-page{zoom:1!important;transform:none!important;width:297mm!important;height:210mm!important;
+      margin:0!important;page-break-after:always;break-after:page}
+    .sheet-page:last-child{page-break-after:auto;break-after:auto}
+    .sheet{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   }`;
   document.head.appendChild(printCss);
 
