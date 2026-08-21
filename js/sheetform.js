@@ -22,8 +22,42 @@ export const CNT = { reb: [6, 4], ast: [3, 4], stl: [2, 4], blk: [2, 4], to: [2,
 
 export const PLAYER_ROWS = 9;
 
-// 열 폭(mm). 합계 280.0 — 종이 297에서 좌우 여백 8mm씩 뺀 281 안에 들어간다.
-const COLS = "22mm 9mm 9mm 9mm 53.0mm 35.7mm 44.8mm 25.1mm 13.4mm 9.5mm 9.5mm 9.5mm 9.5mm 21mm";
+// ── 열 폭 ────────────────────────────────────────────────
+// 버블 크기와 간격에서 **계산해서** 낸다. 예전에는 "53.0mm 35.7mm …" 처럼 손으로
+// 적어 뒀는데, 그러면 버블을 조금만 키워도 칸이 안 맞아 넘치거나 남는다.
+//
+// 종이 폭이 정해져 있으니 어디선가 가져와야 한다. 비고 칸에서 가져왔다 — 칸이
+// 모자랄 때 몇 자 적는 자리라 기록 자체에는 안 들어가고, 판독기도 어차피 손글씨는
+// 못 읽는다. 21mm → 11.6mm 로 줄여 9.4mm 를 얻었다.
+//
+// 그 9.4mm 는 **버블 사이 간격**에 얹었다. 버블 자체를 키우는 쪽도 해 봤는데
+// (3.2→3.4mm) 1,792칸 채점에서 틀린 칸이 1개에서 9개로 늘었다 — 표본이 인쇄된
+// 테두리에 가까워지면서 빈 칸 기준이 어두워지고, 마킹의 상대 어둡기가 문턱값
+// 언저리로 밀려 올라갔다. 간격을 넓히는 쪽은 그런 부작용이 없으면서 종이가 밀렸을
+// 때의 여유만 커진다 — 판독이 어긋나는 건 늘 옆 칸을 건드릴 때였다.
+const BUB = { w: 3.2, h: 2.6 };          // 버블 하나(mm) — 키우지 말 것, 위 참고
+const ATT = { pad: 0.25, gap: 0.65, group: 0.9 }; // 슛 캡슐 안쪽 여백 · 캡슐 사이 · 5개마다
+const HALF_PAD = 1.2;                    // 전반/후반 칸 좌우 여백
+const CNT_PAD = 1.2, CNT_GAP = 0.94;     // 카운트 칸 좌우 여백 · 버블 사이
+
+// 슛 칸: 시도 n 개가 가로로 늘어선다. 5개마다 한 칸 띄어 세기 쉽게 한다.
+const shotW = (n) =>
+  n * (BUB.w + ATT.pad * 2) + (n - 1) * ATT.gap + Math.floor(n / 5) * ATT.group + HALF_PAD * 2;
+// 카운트 칸: 버블 w 개가 가로로.
+const cntW = (w) => w * BUB.w + (w - 1) * CNT_GAP + CNT_PAD * 2;
+
+const MEMO_MM = 11.6;                    // 비고 — 있으면 좋지만 여기가 주인공은 아니다
+const COL_MM = [
+  22, 9, 9, 9,                                        // 선수 · 출전 · 전반/후반 · 넣음/놓침
+  shotW(SHOT.p2), shotW(SHOT.p3), shotW(SHOT.ft),     // 2점 · 3점 · 자유투
+  cntW(CNT.reb[0]), cntW(CNT.ast[0]), cntW(CNT.stl[0]),
+  cntW(CNT.blk[0]), cntW(CNT.to[0]), cntW(CNT.pf[0]),
+  MEMO_MM,
+];
+const COLS = COL_MM.map((v) => `${+v.toFixed(2)}mm`).join(" ");
+
+// 종이 297mm 에서 좌우 여백 8mm 씩 뺀 281mm 안에 들어가야 한다. 넘으면 표가 잘린다.
+export const COLS_TOTAL_MM = COL_MM.reduce((a, b) => a + b, 0);
 
 export const SHEET_CSS = `
 .sheet{position:relative;width:297mm;height:210mm;background:#fff;padding:6mm 8mm;
@@ -132,20 +166,20 @@ export const SHEET_CSS = `
 
 /* 한 시도가 세로 한 쌍(넣음/놓침). 칸막이 선 대신 옅은 캡슐 배경으로 한 세트임을 보여준다. */
 .sheet .shot{display:flex;flex-direction:column}
-.sheet .half{flex:1;display:flex;align-items:center;gap:0.4mm;padding:0.6mm 1.2mm}
+.sheet .half{flex:1;display:flex;align-items:center;gap:${ATT.gap}mm;padding:0.6mm ${HALF_PAD}mm}
 .sheet .half:nth-child(1){background:var(--h1);border-bottom:0.4mm solid var(--line)}
 .sheet .half:nth-child(2){background:var(--h2)}
-.sheet .att{display:flex;flex-direction:column;gap:0.9mm;padding:0.45mm 0.25mm;
+.sheet .att{display:flex;flex-direction:column;gap:0.9mm;padding:0.45mm ${ATT.pad}mm;
      border-radius:1.6mm;background:rgba(31,42,82,0.055)}
-.sheet .att:nth-child(5n){margin-right:0.9mm}
+.sheet .att:nth-child(5n){margin-right:${ATT.group}mm}
 
 .sheet .memo{display:flex;flex-direction:column;justify-content:space-evenly;
       padding:1.4mm 1.6mm;background:#fffdf5}
 .sheet .memo i{display:block;border-bottom:0.25mm dashed #c9bfa0;height:0}
-.sheet .cnt{display:flex;flex-direction:column;justify-content:center;gap:1mm;padding:1mm 1.2mm;background:#fafcfe}
-.sheet .cline{display:flex;gap:0.7mm;justify-content:center}
+.sheet .cnt{display:flex;flex-direction:column;justify-content:center;gap:1mm;padding:1mm ${CNT_PAD}mm;background:#fafcfe}
+.sheet .cline{display:flex;gap:${CNT_GAP}mm;justify-content:center}
 
-.sheet .b{width:3.2mm;height:2.6mm;border-radius:50%;border:0.28mm solid var(--bub);flex:0 0 auto}
+.sheet .b{width:${BUB.w}mm;height:${BUB.h}mm;border-radius:50%;border:0.28mm solid var(--bub);flex:0 0 auto}
 
 /* 꼬리글 — 안의 것들을 자리마다 못 박아 둔다. 예전처럼 space-between 으로 흘려 두면
    글자 수가 바뀔 때마다 코드 버블이 좌우로 옮겨 다닌다. */
