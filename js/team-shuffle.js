@@ -1,6 +1,6 @@
 import { ROSTER } from "./roster.js";
 import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft, saveSheetRoster } from "./storage.js";
-import { sheetHTML, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
+import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
 import {
   jerseyHTML,
@@ -558,19 +558,27 @@ function showSheetPrintModal(teams, gameDate) {
   backdrop.innerHTML = `
     <div class="modal sheet-print-modal">
       <h3>기록지 ${teams.length}장</h3>
-      <p class="hint">인쇄 창에서 <b>배율 100%</b>, <b>여백 없음</b>, 그리고 <b>배경 그래픽 켜기</b>를
-        확인해주세요 — 배경 그래픽이 꺼져 있으면 <b>검은 표식이 안 찍혀서</b> 사진 판독이 아예 안 됩니다.
-        용지는 <b>A4 세로 그대로</b> 두시면 됩니다 — 기록지가 <b>옆으로 누워서</b> 찍힙니다.
-        나온 종이를 90° 돌려서 쓰시면 됩니다. (가로로 맞추려 하면 아이폰에서는 오른쪽이 잘립니다.)
-        종이 <b>네 변을 따라 작은 검은 사각형</b>이 줄지어 찍히는지 꼭 확인해주세요 — 판독기가 이걸로
-        종이 안쪽이 밀린 것까지 바로잡습니다. 이게 없으면 안쪽 칸을 한 줄씩 밀려 읽습니다.
-        선수 이름은 <b>종이에 같이 찍혀 나갑니다</b> — 이름 밑의 작은 점 일곱 개가 그것입니다.
-        그래서 나중에 <b>누가 어느 기기에서 사진을 올려도</b> 이름이 자동으로 채워집니다.</p>
+      <!-- 안내는 **인쇄 창에서 실제로 눌러야 하는 것**만 남긴다. 고칠 때마다 한 줄씩
+           덧붙였더니 휴대폰 화면을 다 잡아먹어서 인쇄 단추가 화면 밖으로 밀려났었다.
+           설명은 접어 두고, 필요한 사람만 펴 보면 된다. -->
+      <p class="hint"><b>배경 그래픽 켜기</b> · 배율 100% · 여백 없음.
+        용지는 <b>A4 세로</b> 그대로 — 기록지는 옆으로 누워 나옵니다.</p>
       <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
       <div class="modal-actions">
         <button type="button" class="btn" id="sp-close">닫기</button>
         <button type="button" class="btn btn-primary" id="sp-print">인쇄</button>
       </div>
+      <details class="sheet-print-why">
+        <summary>왜 이렇게 하나요?</summary>
+        <p><b>배경 그래픽이 꺼져 있으면</b> 종이의 검은 표식이 아예 안 찍힙니다. 표식이 없으면
+          사진 판독이 원천적으로 안 되니 이것만은 꼭 켜주세요.</p>
+        <p><b>용지를 가로로 맞추려 하면</b> 아이폰에서는 오른쪽이 잘립니다. 세로로 두면
+          기록지가 알아서 누워 나오니, 나온 종이를 90° 돌려 쓰시면 됩니다.</p>
+        <p><b>종이 네 변의 작은 검은 사각형</b>이 줄지어 찍혔는지 봐주세요. 판독기가 이걸로
+          종이 안쪽이 밀린 것까지 바로잡습니다. 없으면 안쪽 칸을 한 줄씩 밀려 읽습니다.</p>
+        <p><b>이름 밑의 작은 점 일곱 개</b>는 선수 이름입니다. 덕분에 누가 어느 기기에서
+          사진을 올려도 이름이 자동으로 채워집니다.</p>
+      </details>
     </div>`;
   document.body.appendChild(backdrop);
 
@@ -617,7 +625,24 @@ function showSheetPrintModal(teams, gameDate) {
   }`;
   document.head.appendChild(printCss);
 
-  const close = () => { backdrop.remove(); printCss.remove(); };
+  // 미리보기 축소 비율은 상자 폭을 재서 정한다. 고정값(0.34)으로 두면 좁은 화면에서
+  // 기록지 오른쪽 열들이 상자 밖으로 나가 안 보인다 — 미리보기인데 못 보면 소용이 없다.
+  const PX_PER_MM = 96 / 25.4;
+  const preview = backdrop.querySelector(".sheet-print-preview");
+  const fitPreview = () => {
+    const avail = preview.clientWidth - 20; // 좌우 padding
+    if (avail <= 0) return;
+    const z = Math.max(0.12, Math.min(0.8, avail / (SHEET_MM.w * PX_PER_MM)));
+    backdrop.style.setProperty("--sheet-zoom", z.toFixed(3));
+  };
+  fitPreview();
+  window.addEventListener("resize", fitPreview);
+
+  const close = () => {
+    window.removeEventListener("resize", fitPreview);
+    backdrop.remove();
+    printCss.remove();
+  };
   backdrop.querySelector("#sp-close").addEventListener("click", close);
   backdrop.querySelector("#sp-print").addEventListener("click", () => window.print());
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
