@@ -250,7 +250,7 @@ export function mountStatsPage(container) {
     try {
       const idata = await imageDataOf(sheet.file);
       sheet.imageData = idata;
-      const corners = sheet.corners || detectFiducials(idata);
+      const corners = sheet.corners || detectFiducials(idata, sheetGeometry());
       if (!corners) {
         sheet.state = "needCorners";
         sheet.note = "네 귀퉁이의 검은 표식을 못 찾았습니다.";
@@ -264,10 +264,11 @@ export function mountStatsPage(container) {
       sheet.filled = res.filled;
       sheet.quarterPoints = res.quarterPoints;
       sheet.readings = readings;
-      sheet.judge = judgeReading(res, res.filled, readings);
       sheet.state = "read";
       sheet.names = sheet.names || res.players.map(() => "");
       fillNames(sheet);
+      // 이름 칸 홀짝 검사 결과까지 보고 나서 판정한다 — fillNames 가 그걸 채운다.
+      sheet.judge = judgeReading(res, res.filled, readings, sheet.rosterRead);
     } catch (err) {
       sheet.state = "error";
       sheet.note = err?.message || "읽지 못했습니다.";
