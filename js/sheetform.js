@@ -103,6 +103,12 @@ export const SHEET_CSS = `
 .sheet .cname .nm{font-size:3.4mm;font-weight:700;letter-spacing:-0.02em}
 .sheet .cname.blank .nm{color:#c3c8d4}
 
+/* 이름 아래 작은 버블 일곱 개 — 이 사람이 로스터 몇 번째인지. 사람이 칠하는 게 아니라
+   인쇄할 때부터 정해져 나온다. 이름 칸이 22mm(안쪽 18mm)라 크기를 줄여 넣는다. */
+.sheet .rbits{display:flex;gap:0.3mm;align-items:center;margin-top:0.5mm}
+.sheet .rbits .b{width:2.1mm;height:1.9mm;border-color:#7d8496}
+.sheet .rbits .b.on{background:#111;border-color:#111}
+
 .sheet .qplay{display:flex;flex-direction:column}
 .sheet .qplay>span{flex:1;display:flex;align-items:center;justify-content:center;gap:0.6mm;
             font-size:2.1mm;font-weight:700;color:#4d5870}
@@ -180,6 +186,47 @@ function tickHTML() {
   return s;
 }
 
+// ── 종이가 자기 명단을 들고 다닌다 ───────────────────────
+//
+// 선수 이름은 인쇄된 글자라 판독기가 못 읽는다. 그래서 뽑을 때 명단을 적어 두고
+// 나중에 줄 번호로 되살렸는데 — 그 메모는 **인쇄한 그 기기의 localStorage** 에만 있다.
+// 팀 편성을 한 사람과 사진을 올리는 사람이 다르면 이름이 통째로 빈칸이 된다.
+// 동아리에서 그 둘이 같은 사람이라는 보장이 전혀 없다.
+//
+// 그래서 이름을 **종이에 같이 찍는다**. 선수 이름 칸마다 작은 버블 일곱 개로
+// 그 사람이 로스터 몇 번째인지 적어 둔다(6비트 + 홀짝 검사 1비트).
+// 이러면 누가 어느 기기에서 올리든 종이만 보고 이름이 나온다.
+export const ROW_CODE_BITS = 7;
+
+// 로스터 번호에 1을 더해 담는다. 그래야 **0 = 빈 줄**이 되어, 안 쓰는 줄에는 아무것도
+// 안 찍힌다(잉크도 덜 들고 종이도 덜 지저분하다). 6비트라 62번 선수까지 들어간다.
+const ROW_MAX = 62;
+
+/** 로스터 번호 → 버블 일곱 개. 앞 6개가 번호(작은 자리부터), 마지막이 홀짝 검사. */
+export function rowCodeBits(index) {
+  const v = Number.isInteger(index) && index >= 0 && index <= ROW_MAX ? index + 1 : 0;
+  const bits = [];
+  for (let i = 0; i < 6; i++) bits.push((v >> i) & 1);
+  bits.push(bits.reduce((a, b) => a ^ b, 0)); // 짝수 홀짝 — 한 칸 잘못 읽으면 걸린다
+  return bits;
+}
+
+/**
+ * 버블 일곱 개 → 로스터 번호.
+ *   null  홀짝이 안 맞는다 = 잘못 읽었다
+ *   -1    빈 줄 (또는 이름 칸이 없는 옛 양식)
+ *   0 이상 로스터 번호
+ * "잘못 읽었다"와 "빈 줄"은 전혀 다른 말이라 섞으면 안 된다 — 빈 줄을 판독 실패로
+ * 세면 멀쩡한 기록지가 실패로 보인다.
+ */
+export function rowCodeValue(bits) {
+  if (!bits || bits.length !== ROW_CODE_BITS || bits.some((b) => b !== 0 && b !== 1)) return null;
+  if (bits.slice(0, 6).reduce((a, b) => a ^ b, 0) !== bits[6]) return null;
+  let v = 0;
+  for (let i = 0; i < 6; i++) v |= bits[i] << i;
+  return v === 0 ? -1 : v - 1;
+}
+
 // ── 기계가 읽는 기록지 코드 ──────────────────────────────
 export const CODE_BITS = 16;
 
@@ -250,9 +297,11 @@ export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = 
     <div>비고<span class="k">칸 모자랄 때</span></div>
   </div>`;
 
-  const body = rows.map(([no, name], p) => `<div class="gr prow" style="grid-template-columns:${COLS}">
+  const body = rows.map(([no, name, idx], p) => `<div class="gr prow" style="grid-template-columns:${COLS}">
     <div class="cname${no === null && !name ? " blank" : ""}">
       <span class="no">${no === null ? "&nbsp;" : "#" + no}</span><span class="nm">${esc(name) || "(예비)"}</span>
+      <span class="rbits">${rowCodeBits(name ? idx : null).map((v, i) =>
+        `<span class="b${v ? " on" : ""}" data-bub="r:${p}:${i}"></span>`).join("")}</span>
     </div>
     <div class="qplay">${[1, 2, 3, 4].map((q) => `<span>${q}${bub(`q:${p}:${q}`)}</span>`).join("")}</div>
     <div class="hcol"><span>전반</span><span>후반</span></div>

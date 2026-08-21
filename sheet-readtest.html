@@ -4,14 +4,18 @@
 <div id="stage"></div><canvas id="warp"></canvas>
 <script type="module">
 import { sheetHTML, measureSheet, SHEET_CSS } from "./js/sheetform.js";
-import { detectFiducials, readBubbles, readingsToTeam, debugOverlay } from "./js/sheetread.js";
+import { ROSTER as CLUB } from "./js/roster.js";
+import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, readSheetRoster } from "./js/sheetread.js";
 
 const style = document.createElement("style");
 style.textContent = SHEET_CSS;
 document.head.appendChild(style);
 
+// 세 번째 값은 동아리 로스터에서 몇 번째인지 — 이게 종이에 버블로 찍혀서
+// 사진을 올리는 사람이 누구든 이름이 나온다.
 const ROSTER = [[55,"조보규"],[1,"김창범"],[35,"황규철"],[23,"김준석"],[2,"김웅기"],
-                [69,"조우진"],[10,"배준혁"],[24,"김도여"],[null,""]];
+                [69,"조우진"],[10,"배준혁"],[24,"김도여"],[null,""]]
+  .map(([no, name]) => [no, name, CLUB.findIndex((p) => p.name === name)]);
 
 // 시험용 정답. 이 값들을 칠해 두고, 판독기가 같은 값을 돌려주는지 본다.
 const TRUTH = {
@@ -202,9 +206,16 @@ window.__run = async (dataUrl, opts) => {
       diffs.push(`${w.name||"(예비)"} 출전 기대[${w.quarters}] 실제[${g2.quarters}]`);
     for (const k2 of KEYS) if (w[k2] !== g2[k2]) diffs.push(`${w.name||"(예비)"} ${k2} 기대${w[k2]} 실제${g2[k2]}`);
   });
+  // 종이에 찍힌 명단이 그대로 되살아나는지 — 사진 올리는 사람이 누구든 이름이 나와야 한다
+  const paper = readSheetRoster(readings, CLUB);
+  ROSTER.forEach(([, name], i) => {
+    const got = paper.rows[i] ? paper.rows[i].name : "";
+    if ((name || "") !== got) diffs.push(`${i + 1}줄 이름 기대"${name}" 실제"${got}"`);
+  });
+
   window.__lastOverlay = () => debugOverlay(idata, found, readings).toDataURL("image/png");
   return { ok: diffs.length === 0, filled: got.filled, diffs: diffs.slice(0, 20), total: diffs.length,
-           cut: readings.threshold, size: [W, H],
+           cut: readings.threshold, size: [W, H], names: `${paper.read}명`,
            ticks: `${readings.tickHits}/${readings.tickTotal}`, corrected: readings.corrected };
 };
 
