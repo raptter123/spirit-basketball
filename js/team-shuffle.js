@@ -560,7 +560,8 @@ function showSheetPrintModal(teams, gameDate) {
       <h3>기록지 ${teams.length}장</h3>
       <p class="hint">인쇄 창에서 <b>배율 100%</b>, <b>여백 없음</b>, 그리고 <b>배경 그래픽 켜기</b>를
         확인해주세요 — 배경 그래픽이 꺼져 있으면 <b>검은 표식이 안 찍혀서</b> 사진 판독이 아예 안 됩니다.
-        용지는 자동으로 A4 가로로 잡힙니다.
+        용지는 <b>A4 세로 그대로</b> 두시면 됩니다 — 기록지가 <b>옆으로 누워서</b> 찍힙니다.
+        나온 종이를 90° 돌려서 쓰시면 됩니다. (가로로 맞추려 하면 아이폰에서는 오른쪽이 잘립니다.)
         종이 <b>네 변을 따라 작은 검은 사각형</b>이 줄지어 찍히는지 꼭 확인해주세요 — 판독기가 이걸로
         종이 안쪽이 밀린 것까지 바로잡습니다. 이게 없으면 안쪽 칸을 한 줄씩 밀려 읽습니다.
         선수 이름은 <b>종이에 같이 찍혀 나갑니다</b> — 이름 밑의 작은 점 일곱 개가 그것입니다.
@@ -579,16 +580,21 @@ function showSheetPrintModal(teams, gameDate) {
   // 적어 둔다.
   //   1) 미리보기를 zoom 으로 줄여 놨는데 인쇄에서 zoom 을 되돌리지 않았다.
   //      transform 만 지웠더니 종이가 34% 크기로 찍혔다. zoom 은 transform 이 아니다.
-  //   2) @page{size:A4 landscape} 가 안 먹어서 210×297 세로로 나왔다. 기록지는 297mm
-  //      폭이라 세로 종이에는 안 들어간다. 치수를 직접 적으니 먹는다.
+  //   2) @page{size:A4 landscape} 가 안 먹어서 210×297 세로로 나왔다. 치수를 직접
+  //      적으면(297mm 210mm) 크롬 데스크톱에서는 먹는데, **iOS 사파리는 @page 의
+  //      size 를 아예 안 본다.** 아이폰에서 뽑은 PDF 가 210×297 세로로 나와서
+  //      기록지(가로 297mm) 오른쪽 87mm 가 통째로 잘렸다.
+  //      → 그래서 이제 @page 에 기대지 않는다. **세로 A4 에 90° 돌려서** 찍는다.
+  //        세로 A4 는 어디서나 기본값이라 브라우저 지원을 안 탄다. 종이를 옆으로
+  //        돌려 쓰면 된다 — 폭 넓은 서식은 원래 그렇게 뽑는다.
   //   3) 네 귀퉁이 표식은 CSS background 다. 크롬은 "배경 그래픽"이 기본으로 꺼져 있어서
   //      그냥 두면 **표식이 아예 안 찍힌다** — 그러면 사진 판독이 원천적으로 불가능하다.
   //      print-color-adjust:exact 로 강제한다.
   const printCss = document.createElement("style");
   printCss.textContent = `
-  @page{size:297mm 210mm;margin:0}
+  @page{size:A4 portrait;margin:0}
   @media print{
-    html,body{width:297mm;margin:0!important;padding:0!important;background:#fff!important}
+    html,body{width:210mm;margin:0!important;padding:0!important;background:#fff!important}
     body>*{display:none!important}
     body>.modal-backdrop{display:block!important;position:static!important;background:#fff!important;
       padding:0!important;margin:0!important;overflow:visible!important}
@@ -597,10 +603,17 @@ function showSheetPrintModal(teams, gameDate) {
     .sheet-print-modal h3,.sheet-print-modal .hint,.sheet-print-modal .modal-actions{display:none!important}
     .sheet-print-preview{display:block!important;overflow:visible!important;max-height:none!important;
       background:#fff!important;padding:0!important;margin:0!important;gap:0!important}
-    .sheet-page{zoom:1!important;transform:none!important;width:297mm!important;height:210mm!important;
-      margin:0!important;page-break-after:always;break-after:page}
+    /* 한 장 = 세로 A4 한 면. 그 안에서 기록지를 90° 돌려 딱 채운다. */
+    .sheet-page{zoom:1!important;transform:none!important;
+      width:210mm!important;height:297mm!important;position:relative!important;
+      overflow:visible!important;margin:0!important;page-break-after:always;break-after:page}
     .sheet-page:last-child{page-break-after:auto;break-after:auto}
-    .sheet{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    /* 좌상단을 축으로 90° 돌리면 x 가 -210~0 으로 가므로 210mm 만큼 오른쪽으로 민다.
+       결과: 정확히 210×297 세로 면을 채운다. */
+    .sheet-page .sheet{position:absolute!important;top:0!important;left:0!important;
+      width:297mm!important;height:210mm!important;
+      transform:translateX(210mm) rotate(90deg)!important;transform-origin:top left!important;
+      -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   }`;
   document.head.appendChild(printCss);
 
