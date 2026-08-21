@@ -138,9 +138,12 @@ export function teamTotals(team) {
 }
 
 // 쿼터별 코트 위 인원 — 출전 쿼터 표시에서 뽑는다. 엑셀의 Play 줄이 이것이다.
+//
+// 등번호에는 # 을 붙인다. 안 붙이면 등번호 없는 선수(권혁남)의 이름이 번호들 사이에
+// 그냥 섞여서 "26 4 권혁남 47" 처럼 나온다 — 47 이 사람 이름인지 등번호인지 알 수가 없다.
 export function lineups(team) {
   return [1, 2, 3, 4].map((q) =>
-    team.players.filter((p) => p.quarters.includes(q)).map((p) => (p.no == null ? p.name : p.no))
+    team.players.filter((p) => p.quarters.includes(q)).map((p) => (p.no == null ? p.name : `#${p.no}`))
   );
 }
 
