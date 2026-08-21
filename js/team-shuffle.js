@@ -547,7 +547,9 @@ function showSheetPrintModal(teams, gameDate) {
     return sheetHTML({
       date, gameNo: 1, us: t.name, them,
       roster: t.roster,
-      code: `SPIRIT-${key.replace("_", "-G")}-${TEAM_LETTERS[i]}`,
+      // 명단을 저장한 열쇠를 그대로 코드로 쓴다. 종이에 이 코드가 버블로도 찍히므로
+      // 나중에 사진만 보고 "이건 어느 기록지"인지 판독기가 스스로 알아본다.
+      code: `${key}|${t.name}`,
     });
   });
 
@@ -557,8 +559,10 @@ function showSheetPrintModal(teams, gameDate) {
     <div class="modal sheet-print-modal">
       <h3>기록지 ${teams.length}장</h3>
       <p class="hint">인쇄 창에서 <b>배율 100%</b>, <b>여백 없음</b>, 그리고 <b>배경 그래픽 켜기</b>를
-        확인해주세요 — 배경 그래픽이 꺼져 있으면 <b>네 귀퉁이 검은 표식이 안 찍혀서</b> 사진 판독이 아예 안 됩니다.
+        확인해주세요 — 배경 그래픽이 꺼져 있으면 <b>검은 표식이 안 찍혀서</b> 사진 판독이 아예 안 됩니다.
         용지는 자동으로 A4 가로로 잡힙니다.
+        종이 <b>네 변을 따라 작은 검은 사각형</b>이 줄지어 찍히는지 꼭 확인해주세요 — 판독기가 이걸로
+        종이 안쪽이 밀린 것까지 바로잡습니다. 이게 없으면 안쪽 칸을 한 줄씩 밀려 읽습니다.
         ${teams.length}팀 명단을 적어두었으니, 나중에 사진을 올리면 선수 이름이 자동으로 채워집니다.</p>
       <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
       <div class="modal-actions">

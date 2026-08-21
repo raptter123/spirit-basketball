@@ -7,12 +7,10 @@
 // 그래서 화면 순서도 사진 → 결과 → 누적이다. 숫자를 손으로 만지는 자리는 맨 아래에
 // 접어 두었다 — 판독이 틀렸을 때만 여는 곳이지, 여기가 주인공이 아니다.
 //
-// 사진 판독기는 아직 없다. 붙기 전까지는 접힌 칸을 펴서 손으로 넣어야 한다.
-// 판독기가 붙으면 readSheets() 자리만 채우면 되고 나머지는 그대로 쓴다.
 
 import { ROSTER } from "./roster.js";
 import { getNextEventDate } from "./events.js";
-import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft, getSheetRoster } from "./storage.js";
+import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft, allSheetRosters } from "./storage.js";
 import {
   emptyGame, emptyTeam, emptyPlayer, derive, teamTotals, teamScore, teamResult,
   perQuarterToCumulative, cumulativeToPerQuarter, validate, gameScore, momOf,
@@ -20,8 +18,8 @@ import {
   cumulativeRows, sheetDateKey, summaryText,
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
-import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS } from "./sheetform.js";
-import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading } from "./sheetread.js";
+import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS, CODE_BITS } from "./sheetform.js";
+import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading, matchSheetCode } from "./sheetread.js";
 import {
   openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
   saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
@@ -229,8 +227,10 @@ export function mountStatsPage(container) {
 
   async function imageDataOf(file) {
     const bmp = await createImageBitmap(file);
-    // 너무 큰 사진은 줄인다. 버블이 3mm 니까 가로 1600px 이면 한 칸이 16px 쯤 된다.
-    const scale = Math.min(1, 1600 / bmp.width);
+    // 너무 큰 사진은 줄인다. 다만 너무 줄이면 안 된다 — 버블 세로 반지름이 1.27mm 라
+    // 가로 1600px 에서는 6.8px 밖에 안 되고, 그러면 반 칸만 밀려도 이웃 칸을 읽는다.
+    // 2200px 이면 9.4px 이라 여유가 생긴다(실제 사진으로 잰 값이다).
+    const scale = Math.min(1, 2200 / bmp.width);
     const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
     const cv = document.createElement("canvas");
     cv.width = w; cv.height = h;
@@ -261,7 +261,7 @@ export function mountStatsPage(container) {
       sheet.filled = res.filled;
       sheet.quarterPoints = res.quarterPoints;
       sheet.readings = readings;
-      sheet.judge = judgeReading(res, res.filled);
+      sheet.judge = judgeReading(res, res.filled, readings);
       sheet.state = "read";
       sheet.names = sheet.names || res.players.map(() => "");
       fillNames(sheet);
@@ -274,14 +274,37 @@ export function mountStatsPage(container) {
 
   // 기록지를 사이트에서 뽑았다면 그때 적어둔 명단이 있다. 줄 번호로 이름을 되찾는다.
   // (판독기는 인쇄된 글자를 못 읽는다 — 그래서 뽑을 때 적어두는 쪽을 택했다.)
+  //
+  // 다만 **어느 종이인지 확인하고 나서** 채워야 한다. 예전에는 마지막으로 뽑은 명단을
+  // 줄 번호만 보고 그대로 덮어썼다. 그래서 8월 23일에 찍은 사진에 전혀 다른 팀 이름이
+  // 그럴듯하게 붙어 나왔다 — 종이에는 조보규·김창범·황규철이 인쇄되어 있는데 화면에는
+  // 고성익·김산·박준수가 떴다. 숫자가 맞아도 이름이 틀리면 기록은 통째로 쓸모없다.
+  //
+  // 이제는 종이 아래쪽에 버블로 찍어 둔 코드를 읽어 16비트가 **전부** 맞을 때만 채운다.
+  // 못 가리면 비워 두고 사람에게 고르게 한다 — 틀리게 채우느니 안 채우는 게 낫다.
   function fillNames(sheet) {
-    const team = game.teams[sheet.team ?? 0];
-    const saved = getSheetRoster(`${sheetDateKey(game)}|${team?.name}`);
-    if (!saved) return false;
+    sheet.nameSource = null;
+    const saved = allSheetRosters();
+    if (!saved.length) return false;
+
+    const m = matchSheetCode(sheet.readings, saved.map((s) => ({ key: s.key, roster: s.roster })));
+    sheet.codeScore = m.score;
+    if (!m.match) {
+      sheet.nameSource = sheet.readings?.hasCode
+        ? { ok: false, why: `기록지 코드가 안 맞습니다 (${m.score}/${CODE_BITS}칸).` }
+        : { ok: false, why: "이 기록지에는 코드 칸이 없습니다 — 예전 양식입니다." };
+      return false;
+    }
+
     let hit = 0;
-    saved.forEach(([, name], i) => {
+    m.match.roster.forEach(([, name], i) => {
       if (name && !sheet.names[i]) { sheet.names[i] = name; hit++; }
     });
+    // 코드로 팀까지 알아냈으니 팀 선택도 맞춰 준다.
+    const teamName = m.match.key.split("|")[1];
+    const ti = game.teams.findIndex((t) => t.name === teamName);
+    if (ti >= 0) sheet.team = ti;
+    sheet.nameSource = { ok: true, why: `${CODE_BITS}/${CODE_BITS}칸 일치 — ${teamName} 기록지로 확인` };
     return hit > 0;
   }
 
@@ -289,14 +312,104 @@ export function mountStatsPage(container) {
     return r.quarters.length || r.p2a || r.p3a || r.fta || r.reb || r.ast || r.stl || r.blk || r.to || r.pf;
   }
 
+  // ── 건별 판독 리포트 ────────────────────────────────────
+  //
+  // "안 맞는다"는 말만으로는 어디가 안 맞는지 알 수가 없다. 그래서 판독기가 **칸 하나
+  // 하나에 대해** 무엇을 보고 그렇게 판단했는지 그대로 적어 내려준다. 종이를 옆에 두고
+  // 줄 단위로 대조하면 어느 칸이 어떻게 틀렸는지 바로 짚인다.
+  //
+  // 애매한 칸(문턱값 근처)을 따로 모아 준다 — 판독이 틀린다면 십중팔구 여기서 틀린다.
+  const STAT_LABEL = { reb: "리바운드", ast: "어시스트", stl: "스틸", blk: "블락", to: "턴오버", pf: "파울" };
+  const SHOT_LABEL = { p2: "2점", p3: "3점", ft: "자유투" };
+
+  function readingReport(sheet) {
+    const g = sheetGeometry();
+    const r = sheet.readings;
+    if (!r) return "";
+    const cut = r.threshold;
+    const name = (pi) => sheet.names?.[pi] || `${pi + 1}번째 줄`;
+    const lines = [];
+
+    lines.push(`# 판독 리포트 — ${sheet.name}`);
+    lines.push(`사진 ${sheet.imageData.width}×${sheet.imageData.height}px`);
+    lines.push(`눈금 표식 ${r.tickHits}/${r.tickTotal} 찾음 · ${r.corrected ? "밀림 보정 함" : "밀림 보정 못 함(옛 양식)"}`);
+    lines.push(sheet.nameSource
+      ? `기록지 코드 — ${sheet.nameSource.why}`
+      : `기록지 코드 ${sheet.codeScore ?? "-"}/${CODE_BITS}칸 일치`);
+    lines.push(`어둡기 문턱값 ${cut.toFixed(3)} (이보다 어두우면 칠한 것으로 봄)`);
+    lines.push(`칠한 것으로 읽은 칸 ${sheet.filled}개`);
+    lines.push("");
+
+    // 줄마다 무엇을 읽었는지
+    lines.push("## 줄별로 읽은 것");
+    sheet.rows.forEach((row, pi) => {
+      if (!rowHasMarks(row)) return;
+      const pts = row.p2m * 2 + row.p3m * 3 + row.ftm;
+      lines.push(`- ${name(pi)} — ${pts}점 · 출전 ${row.quarters.join(",") || "없음"} · ` +
+        `2점 ${row.p2m}/${row.p2a} · 3점 ${row.p3m}/${row.p3a} · 자유투 ${row.ftm}/${row.fta} · ` +
+        `리바 ${row.reb} 어시 ${row.ast} 스틸 ${row.stl} 블락 ${row.blk} 턴오버 ${row.to} 파울 ${row.pf}`);
+    });
+    lines.push("");
+
+    // 칠한 것으로 본 칸 전부 — 종이와 하나씩 대조하라고
+    lines.push("## 칠한 것으로 본 칸 (종이와 하나씩 대조해보세요)");
+    const marks = [];
+    for (const [id, v] of r) {
+      if (v.v === "blank" || id[0] === "k") continue;
+      marks.push({ id, ...v });
+    }
+    marks.sort((a, b) => a.id.localeCompare(b.id));
+    for (const m of marks) {
+      lines.push(`- ${describeBubble(m.id, name)} → ${m.v === "red" ? "빨강" : "검정"} (어둡기 ${m.ratio.toFixed(2)})`);
+    }
+    lines.push("");
+
+    // 애매한 칸 — 여기가 틀릴 곳이다
+    const near = [];
+    for (const [id, v] of r) {
+      if (id[0] === "k" || v.ratio == null) continue;
+      if (v.ratio > cut * 0.88 && v.ratio < cut * 1.12) near.push({ id, ...v });
+    }
+    near.sort((a, b) => a.ratio - b.ratio);
+    lines.push(`## 애매한 칸 ${near.length}개 — 문턱값 ${cut.toFixed(3)} 언저리`);
+    lines.push("판독이 틀린다면 거의 이 칸들입니다. 종이를 보고 확인해주세요.");
+    for (const m of near.slice(0, 120)) {
+      lines.push(`- ${describeBubble(m.id, name)} → ${m.v === "blank" ? "빈 칸" : m.v === "red" ? "빨강" : "검정"}` +
+        ` (어둡기 ${m.ratio.toFixed(3)})`);
+    }
+    if (near.length > 120) lines.push(`- … 그 밖에 ${near.length - 120}개`);
+    lines.push("");
+    lines.push(`전체 칸 ${g.bubbles.length}개 중 위에 적은 것 말고는 모두 뚜렷한 빈 칸이었습니다.`);
+    return lines.join("\n");
+  }
+
+  // 버블 id 를 사람 말로. "s:0:p2:1:3:m" → "조보규 2점 전반 4번째 시도 넣음"
+  function describeBubble(id, name) {
+    const t = id.split(":");
+    const who = name(+t[1]);
+    if (t[0] === "q") return `${who} 출전 ${t[2]}쿼터`;
+    if (t[0] === "s") {
+      return `${who} ${SHOT_LABEL[t[2]]} ${t[3] === "1" ? "전반" : "후반"} ` +
+        `${+t[4] + 1}번째 시도 ${t[5] === "m" ? "넣음" : "놓침"}`;
+    }
+    if (t[0] === "c") return `${who} ${STAT_LABEL[t[2]] || t[2]} ${+t[3] + 1}번째 칸`;
+    return id;
+  }
+
   function statusHTML(sheet, i) {
     if (sheet.state === "reading") return `<span class="sheet-state">읽는 중…</span>`;
     if (sheet.state === "read") {
       const live = sheet.rows.filter(rowHasMarks).length;
       const bad = sheet.judge && !sheet.judge.ok;
+      const r = sheet.readings;
+      // 눈금 표식을 못 쓴 종이는 안쪽이 밀린 채로 읽힌다 — 조용히 넘어가면 안 된다.
+      const old = r && !r.corrected
+        ? `<span class="sheet-state is-warn">눈금 표식 없는 옛 양식</span>` : "";
       return `<span class="sheet-state ${bad ? "is-bad" : "is-ok"}">${
         bad ? "판독 실패" : `${sheet.filled}칸 읽음 · ${live}명`}</span>
+        ${old}
         <button type="button" class="btn btn-sm" data-check="${i}">판독 확인</button>
+        <button type="button" class="btn btn-sm" data-report="${i}">건별 리포트</button>
         <button type="button" class="btn btn-sm" data-corners="${i}">귀퉁이 다시</button>`;
     }
     if (sheet.state === "needCorners") {
@@ -381,6 +494,9 @@ export function mountStatsPage(container) {
     $("#sh-thumbs").querySelectorAll("[data-check]").forEach((btn) => {
       btn.addEventListener("click", () => showCheck(sheets[+btn.dataset.check]));
     });
+    $("#sh-thumbs").querySelectorAll("[data-report]").forEach((btn) => {
+      btn.addEventListener("click", () => showReport(sheets[+btn.dataset.report]));
+    });
     $("#sh-assign").querySelectorAll("select[data-team]").forEach((sel) => {
       sel.addEventListener("change", (e) => {
         const sh = sheets[+e.target.dataset.team];
@@ -419,7 +535,10 @@ export function mountStatsPage(container) {
         <p class="hint">노란 테두리가 판독기가 잡은 종이입니다. 이게 실제 종이와 어긋나 있으면
           <b>귀퉁이 다시</b>로 네 점을 직접 찍어주세요.
           동그라미가 각 칸을 본 자리 — <b>파랑</b>은 검정 마킹, <b>빨강</b>은 빨강 마킹으로 읽은 것입니다.
-          ${sheet.readings.split ? "가운데 표식을 찾아 좌우를 따로 폈습니다." : "가운데 표식이 없어 종이 전체를 한 번에 폈습니다 — 접힌 기록지는 가운데가 어긋날 수 있습니다."}</p>
+          <b>초록 동그라미가 인쇄된 칸 위에 얹혀 있어야</b> 제대로 읽은 것입니다. 한쪽으로 밀려 있으면 그만큼 틀리게 읽습니다.
+          ${sheet.readings.corrected
+            ? `네 변의 눈금 표식 ${sheet.readings.tickHits}/${sheet.readings.tickTotal}개를 찾아 종이 안쪽 밀림까지 잡았습니다(하늘색 동그라미).`
+            : "이 종이에는 <b>눈금 표식이 없습니다</b> — 예전 양식입니다. 귀퉁이 네 점만으로 폈기 때문에 종이 안쪽이 1~2mm 밀린 채로 읽힙니다. 팀 편성에서 <b>다시 인쇄</b>해주세요."}</p>
         <div class="sheet-corner-wrap"><img alt="판독 확인" id="ck-img" /></div>
         <div class="modal-actions"><button type="button" class="btn" id="ck-close">닫기</button></div>
       </div>`;
@@ -428,6 +547,42 @@ export function mountStatsPage(container) {
     const close = () => back.remove();
     back.querySelector("#ck-close").addEventListener("click", close);
     back.addEventListener("click", (e) => { if (e.target === back) close(); });
+  }
+
+  // 칸 하나하나에 대해 무엇을 보고 그렇게 읽었는지 그대로 내려준다.
+  // 종이를 옆에 두고 줄 단위로 대조하라고 만든 것이다.
+  function showReport(sheet) {
+    if (!sheet.readings) return;
+    const text = readingReport(sheet);
+    const back = document.createElement("div");
+    back.className = "modal-backdrop";
+    back.innerHTML = `
+      <div class="modal sheet-report-modal">
+        <h3>건별 판독 리포트</h3>
+        <p class="hint">판독기가 <b>칸마다</b> 무엇을 보고 그렇게 판단했는지 전부 적어둔 것입니다.
+          종이를 옆에 두고 <b>애매한 칸</b> 목록부터 확인해주세요 — 틀린다면 거의 거기서 틀립니다.</p>
+        <pre class="stats-summary sheet-report" id="rp-text"></pre>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="rp-copy">글 복사</button>
+          <button type="button" class="btn" id="rp-save">파일로 저장</button>
+          <button type="button" class="btn" id="rp-close">닫기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(back);
+    back.querySelector("#rp-text").textContent = text;
+    const close = () => back.remove();
+    back.querySelector("#rp-close").addEventListener("click", close);
+    back.addEventListener("click", (e) => { if (e.target === back) close(); });
+    back.querySelector("#rp-copy").addEventListener("click", async (e) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        e.target.textContent = "복사됨";
+      } catch { e.target.textContent = "복사 실패"; }
+    });
+    back.querySelector("#rp-save").addEventListener("click", () => {
+      download(new Blob([text], { type: "text/plain;charset=utf-8" }),
+        asciiName(`판독리포트-${sheet.name}.txt`, `spirit-reading-report.txt`));
+    });
   }
 
   // 귀퉁이를 사람이 찍는 화면. 왼쪽 위 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 순서.

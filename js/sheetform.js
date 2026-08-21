@@ -40,14 +40,28 @@ export const SHEET_CSS = `
 .sheet .fid.tl{left:2.5mm;top:2.5mm}.sheet .fid.tr{right:2.5mm;top:2.5mm}
 .sheet .fid.bl{left:2.5mm;bottom:2.5mm}.sheet .fid.br{right:2.5mm;bottom:2.5mm;border-radius:50%}
 
-/* 가운데 위·아래 표식. 종이를 반으로 접었다 펴면 접힌 선을 경계로 좌우가 서로 다른
-   면이 되어, 네 귀퉁이만으로 편 좌표가 가운데에서 몇 mm씩 어긋난다. 이 두 개가 있으면
-   접힌 선을 경계로 왼쪽·오른쪽을 따로 펼 수 있다. 실제로 접어 온 기록지 때문에 넣었다.
-   여백 안에 들어가야 해서 귀퉁이보다 작다. */
-.sheet .fid.tm,.sheet .fid.bm{width:5mm;height:5mm;left:50%;margin-left:-2.5mm}
-.sheet .fid.tm{top:0.6mm}.sheet .fid.bm{bottom:0.6mm}
+/* 눈금 표식(timing mark). 네 변을 따라 촘촘히 박아 둔 작은 검은 사각형이다.
+   귀퉁이 네 개만으로는 종이 **가장자리**만 잡힌다. 실제 사진에서는 종이가 살짝
+   말리고, 휴대폰 렌즈가 가장자리를 휘고, 인쇄 배율도 딱 맞지 않아서 종이 **안쪽**이
+   1~2mm 씩 밀린다. 버블 반지름이 1.3mm 이니 그만큼이면 옆 줄을 읽는다.
+   실제로 찍어 온 사진을 재 보니 안쪽에서 세로로 최대 13px(약 1.8mm) 밀려 있었다.
+   그래서 네 변 전체에 표식을 두고 가장자리 곡선을 통째로 잡는다. */
+.sheet .tick{position:absolute;background:#000;width:3.4mm;height:3.4mm}
+.sheet .tick.l{left:2.8mm}.sheet .tick.r{right:2.8mm}
+.sheet .tick.t{top:1.3mm}.sheet .tick.b{bottom:1.3mm}
 
-.sheet .head{display:flex;gap:3mm;align-items:stretch}
+/* 기록지 식별 코드. 사람이 읽는 글자 옆에 기계가 읽는 버블로도 같이 찍는다.
+   1) 이 사진이 어느 기록지인지 확인해 선수 이름을 안전하게 채우고
+   2) 답을 이미 아는 칸이라 판독기가 스스로 채점할 수 있다. */
+.sheet .cbits{left:158mm;display:flex;gap:0.7mm;align-items:center}
+.sheet .cbits .b{width:2.9mm;height:2.5mm;border-color:#111}
+.sheet .cbits .b.on{background:#111;border-color:#111}
+
+/* 머리글과 꼬리글은 **높이를 못 박는다**. 이 둘이 내용 길이에 따라 조금이라도 커지면
+   가운데 표(.grid 는 flex:1)가 그만큼 밀려서, 판독기가 재어 둔 좌표와 실제 인쇄물이
+   어긋난다. 실제로 어긋났었다 — 빈 기록지로 잰 좌표와 이름이 든 기록지가 세로로
+   0.21mm 달랐고, 꼬리글은 글자 길이 때문에 가로로 13.5mm 나 밀렸다. */
+.sheet .head{display:flex;gap:3mm;align-items:stretch;height:20mm;flex:0 0 auto}
 .sheet .title{display:flex;flex-direction:column;justify-content:center;gap:0.6mm;
        padding-right:3mm;border-right:0.4mm solid var(--line)}
 .sheet .title b{font-size:5.4mm;font-weight:900;line-height:1}
@@ -127,16 +141,65 @@ export const SHEET_CSS = `
 
 .sheet .b{width:3.2mm;height:2.6mm;border-radius:50%;border:0.28mm solid var(--bub);flex:0 0 auto}
 
-.sheet .foot{display:flex;justify-content:space-between;align-items:center;font-size:2.4mm;color:var(--ink-2);gap:4mm;white-space:nowrap}
+/* 꼬리글 — 안의 것들을 자리마다 못 박아 둔다. 예전처럼 space-between 으로 흘려 두면
+   글자 수가 바뀔 때마다 코드 버블이 좌우로 옮겨 다닌다. */
+.sheet .foot{position:relative;height:6.4mm;flex:0 0 auto;font-size:2.4mm;color:var(--ink-2)}
+.sheet .foot>*{position:absolute;top:50%;transform:translateY(-50%)}
 .sheet .foot b{color:var(--ink)}
-.sheet .sw{display:flex;gap:0.8mm;align-items:center}
-.sheet .sw i{width:4.2mm;height:4.2mm;display:block;border:0.25mm solid #000}
-.sheet .sw span{font-size:2.2mm;white-space:nowrap;color:var(--ink-2);margin-right:0.5mm}
-.sheet .code{letter-spacing:.06em}
+.sheet .foot .tip{left:0;width:124mm;white-space:normal;line-height:1.3;font-size:2.1mm}
+.sheet .sw{left:127mm;display:flex;gap:0.8mm;align-items:center}
+.sheet .sw i{width:3.6mm;height:3.6mm;display:block;border:0.25mm solid #000}
+.sheet .sw span{font-size:2.1mm;white-space:nowrap;color:var(--ink-2);margin-right:0.5mm}
+.sheet .code{right:0;letter-spacing:.06em;white-space:nowrap;font-size:2.2mm}
 `;
 
 function esc(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ── 눈금 표식 자리 ───────────────────────────────────────
+// 값은 종이 폭·높이에 대한 비율. 귀퉁이 표식(2.5~8.5mm)과 겹치지 않게 안쪽으로 뺀다.
+// 가로로 9개, 세로로 10개 — 재 보니 밀림은 20~30mm 폭으로 완만하게 변해서
+// 이 정도 간격이면 사이를 직선으로 이어도 충분하다.
+export const TICKS = {
+  x: [0.12, 0.215, 0.31, 0.405, 0.5, 0.595, 0.69, 0.785, 0.88],
+  y: [0.10, 0.192, 0.283, 0.375, 0.466, 0.558, 0.649, 0.741, 0.832, 0.92],
+};
+
+function tickHTML() {
+  const half = 1.7; // 표식 한 변의 절반(mm) — 가운데를 비율 자리에 맞춘다
+  let s = "";
+  TICKS.y.forEach((f, i) => {
+    const top = (SHEET_MM.h * f - half).toFixed(2);
+    s += `<i class="tick l ly${i}" style="top:${top}mm"></i><i class="tick r ry${i}" style="top:${top}mm"></i>`;
+  });
+  TICKS.x.forEach((f, i) => {
+    const left = (SHEET_MM.w * f - half).toFixed(2);
+    s += `<i class="tick t tx${i}" style="left:${left}mm"></i><i class="tick b bx${i}" style="left:${left}mm"></i>`;
+  });
+  return s;
+}
+
+// ── 기계가 읽는 기록지 코드 ──────────────────────────────
+export const CODE_BITS = 16;
+
+/** 기록지를 가리키는 16비트. 날짜·경기·팀 이름이 같으면 같은 값이 나온다. */
+export function sheetCodeBits(key) {
+  // FNV-1a — 짧고 치우침이 적다. 암호용이 아니라 서로 구분만 되면 된다.
+  let hz = 0x811c9dc5;
+  for (const ch of String(key)) {
+    hz ^= ch.codePointAt(0);
+    hz = Math.imul(hz, 0x01000193) >>> 0;
+  }
+  // 앞 세 자리는 늘 1,0,1 로 고정한다 — 판독기가 검정/빈칸 기준을 잡는 데 쓴다.
+  const bits = [1, 0, 1];
+  for (let i = 0; i < CODE_BITS - 3; i++) bits.push((hz >>> i) & 1);
+  return bits;
+}
+
+/** 사람이 읽는 코드 문자열. 종이 오른쪽 아래에 같이 찍는다. */
+export function sheetCodeText(key) {
+  return "SPIRIT · " + String(key ?? "").replace("|", " · ");
 }
 
 // 버블 하나. id 는 판독 결과를 어느 기록에 넣을지 정하는 열쇠라 반드시 붙인다.
@@ -172,6 +235,7 @@ function cntCell(p, key) {
  * roster: [[등번호|null, 이름], ...] — 모자라면 빈 줄로 채운다.
  */
 export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = [], code = "" } = {}) {
+  const bits = sheetCodeBits(code);
   const rows = [...roster];
   while (rows.length < PLAYER_ROWS) rows.push([null, ""]);
   rows.length = PLAYER_ROWS;
@@ -201,7 +265,7 @@ export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = 
 
   return `<div class="sheet">
     <div class="fid tl"></div><div class="fid tr"></div><div class="fid bl"></div><div class="fid br"></div>
-    <div class="fid tm"></div><div class="fid bm"></div>
+    ${tickHTML()}
 
     <div class="head">
       <div class="title"><b>혼 SPIRIT</b><span>STAT SHEET</span></div>
@@ -229,11 +293,13 @@ export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = 
     <div class="grid">${head}${body}</div>
 
     <div class="foot">
-      <span><b>홀수 쿼터는 검정, 짝수 쿼터는 빨강.</b> 뛴 쿼터는 <b>출전</b>에 표시.
-        <b>시도마다 칸 하나</b> — <b>넣으면 위 · 놓치면 아래</b>. 칸이 모자라면 <b>비고</b>에 적어주세요.</span>
+      <span class="tip"><b>홀수 쿼터는 검정, 짝수 쿼터는 빨강.</b> 뛴 쿼터는 <b>출전</b>에 표시.
+        <b>시도마다 칸 하나</b> — <b>넣으면 위 · 놓치면 아래</b>.</span>
       <span class="sw"><span>색 기준</span>
         <i style="background:#fff"></i><i style="background:#111"></i><i style="background:#cf2b20"></i></span>
-      <span class="code">${esc(code)}</span>
+      <span class="cbits">${bits.map((v, i) =>
+        `<span class="b${v ? " on" : ""}" data-bub="k:${i}"></span>`).join("")}</span>
+      <span class="code">${esc(sheetCodeText(code))}</span>
     </div>
   </div>`;
 }
@@ -256,9 +322,21 @@ export function measureSheet(sheetEl) {
   });
 
   const fiducials = {};
-  for (const key of ["tl", "tr", "bl", "br", "tm", "bm"]) {
+  for (const key of ["tl", "tr", "bl", "br"]) {
     const el = sheetEl.querySelector(`.fid.${key}`);
     if (el) fiducials[key] = toMm(el.getBoundingClientRect());
+  }
+
+  // 눈금 표식도 같은 방식으로 잰다. 판독기는 이 자리를 사진에서 찾아
+  // 종이 네 변의 실제 곡선을 잡는다.
+  const ticks = { l: [], r: [], t: [], b: [] };
+  for (const side of ["l", "r", "t", "b"]) {
+    const n = side === "l" || side === "r" ? TICKS.y.length : TICKS.x.length;
+    const prefix = side === "l" ? "ly" : side === "r" ? "ry" : side === "t" ? "tx" : "bx";
+    for (let i = 0; i < n; i++) {
+      const el = sheetEl.querySelector(`.tick.${prefix}${i}`);
+      ticks[side].push(el ? toMm(el.getBoundingClientRect()) : null);
+    }
   }
 
   const bubbles = [];
@@ -266,7 +344,7 @@ export function measureSheet(sheetEl) {
     bubbles.push({ id: el.dataset.bub, ...toMm(el.getBoundingClientRect()) });
   });
 
-  return { page: { ...SHEET_MM }, fiducials, bubbles };
+  return { page: { ...SHEET_MM }, fiducials, ticks, bubbles };
 }
 
 // 버블 id 를 다시 뜯어 읽는다. 판독 결과를 기록으로 옮길 때 쓴다.

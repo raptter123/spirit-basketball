@@ -6,11 +6,18 @@
 //
 //   1) 네 귀퉁이 표식을 찾는다 (못 찾으면 사람이 네 귀퉁이를 찍어 준다)
 //   2) 그 네 점으로 원근 변환(호모그래피)을 풀어 종이 mm → 사진 px 로 옮긴다
-//   3) 버블마다 안쪽 몇 점을 찍어 어둡기와 색을 잰다
+//   3) 네 변의 눈금 표식을 찾아 종이 **안쪽**의 밀림을 마저 잡는다
+//   4) 버블마다 안쪽 몇 점을 찍어 어둡기와 색을 잰다
 //
 // 조명이 고르지 않아도 되게, 버블 바로 바깥의 종이 색을 같이 재서 그것과 견준다.
+//
+// 3) 이 왜 필요한가 — 실제로 찍어 온 사진을 재 봤다. 귀퉁이 네 점만으로 편 좌표는
+// 종이 가장자리에서는 맞지만 안쪽으로 들어갈수록 밀렸다. 가로 -4~+12px, 세로 -13~+12px.
+// 버블 세로 반지름이 9.4px 이니 그만큼이면 **옆 줄을 읽는다**. 종이가 완전히 평평하지
+// 않고, 휴대폰 렌즈가 가장자리를 휘고, 인쇄 배율도 딱 맞지 않아서 생기는 것이라
+// 문턱값을 아무리 손봐도 고쳐지지 않는다. 표식을 네 변에 깔아 잡는 수밖에 없다.
 
-import { SHEET_MM } from "./sheetform.js";
+import { SHEET_MM, CODE_BITS, sheetCodeBits } from "./sheetform.js";
 
 // ── 호모그래피 ───────────────────────────────────────────
 // 네 점 대응으로 3×3 변환을 푼다. h33=1 로 고정하면 미지수 8개짜리 선형계가 된다.
@@ -49,13 +56,17 @@ export function applyHomography(h, x, y) {
   return { x: (h[0] * x + h[1] * y + h[2]) / w, y: (h[3] * x + h[4] * y + h[5]) / w };
 }
 
-// ── 귀퉁이 표식 찾기 ─────────────────────────────────────
-// 표식은 6mm 검은 사각형이다. 사진을 줄여서 어두운 덩어리를 모으고, 크기·모양이
-// 맞는 것 중 네 귀퉁이에 가장 가까운 것을 하나씩 고른다.
-//
-// 못 찾으면 null 을 돌려준다 — 종이가 잘려 찍혔거나 그늘이 심한 경우다.
-// 그때는 사람이 네 귀퉁이를 찍어 주는 쪽으로 넘어간다.
-export function detectFiducials(imageData) {
+// ── 어두운 덩어리 모으기 ─────────────────────────────────
+// 귀퉁이 표식도 눈금 표식도 여기서 나온 것 중에 크기와 자리로 골라 쓴다.
+// 한 사진에 한 번만 하면 되므로 결과를 붙여 둔다.
+export function darkBlobs(imageData) {
+  if (imageData.__blobs) return imageData.__blobs;
+  const out = blobScan(imageData);
+  try { Object.defineProperty(imageData, "__blobs", { value: out, enumerable: false }); } catch { /* 못 붙이면 그냥 다시 센다 */ }
+  return out;
+}
+
+function blobScan(imageData) {
   const { width: W, height: H, data } = imageData;
 
   // 밝기 히스토그램으로 문턱값을 정한다(오츠). 조명이 어두워도 따라간다.
@@ -109,17 +120,31 @@ export function detectFiducials(imageData) {
     blobs.push({ n, cx: sx / n, cy: sy / n, bw, bh, fill: n / (bw * bh) });
   }
 
+  // 네모지고 속이 꽉 찬 것만 남긴다. 크기로 거르는 일은 부르는 쪽에서 한다 —
+  // 귀퉁이 표식은 6mm, 눈금 표식은 3.4mm 로 서로 다르기 때문이다.
+  return blobs.filter((b) => b.bw / b.bh > 0.6 && b.bw / b.bh < 1.7 && b.fill > 0.62);
+}
+
+// ── 귀퉁이 표식 찾기 ─────────────────────────────────────
+// 표식은 6mm 검은 사각형이다. 사진을 줄여서 어두운 덩어리를 모으고, 크기·모양이
+// 맞는 것 중 네 귀퉁이에 가장 가까운 것을 하나씩 고른다.
+//
+// 못 찾으면 null 을 돌려준다 — 종이가 잘려 찍혔거나 그늘이 심한 경우다.
+// 그때는 사람이 네 귀퉁이를 찍어 주는 쪽으로 넘어간다.
+export function detectFiducials(imageData) {
+  const { width: W, height: H } = imageData;
+  const all = darkBlobs(imageData);
+
   // 표식 크기는 종이 폭의 약 2%(6mm / 297mm). 사진에 종이가 꽉 찼다고 보고 어림한다.
   const expect = W * 0.0202;
-  const cands = blobs.filter((b) => {
+  const cands = all.filter((b) => {
     const side = (b.bw + b.bh) / 2;
-    return side > expect * 0.45 && side < expect * 2.4 &&
-      b.bw / b.bh > 0.6 && b.bw / b.bh < 1.7 &&
-      b.fill > 0.62;
+    return side > expect * 0.55 && side < expect * 2.4;
   });
   if (cands.length < 4) return null;
 
-  // 네 귀퉁이에 가장 가까운 것을 하나씩. 같은 덩어리가 두 번 뽑히면 실패로 본다.
+  // 네 귀퉁이에 가장 가까운 것을 하나씩. 크기가 6mm 에서 멀수록 벌점을 준다 —
+  // 안 그러면 바로 옆의 3.4mm 눈금 표식을 귀퉁이로 잘못 잡는다.
   const corners = { tl: [0, 0], tr: [W, 0], br: [W, H], bl: [0, H] };
   const picked = {};
   const used = new Set();
@@ -127,7 +152,9 @@ export function detectFiducials(imageData) {
     let bestB = null, bestD = Infinity;
     for (const c of cands) {
       if (used.has(c)) continue;
-      const d = (c.cx - x) ** 2 + (c.cy - y) ** 2;
+      const side = (c.bw + c.bh) / 2;
+      const miss = Math.abs(side - expect) / expect; // 0 이면 딱 6mm
+      const d = Math.hypot(c.cx - x, c.cy - y) * (1 + miss * 1.5);
       if (d < bestD) { bestD = d; bestB = c; }
     }
     if (!bestB) return null;
@@ -142,24 +169,131 @@ export function detectFiducials(imageData) {
   );
   if (span < Math.min(W, H) * 0.35) return null;
 
-  // 가운데 위·아래 표식은 네 귀퉁이를 잡은 뒤에 찾는다. 사진에 원근이 있으면 종이의
-  // 가운데가 사진의 가운데가 아니라서, 귀퉁이 사이의 중점 근처를 뒤져야 맞는다.
-  // 없으면 없는 대로 둔다 — 예전에 뽑은 기록지에는 이 표식이 없다.
-  const near = (ax, ay, tol) => {
-    let bestB = null, bestD = tol * tol;
-    for (const c of cands) {
-      if (used.has(c)) continue;
-      const d = (c.cx - ax) ** 2 + (c.cy - ay) ** 2;
-      if (d < bestD) { bestD = d; bestB = c; }
-    }
-    if (bestB) used.add(bestB);
-    return bestB && { x: bestB.cx, y: bestB.cy };
-  };
-  const tol = span * 0.12;
-  const tm = near((picked.tl.x + picked.tr.x) / 2, (picked.tl.y + picked.tr.y) / 2, tol);
-  const bm = near((picked.bl.x + picked.br.x) / 2, (picked.bl.y + picked.br.y) / 2, tol);
-  if (tm && bm) { picked.tm = tm; picked.bm = bm; }
   return picked;
+}
+
+// ── 눈금 표식으로 종이 안쪽 밀림 잡기 ────────────────────
+//
+// 귀퉁이 네 점으로 푼 호모그래피는 **가장자리에서만** 맞는다. 종이가 조금 말리거나
+// 렌즈가 휘면 안쪽이 1~2mm 밀리는데, 버블 반지름이 1.3mm 이라 그 정도면 옆 줄을 읽는다.
+//
+// 그래서 네 변에 박아 둔 눈금 표식을 사진에서 찾아, "예상 자리 → 실제 자리" 차이를
+// 잰다. 그 차이를 네 변에서 안쪽으로 부드럽게 이어 붙이면(쿤스 패치) 종이 전체의
+// 밀림 지도가 나온다. 표식을 못 찾으면 차이 0 — 지금까지와 똑같이 동작한다.
+
+/** 눈금 표식을 사진에서 찾는다. 돌려주는 값은 geometry.ticks 와 같은 모양(px). */
+export function detectTicks(imageData, corners, geometry, h) {
+  const { width: W } = imageData;
+  if (!geometry.ticks) return null;
+  const all = darkBlobs(imageData);
+  const expect = W * 0.0114; // 3.4mm / 297mm
+  const cands = all.filter((b) => {
+    const side = (b.bw + b.bh) / 2;
+    return side > expect * 0.4 && side < expect * 2.0;
+  });
+
+  // 표식 사이 간격의 절반보다 좁게 찾는다 — 옆 표식을 잘못 집지 않게.
+  const span = Math.hypot(corners.tr.x - corners.tl.x, corners.tr.y - corners.tl.y);
+  const tol = span * 0.035;
+
+  const found = { l: [], r: [], t: [], b: [] };
+  let hits = 0;
+  for (const side of ["l", "r", "t", "b"]) {
+    for (const mm of geometry.ticks[side]) {
+      if (!mm) { found[side].push(null); continue; }
+      const want = applyHomography(h, mm.cx, mm.cy);
+      let best = null, bestD = tol;
+      for (const c of cands) {
+        const d = Math.hypot(c.cx - want.x, c.cy - want.y);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      found[side].push(best ? { x: best.cx, y: best.cy } : null);
+      if (best) hits++;
+    }
+  }
+  found.hits = hits;
+  found.total = ["l", "r", "t", "b"].reduce((n, s) => n + geometry.ticks[s].length, 0);
+  return found;
+}
+
+// 한 변을 따라 잰 밀림을, 그 변 위의 아무 자리에서나 꺼내 쓸 수 있게 한다.
+// 표식이 없는 자리는 양옆 것으로 이어 붙이고, 양 끝은 귀퉁이(밀림 0)로 묶는다.
+function railFn(mmList, pxList, keyOf, lo, hi) {
+  const pts = [{ t: lo, dx: 0, dy: 0 }];
+  mmList.forEach((mm, i) => {
+    const px = pxList[i];
+    if (!mm || !px) return;
+    pts.push({ t: keyOf(mm), dx: px.dx, dy: px.dy });
+  });
+  pts.push({ t: hi, dx: 0, dy: 0 });
+  pts.sort((a, b) => a.t - b.t);
+  return (t) => {
+    if (t <= pts[0].t) return pts[0];
+    for (let i = 1; i < pts.length; i++) {
+      if (t <= pts[i].t) {
+        const a = pts[i - 1], b = pts[i];
+        const f = b.t === a.t ? 0 : (t - a.t) / (b.t - a.t);
+        return { dx: a.dx + (b.dx - a.dx) * f, dy: a.dy + (b.dy - a.dy) * f };
+      }
+    }
+    return pts[pts.length - 1];
+  };
+}
+
+/**
+ * mm → 사진 px 로 옮기는 함수를 만든다. 눈금 표식이 잡히면 밀림까지 보정한다.
+ * 돌려주는 값: { at(mmX, mmY) → {x,y}, corrected: boolean, hits, total }
+ */
+export function buildWarp(geometry, corners, ticksPx) {
+  const f = geometry.fiducials;
+  const P = (k) => ({ x: f[k].cx, y: f[k].cy });
+  const h = solveHomography(
+    [P("tl"), P("tr"), P("br"), P("bl")],
+    [corners.tl, corners.tr, corners.br, corners.bl]
+  );
+  if (!h) throw new Error("네 귀퉁이로 종이 모양을 잡지 못했습니다.");
+
+  const plain = { at: (x, y) => applyHomography(h, x, y), corrected: false, hits: 0, total: 0, h };
+  if (!ticksPx || !geometry.ticks) return plain;
+
+  // 표식이 절반도 안 잡히면 밀림 지도를 믿을 수 없다 — 그냥 호모그래피로 간다.
+  if (ticksPx.hits < ticksPx.total * 0.5) return { ...plain, hits: ticksPx.hits, total: ticksPx.total };
+
+  // 변마다 "예상과 실제의 차이"를 모은다
+  const resid = {};
+  for (const side of ["l", "r", "t", "b"]) {
+    resid[side] = geometry.ticks[side].map((mm, i) => {
+      const px = ticksPx[side][i];
+      if (!mm || !px) return null;
+      const want = applyHomography(h, mm.cx, mm.cy);
+      return { dx: px.x - want.x, dy: px.y - want.y };
+    });
+  }
+
+  const x0 = f.tl.cx, x1 = f.tr.cx, y0 = f.tl.cy, y1 = f.bl.cy;
+  const L = railFn(geometry.ticks.l, resid.l, (mm) => mm.cy, y0, y1);
+  const R = railFn(geometry.ticks.r, resid.r, (mm) => mm.cy, y0, y1);
+  const T = railFn(geometry.ticks.t, resid.t, (mm) => mm.cx, x0, x1);
+  const B = railFn(geometry.ticks.b, resid.b, (mm) => mm.cx, x0, x1);
+
+  // 쿤스 패치. 네 변의 값은 그대로 살리고 안쪽은 부드럽게 잇는다.
+  // 귀퉁이의 밀림은 0 이라(호모그래피가 거기에 딱 맞춰져 있다) 빼 줄 항이 사라진다.
+  return {
+    at: (mx, my) => {
+      const p = applyHomography(h, mx, my);
+      const u = Math.max(0, Math.min(1, (mx - x0) / (x1 - x0)));
+      const v = Math.max(0, Math.min(1, (my - y0) / (y1 - y0)));
+      const t = T(mx), b = B(mx), l = L(my), r = R(my);
+      return {
+        x: p.x + (1 - v) * t.dx + v * b.dx + (1 - u) * l.dx + u * r.dx,
+        y: p.y + (1 - v) * t.dy + v * b.dy + (1 - u) * l.dy + u * r.dy,
+      };
+    },
+    corrected: true,
+    hits: ticksPx.hits,
+    total: ticksPx.total,
+    h,
+  };
 }
 
 // ── 버블 읽기 ────────────────────────────────────────────
@@ -203,6 +337,88 @@ function otsuOn(values) {
 
 const RED_MARGIN = 22; // R 이 G·B 평균보다 이만큼 크면 빨강
 
+// ── 인쇄된 동그라미에 맞춰 마지막으로 미세 조정 ──────────
+//
+// 눈금 표식은 종이 **네 변**에 있다. 그래서 변 근처는 정확한데 한가운데는 여전히
+// 조금 남는다(위쪽 선수 줄에서 특히). 다행히 종이에는 이미 훌륭한 기준이 잔뜩
+// 인쇄되어 있다 — 버블 동그라미 자체다.
+//
+// 제대로 맞은 자리에서는 **테두리는 어둡고 안쪽은 밝다**. 이 차이가 가장 큰 자리를
+// 찾으면 된다. 한 칸에 수십 개를 한꺼번에 보므로 그중 몇 개가 칠해져 있어도 흔들리지
+// 않는다. 찾는 범위는 버블 간격의 절반보다 훨씬 좁게 묶는다 — 넓히면 **옆 줄**에
+// 들러붙어 오히려 망가진다(그렇게 한 번 망가뜨려 봤다).
+//
+// 찾는 범위는 px 가 아니라 **버블 크기에 대한 비율**로 잡는다. 사진 해상도는 제각각인데
+// px 로 고정하면 큰 사진에서는 너무 좁고 작은 사진에서는 옆 줄까지 닿는다.
+const SNAP_RATIO = 0.35; // 버블 세로 반지름의 이만큼까지만 (줄 간격의 절반은 1.4배)
+
+function ringSnap(imageData, warp, geometry) {
+  const { width: W, height: H, data } = imageData;
+  const lum = (x, y) => {
+    const px = x | 0, py = y | 0;
+    if (px < 0 || py < 0 || px >= W || py >= H) return 255;
+    const i = (py * W + px) * 4;
+    return (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+  };
+  const RING = [];
+  for (let a = 0; a < 16; a++) RING.push([Math.cos(a * Math.PI / 8), Math.sin(a * Math.PI / 8)]);
+
+  const bs = geometry.bubbles.filter((b) => b.id[0] !== "k").map((b) => {
+    const c = warp.at(b.cx, b.cy);
+    const ex = warp.at(b.cx + b.rx, b.cy), ey = warp.at(b.cx, b.cy + b.ry);
+    return { mx: b.cx, my: b.cy, x: c.x, y: c.y,
+             rx: Math.hypot(ex.x - c.x, ex.y - c.y), ry: Math.hypot(ey.x - c.x, ey.y - c.y) };
+  });
+  if (bs.length < 100) return null;
+
+  // 테두리가 얼마나 어두운지만 본다. 안쪽 밝기까지 같이 보면 **칠해진 칸**이 발목을
+  // 잡는다(칠한 칸은 안쪽도 까맣다). 테두리만 보면, 칠한 칸은 어느 쪽으로 밀어도
+  // 비슷하게 어두워서 그냥 상수처럼 얹힐 뿐 최저점을 옮기지 않는다.
+  const cost = (o, dx, dy) => {
+    let r = 0;
+    for (const [ux, uy] of RING) r += lum(o.x + dx + ux * o.rx, o.y + dy + uy * o.ry);
+    return r / RING.length;
+  };
+
+  const medRy = bs.map((o) => o.ry).sort((a, b) => a - b)[bs.length >> 1];
+  const R = Math.max(2, Math.round(medRy * SNAP_RATIO));
+
+  const xs = bs.map((o) => o.mx), ys = bs.map((o) => o.my);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const LX = 6, LY = 6;
+  const lat = [];
+  for (let ly = 0; ly < LY; ly++) {
+    lat.push([]);
+    for (let lx = 0; lx < LX; lx++) {
+      const mx = x0 + (x1 - x0) * (lx / (LX - 1)), my = y0 + (y1 - y0) * (ly / (LY - 1));
+      const wx = (x1 - x0) / (LX - 1) * 1.2, wy = (y1 - y0) / (LY - 1) * 1.2;
+      let pool = bs.filter((o) => Math.abs(o.mx - mx) <= wx && Math.abs(o.my - my) <= wy);
+      if (pool.length < 30) { lat[ly].push({ dx: 0, dy: 0 }); continue; }
+      if (pool.length > 120) { const step = Math.ceil(pool.length / 120); pool = pool.filter((_, k) => k % step === 0); }
+      let best = null;
+      for (let dy = -R; dy <= R; dy++) {
+        for (let dx = -R; dx <= R; dx++) {
+          let s = 0;
+          for (const o of pool) s += cost(o, dx, dy);
+          s /= pool.length;
+          if (!best || s < best.s) best = { s, dx, dy };
+        }
+      }
+      lat[ly].push({ dx: best.dx, dy: best.dy });
+    }
+  }
+  return (mx, my) => {
+    const fx = Math.max(0, Math.min(LX - 1.001, (mx - x0) / (x1 - x0) * (LX - 1)));
+    const fy = Math.max(0, Math.min(LY - 1.001, (my - y0) / (y1 - y0) * (LY - 1)));
+    const ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy;
+    const A = lat[iy][ix], B = lat[iy][ix + 1], C = lat[iy + 1][ix], D = lat[iy + 1][ix + 1];
+    return {
+      dx: (A.dx * (1 - tx) + B.dx * tx) * (1 - ty) + (C.dx * (1 - tx) + D.dx * tx) * ty,
+      dy: (A.dy * (1 - tx) + B.dy * tx) * (1 - ty) + (C.dy * (1 - tx) + D.dy * tx) * ty,
+    };
+  };
+}
+
 /**
  * corners: 사진 px 기준 {tl,tr,br,bl} — 표식의 중심.
  * geometry: sheetform.measureSheet() 결과.
@@ -211,25 +427,17 @@ const RED_MARGIN = 22; // R 이 G·B 평균보다 이만큼 크면 빨강
  */
 export function readBubbles(imageData, corners, geometry) {
   const { width: W, height: H, data } = imageData;
-  const f = geometry.fiducials;
-  const P = (k) => ({ x: f[k].cx, y: f[k].cy });
 
-  // 종이를 반으로 접었다 펴면 접힌 선을 경계로 좌우가 서로 다른 면이 된다. 네 귀퉁이
-  // 하나로만 펴면 가운데가 몇 mm씩 어긋나 옆 칸을 읽는다. 가운데 표식이 있으면
-  // 왼쪽·오른쪽을 따로 편다 — 접힌 선이 곧 경계라 딱 맞는다.
-  const split = corners.tm && corners.bm && f.tm && f.bm;
-  const hL = solveHomography(
-    split ? [P("tl"), P("tm"), P("bm"), P("bl")] : [P("tl"), P("tr"), P("br"), P("bl")],
-    split ? [corners.tl, corners.tm, corners.bm, corners.bl]
-          : [corners.tl, corners.tr, corners.br, corners.bl]
-  );
-  const hR = split
-    ? solveHomography([P("tm"), P("tr"), P("br"), P("bm")],
-                      [corners.tm, corners.tr, corners.br, corners.bm])
-    : hL;
-  if (!hL || !hR) throw new Error("네 귀퉁이로 종이 모양을 잡지 못했습니다.");
-  const midX = split ? f.tm.cx : Infinity;
-  const hAt = (mmX) => (mmX < midX ? hL : hR);
+  // 귀퉁이로 대충 편 다음, 네 변의 눈금 표식으로 안쪽 밀림까지 잡는다.
+  const rough = buildWarp(geometry, corners, null);
+  const ticksPx = detectTicks(imageData, corners, geometry, rough.h);
+  const railed = buildWarp(geometry, corners, ticksPx);
+  // 인쇄된 동그라미로 마지막 미세 조정. 눈금으로 이미 가까이 와 있을 때만 한다 —
+  // 멀리서 시작하면 옆 줄에 들러붙는다.
+  const snap = railed.corrected ? ringSnap(imageData, railed, geometry) : null;
+  const warp = snap
+    ? { ...railed, at: (mx, my) => { const p = railed.at(mx, my), d = snap(mx, my); return { x: p.x + d.dx, y: p.y + d.dy }; } }
+    : railed;
 
   const at = (x, y) => {
     const px = Math.round(x), py = Math.round(y);
@@ -244,20 +452,23 @@ export function readBubbles(imageData, corners, geometry) {
                    [-0.3, -0.3], [0.3, 0.3], [-0.3, 0.3], [0.3, -0.3]];
   const cells = new Map();
   const items = geometry.bubbles.map((b) => {
-    const hb = hAt(b.cx);
     const px = [];
     for (const [dx, dy] of OFFSETS) {
-      const p = applyHomography(hb, b.cx + dx * b.rx, b.cy + dy * b.ry);
+      const p = warp.at(b.cx + dx * b.rx, b.cy + dy * b.ry);
       const c = at(p.x, p.y);
       if (c) px.push(c);
     }
-    const center = applyHomography(hb, b.cx, b.cy);
+    const center = warp.at(b.cx, b.cy);
     if (!px.length) return { b, L: null, rgb: null, x: center.x, y: center.y };
     const rgb = px.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / px.length);
     const item = { b, L: lum(rgb), rgb, x: center.x, y: center.y };
-    const key = `${Math.floor(b.cx / CELL_MM)},${Math.floor(b.cy / CELL_MM)}`;
-    if (!cells.has(key)) cells.set(key, []);
-    cells.get(key).push(item);
+    // 코드 칸은 인쇄할 때부터 까맣게 칠해져 나온다. "빈 칸" 기준을 재는 무리에
+    // 끼면 기준이 어두워지므로 빼 둔다.
+    if (b.id[0] !== "k") {
+      const key = `${Math.floor(b.cx / CELL_MM)},${Math.floor(b.cy / CELL_MM)}`;
+      if (!cells.has(key)) cells.set(key, []);
+      cells.get(key).push(item);
+    }
     return item;
   });
 
@@ -297,7 +508,7 @@ export function readBubbles(imageData, corners, geometry) {
   }
 
   // 3단계 — 문턱값은 오츠로. 칠한 칸은 확실히 어두운 쪽에 몰린다.
-  const ratios = items.filter((it) => it.L != null).map((it) => it.ratio);
+  const ratios = items.filter((it) => it.L != null && it.b.id[0] !== "k").map((it) => it.ratio);
   // 빈 칸이 압도적이라 오츠가 잡음을 자를 수 있다. 0.62~0.90 밖으로는 안 나가게 묶는다.
   const cut = Math.max(0.62, Math.min(otsuOn(ratios), 0.90));
 
@@ -310,8 +521,43 @@ export function readBubbles(imageData, corners, geometry) {
     out.set(it.b.id, { v, ratio: it.ratio, x: it.x, y: it.y });
   }
   out.threshold = cut;
-  out.split = !!split;
+  out.ticksPx = ticksPx;
+  out.corrected = warp.corrected;
+  out.tickHits = warp.hits;
+  out.tickTotal = warp.total;
+  // 코드 칸은 답을 이미 안다 — 몇 개나 맞혔는지가 곧 판독기의 자기 채점표다.
+  out.code = [];
+  for (let i = 0; i < CODE_BITS; i++) {
+    const r = out.get(`k:${i}`);
+    out.code.push(r ? (r.v === "blank" ? 0 : 1) : null);
+  }
+  // 코드 칸의 앞 세 자리는 어느 기록지든 1,0,1 로 고정이다. 그게 안 나오면 이 종이에는
+  // 코드 칸 자체가 없는 것이다(옛 양식) — "코드가 틀렸다"와 "코드가 없다"는 다른 말이고,
+  // 사람에게 해 줄 안내도 다르다.
+  out.hasCode = out.code[0] === 1 && out.code[1] === 0 && out.code[2] === 1;
   return out;
+}
+
+/**
+ * 사진에서 읽은 코드가 후보들 중 어느 기록지인지 가려낸다.
+ * candidates: [{key, label, ...}] — key 는 sheetCodeBits() 에 넣을 문자열.
+ * 돌려주는 값: { match, score, bits, expected } — score 는 맞은 비트 수(0~16).
+ */
+export function matchSheetCode(readings, candidates) {
+  const bits = readings.code;
+  if (!readings.hasCode || !bits) return { match: null, score: 0, bits: null };
+  let best = null, bestScore = -1, second = -1;
+  for (const c of candidates) {
+    const want = sheetCodeBits(c.key);
+    let score = 0;
+    for (let i = 0; i < CODE_BITS; i++) if (bits[i] === want[i]) score++;
+    if (score > bestScore) { second = bestScore; bestScore = score; best = c; }
+    else if (score > second) second = score;
+  }
+  // 다 맞아야 인정한다. 한 칸이라도 어긋나면 다른 기록지일 수 있고, 이름이
+  // 통째로 밀려 붙는 사고보다는 "모르겠다"가 낫다.
+  const ok = bestScore === CODE_BITS && second < CODE_BITS;
+  return { match: ok ? best : null, score: bestScore, bits, expected: best ? sheetCodeBits(best.key) : null };
 }
 
 /**
@@ -335,12 +581,25 @@ export function debugOverlay(imageData, corners, readings) {
   }
   ctx.lineWidth = Math.max(3, imageData.width / 300);
   ctx.strokeStyle = "#ffd400";
-  for (const k of ["tl", "tr", "br", "bl", "tm", "bm"]) {
+  for (const k of ["tl", "tr", "br", "bl"]) {
     const c = corners[k];
     if (!c) continue;
     ctx.beginPath();
     ctx.arc(c.x, c.y, r * 5, 0, Math.PI * 2);
     ctx.stroke();
+  }
+  // 눈금 표식을 찾은 자리 — 하나도 안 보이면 옛 양식으로 인쇄한 종이다.
+  if (readings.ticksPx) {
+    ctx.strokeStyle = "#00d0ff";
+    ctx.lineWidth = Math.max(2, imageData.width / 500);
+    for (const side of ["l", "r", "t", "b"]) {
+      for (const p of readings.ticksPx[side] || []) {
+        if (!p) continue;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
   }
   // 네 귀퉁이를 이어 종이 테두리가 맞는지 보여준다
   ctx.beginPath();
@@ -362,10 +621,25 @@ export function debugOverlay(imageData, corners, readings) {
 //   - 한 사람이 한 경기에 40점을 넘기는 일은 거의 없다
 //   - 마킹이 한 줄에 몰리면 세로가 어긋난 것이다
 //   - 기록이 있는데 출전 표시가 없는 줄이 많으면 왼쪽 끝이 어긋난 것이다
-export function judgeReading(team, filled) {
+export function judgeReading(team, filled, readings) {
   const problems = [];
   const live = team.players.filter((p) =>
     p.quarters.length || p.p2a || p.p3a || p.fta || p.reb || p.ast || p.stl || p.blk || p.to || p.pf);
+
+  // 아래 짐작들보다 훨씬 확실한 근거가 두 개 있다. 종이에 답을 미리 박아 둔 것들이라
+  // 판독기가 스스로 채점할 수 있다.
+  if (readings) {
+    if (!readings.corrected) {
+      problems.push(
+        `네 변의 눈금 표식을 ${readings.tickHits}/${readings.tickTotal}개만 찾았습니다 — ` +
+        "종이 안쪽이 밀린 채로 읽습니다. 팀 편성에서 기록지를 다시 인쇄해주세요.");
+    }
+    if (readings.hasCode) {
+      // 코드 칸은 답을 아는 칸이다. 여기서 틀리면 다른 칸도 같은 만큼 틀리고 있다.
+      const fixed = readings.code.slice(0, 3).join(",");
+      if (fixed !== "1,0,1") problems.push("기록지 코드 칸을 잘못 읽었습니다 — 판독 위치가 어긋났습니다.");
+    }
+  }
 
   if (filled < 20) {
     problems.push("칠해진 칸이 너무 적습니다 — 종이를 못 찾았거나 마킹이 흐립니다.");
@@ -427,6 +701,7 @@ export function readingsToTeam(readings, roster) {
   let filled = 0;
   for (const [id, r] of readings) {
     if (r.v === "blank") continue;
+    if (id[0] === "k") continue; // 코드 칸은 기록이 아니다
     filled++;
     const t = id.split(":");
     const pi = +t[1];
