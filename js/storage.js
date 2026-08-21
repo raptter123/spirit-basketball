@@ -264,3 +264,15 @@ export function getSheetRoster(key) {
     return null;
   }
 }
+
+/** 적어 둔 기록지 명단 전부. 사진 속 코드와 대조해 어느 종이인지 가려낼 때 쓴다. */
+export function allSheetRosters() {
+  try {
+    const all = JSON.parse(localStorage.getItem(SHEET_ROSTER_KEY) || "{}");
+    return Object.entries(all)
+      .filter(([, r]) => Array.isArray(r))
+      .map(([key, roster]) => ({ key, roster }));
+  } catch {
+    return [];
+  }
+}

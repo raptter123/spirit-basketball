@@ -3246,6 +3246,20 @@ body {
   line-height: 0;
 }
 
+/* 건별 판독 리포트 — 길어서 안에서만 스크롤시킨다 */
+.sheet-report-modal {
+  max-width: min(94vw, 720px);
+}
+
+.sheet-report {
+  max-height: min(56vh, 460px);
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .sheet-corner-wrap img {
   width: 100%;
   height: auto;

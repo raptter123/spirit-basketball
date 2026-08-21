@@ -67,11 +67,37 @@ function expectedTeam() {
 window.__setup = () => {
   const stage = document.getElementById("stage");
   stage.innerHTML = sheetHTML({ date:"2026-08-23", gameNo:1, us:"혼 A", them:"혼 B",
-    roster: ROSTER, code:"SPIRIT-260823-G1-A" });
+    roster: ROSTER, code:"260823_1|혼 A" });
   const sheet = stage.querySelector(".sheet");
   paint(sheet);
   window.__geom = measureSheet(sheet);
   return { bubbles: window.__geom.bubbles.length };
+};
+
+// 판독기는 **빈 기록지**를 재어 좌표를 얻고, 사진은 **이름이 든 기록지**를 찍은 것이다.
+// 둘이 조금이라도 다르게 배치되면 판독은 조용히 어긋난다. 실제로 어긋났었다 —
+// 꼬리글이 글자 길이대로 흘러서 코드 버블이 가로로 13.5mm 밀렸고, 머리글 높이가
+// 0.21mm 달라 표 전체가 세로로 밀렸다. 그래서 "내용이 달라도 좌표는 같다"를 못 박아 둔다.
+window.__geomStability = () => {
+  const mk = (opts) => {
+    const h = document.createElement("div");
+    h.style.cssText = "position:absolute;left:-99999px;top:0;width:297mm;background:#fff";
+    document.body.appendChild(h);
+    h.innerHTML = sheetHTML(opts);
+    const g = measureSheet(h.querySelector(".sheet"));
+    h.remove();
+    return g;
+  };
+  const A = mk({ roster: [] });
+  const B = mk({ date:"2026-08-23", gameNo:1, us:"혼 A", them:"혼 B", roster: ROSTER, code:"260823_1|혼 A" });
+  let maxdx = 0, maxdy = 0, moved = 0;
+  for (let i = 0; i < A.bubbles.length; i++) {
+    const dx = Math.abs(B.bubbles[i].cx - A.bubbles[i].cx);
+    const dy = Math.abs(B.bubbles[i].cy - A.bubbles[i].cy);
+    if (dx > 0.02 || dy > 0.02) moved++;
+    maxdx = Math.max(maxdx, dx); maxdy = Math.max(maxdy, dy);
+  }
+  return { n: A.bubbles.length, moved, maxdx: +maxdx.toFixed(3), maxdy: +maxdy.toFixed(3) };
 };
 
 // 2단계: 찍힌 사진(dataURL)을 실제 사진처럼 망가뜨린 뒤, 찾아서 읽고 정답과 대조한다.
@@ -102,6 +128,31 @@ window.__run = async (dataUrl, opts) => {
     drawHalf(ctx, img, 0.5, 1, [mid, q[1], q[2], midB]);
   } else {
     drawQuad(ctx, img, q);
+  }
+
+  // 종이가 평평하지 않아 **안쪽**만 밀리는 경우. 네 귀퉁이는 멀쩡하니 귀퉁이
+  // 표식만으로는 이걸 볼 방법이 아예 없다 — 실제 사진에서 재 보니 가로 -4~+12px,
+  // 세로 -13~+12px 이었고, 버블 세로 반지름이 9.4px 이라 옆 줄을 읽고 있었다.
+  // 눈금 표식이 있어야 잡히는 경우라서 시험에 넣어 둔다.
+  if (opts.bulge) {
+    const src = ctx.getImageData(0, 0, W, H);
+    const out = ctx.createImageData(W, H);
+    // 밀림의 크기는 **종이 위 mm** 로 정한다. px 로 적어 두면 사진 해상도에 따라
+    // 시험 난이도가 제멋대로 바뀐다. 실제 사진(가로 2200px)에서 잰 값이 13px ≒ 1.75mm.
+    const g = opts.bulge * (W / 2200);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const u = x / (W - 1), v = y / (H - 1);
+        const s = Math.sin(Math.PI * u) * Math.sin(Math.PI * v); // 가장자리에서 0
+        const dx = s * (12 * u - 4) * g, dy = s * (13 * Math.sin(Math.PI * 2 * v) + 6 * u) * g;
+        const ix = Math.max(0, Math.min(W - 1, Math.round(x - dx)));
+        const iy = Math.max(0, Math.min(H - 1, Math.round(y - dy)));
+        const si = (iy * W + ix) * 4, di = (y * W + x) * 4;
+        out.data[di] = src.data[si]; out.data[di+1] = src.data[si+1];
+        out.data[di+2] = src.data[si+2]; out.data[di+3] = 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
   }
 
   if (opts.shade) {
@@ -153,7 +204,8 @@ window.__run = async (dataUrl, opts) => {
   });
   window.__lastOverlay = () => debugOverlay(idata, found, readings).toDataURL("image/png");
   return { ok: diffs.length === 0, filled: got.filled, diffs: diffs.slice(0, 20), total: diffs.length,
-           cut: readings.threshold };
+           cut: readings.threshold, size: [W, H],
+           ticks: `${readings.tickHits}/${readings.tickTotal}`, corrected: readings.corrected };
 };
 
 // 이미지의 가로 [a,b] 구간만 사변형에 그린다 (접힌 자국 흉내)
