@@ -563,7 +563,26 @@ function showSheetPrintModal(teams, gameDate) {
            설명은 접어 두고, 필요한 사람만 펴 보면 된다. -->
       <p class="hint"><b>배경 그래픽 켜기</b> · 배율 100% · 여백 없음.
         용지는 <b>A4 세로</b> 그대로 — 기록지는 옆으로 누워 나옵니다.</p>
-      <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
+
+      <!-- 인쇄 전에 정작 확인해야 하는 건 "누가 어느 팀 종이에 찍히는가" 다.
+           기록지를 통째로 줄여 보여주던 건 휴대폰에서 우표만 해서 아무것도 안 보였다
+           (390px 화면에서 한 장이 290×205px). 그래서 글로 보여주고, 기록지 그림은
+           보고 싶을 때만 펴게 했다. -->
+      <ul class="sheet-print-list">
+        ${teams.map((t) => `<li>
+          <b>${escapeHtml(t.name)}</b>
+          <span class="spl-count">${t.roster.length}명</span>
+          <span class="spl-names">${t.roster
+            .map(([no, name]) => `${no == null ? "" : `<i>#${no}</i>`}${escapeHtml(name)}`)
+            .join("<em>·</em>")}</span>
+        </li>`).join("")}
+      </ul>
+      <p class="stats-note sheet-print-when">${escapeHtml(date || "날짜 미정")} · 1경기</p>
+
+      <button type="button" class="btn btn-sm" id="sp-toggle" aria-expanded="false">기록지 모양 보기</button>
+      <div class="sheet-print-preview is-folded" id="sp-preview">${
+        pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
+
       <div class="modal-actions">
         <button type="button" class="btn" id="sp-close">닫기</button>
         <button type="button" class="btn btn-primary" id="sp-print">인쇄</button>
@@ -627,9 +646,12 @@ function showSheetPrintModal(teams, gameDate) {
     .modal-backdrop .modal{max-width:none!important;width:auto!important;max-height:none!important;
       background:#fff!important;box-shadow:none!important;padding:0!important;border:0!important;
       margin:0!important;display:block!important}
-    .sheet-print-modal h3,.sheet-print-modal .hint,
-    .sheet-print-modal .modal-actions,.sheet-print-why{display:none!important}
-    .sheet-print-preview{display:block!important;overflow:visible!important;max-height:none!important;
+    .sheet-print-modal h3,.sheet-print-modal .hint,.sheet-print-modal .modal-actions,
+    .sheet-print-why,.sheet-print-list,.sheet-print-when,#sp-toggle{display:none!important}
+    /* 화면에서 접어 뒀어도 **인쇄에는 반드시 나와야 한다** */
+    .sheet-print-preview,.sheet-print-preview.is-folded{
+      display:block!important;visibility:visible!important;height:auto!important;
+      overflow:visible!important;max-height:none!important;
       background:#fff!important;padding:0!important;margin:0!important;gap:0!important}
     /* 한 장 = 한 면. 상자는 **줄여 앉힌 기록지가 차지하는 만큼만** 잡는다 —
        210×297 로 잡으면 그 자체가 인쇄 영역을 넘겨 빈 면이 하나씩 더 생긴다. */
@@ -654,13 +676,21 @@ function showSheetPrintModal(teams, gameDate) {
   const PX_PER_MM = 96 / 25.4;
   const preview = backdrop.querySelector(".sheet-print-preview");
   const fitPreview = () => {
+    if (preview.classList.contains("is-folded")) return; // 접혀 있으면 폭이 0 이라 못 잰다
     const avail = preview.clientWidth - 20; // 좌우 padding
     if (avail <= 0) return;
     const z = Math.max(0.12, Math.min(0.8, avail / (SHEET_MM.w * PX_PER_MM)));
     backdrop.style.setProperty("--sheet-zoom", z.toFixed(3));
   };
-  fitPreview();
   window.addEventListener("resize", fitPreview);
+
+  const toggle = backdrop.querySelector("#sp-toggle");
+  toggle.addEventListener("click", () => {
+    const folded = preview.classList.toggle("is-folded");
+    toggle.textContent = folded ? "기록지 모양 보기" : "기록지 모양 접기";
+    toggle.setAttribute("aria-expanded", String(!folded));
+    if (!folded) fitPreview(); // 펼친 **뒤에** 재야 폭이 나온다
+  });
 
   const close = () => {
     window.removeEventListener("resize", fitPreview);
