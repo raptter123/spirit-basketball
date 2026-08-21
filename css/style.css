@@ -3284,16 +3284,30 @@ body {
   box-shadow: 0 0 0 2px #fff;
 }
 
-/* 기록지 인쇄 미리보기 — 297mm 짜리를 화면 폭에 맞춰 줄여 보여준다. */
+/* 기록지 인쇄 미리보기 — 297mm 짜리를 화면 폭에 맞춰 줄여 보여준다.
+   모달 전체를 화면 안에 가두고 **미리보기만** 늘었다 줄었다 하게 한다.
+   안 그러면 휴대폰에서 모달이 화면보다 길어져 인쇄 단추가 밖으로 밀려난다 —
+   실제로 아이폰(844px)에서 단추가 862px 자리에 있어 누를 수가 없었다. */
 .sheet-print-modal {
   max-width: min(96vw, 1100px);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet-print-modal > h3,
+.sheet-print-modal > .hint,
+.sheet-print-modal > .modal-actions,
+.sheet-print-modal > .sheet-print-why {
+  flex: 0 0 auto;
 }
 
 .sheet-print-preview {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: 60vh;
+  flex: 1 1 auto;
+  min-height: 120px; /* 0 이면 좁은 화면에서 미리보기가 통째로 찌그러진다 */
   overflow: auto;
   margin: 12px 0;
   background: #6b7080;
@@ -3301,14 +3315,30 @@ body {
   border-radius: 10px;
 }
 
-.sheet-page {
-  transform-origin: top left;
-  /* 297mm 를 상자 폭에 맞춘다. 인쇄할 때는 print CSS 가 이 축소를 되돌린다. */
-  zoom: 0.34;
+/* 설명은 접어 둔다 — 매번 읽을 것이 아니라 한 번 궁금할 때 펴 보는 것이다. */
+.sheet-print-why {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  color: var(--text-dim, #9aa2b4);
 }
 
-@media (min-width: 900px) {
-  .sheet-page { zoom: 0.62; }
+.sheet-print-why > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  font-weight: 600;
+}
+
+.sheet-print-why p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+.sheet-page {
+  transform-origin: top left;
+  /* 297mm 를 상자 폭에 맞춘다. 실제 값은 모달이 열릴 때 상자 폭을 재서 정한다
+     (--sheet-zoom) — 고정값으로 두면 좁은 화면에서 오른쪽 열이 잘려 안 보인다.
+     인쇄할 때는 print CSS 가 이 축소를 되돌린다. */
+  zoom: var(--sheet-zoom, 0.34);
 }
 
 .sheet-assign.is-bad {
