@@ -786,6 +786,50 @@ MIN 은 `출전 쿼터 수 × 8분`이다. 예전에 TEAM MIN 이 72 대 32 로 
   **아무 일도 안 일어난 것처럼** 보인다. 확장자로도 한 번 더 보고, 그래도 못 받으면
   이유를 말하게 했다.
 
+## 11-13. 아이폰에서 인쇄하면 오른쪽이 잘렸다
+
+11-6 에서 `@page{size:297mm 210mm}` 로 A4 가로를 잡았고 크롬 데스크톱 PDF 로
+297.0 × 209.9mm 를 확인했다. 그런데 아이폰에서 뽑은 PDF 를 받아 보니 **210 × 297mm
+세로**였고 기록지 오른쪽 87mm 가 통째로 잘려 있었다.
+
+```
+Producer: iOS Version 26.6 (Build 23G71)
+Creator:  Safari
+MediaBox: [0 0 595.28 841.89] -> 210.0 x 297.0 mm
+```
+
+**iOS 사파리는 `@page` 의 `size` 를 아예 보지 않는다.** 데스크톱 크롬에서만 시험한
+것이 화근이었다 — 정작 종이를 뽑는 곳은 휴대폰인데.
+
+### 고친 방법 — @page 에 안 기댄다
+
+세로 A4 는 어디서나 기본값이라 브라우저 지원을 안 탄다. 그래서 **세로 A4 면 안에서
+기록지를 90° 돌려** 찍는다. 나온 종이를 옆으로 돌려 쓰면 된다 — 폭 넓은 서식은
+원래 그렇게 뽑는다.
+
+```css
+@page{size:A4 portrait;margin:0}
+.sheet-page{width:210mm;height:297mm;position:relative}
+.sheet-page .sheet{position:absolute;top:0;left:0;width:297mm;height:210mm;
+  transform:translateX(210mm) rotate(90deg);transform-origin:top left}
+```
+
+좌상단을 축으로 90° 돌리면 x 가 −210~0 으로 가므로 210mm 만큼 오른쪽으로 민다.
+결과가 정확히 210×297 을 채운다.
+
+### 확인 방법
+
+**데스크톱 크롬의 `preferCSSPageSize:true` 로 재면 안 된다** — 그건 `@page` 를
+존중하는 쪽이라 아이폰에서 벌어지는 일을 못 본다. `@page` 를 무시하는 상황을
+그대로 흉내내야 한다:
+
+```js
+await page.pdf({format:"A4", landscape:false, printBackground:true, margin:{...0}})
+```
+
+이렇게 뽑아서 잰 결과 — 면 210×297mm, 기록지 상자도 210×297mm, 좌상단 오프셋 0,0,
+오른쪽·아래 넘침 0. 두 팀이면 두 면이 정확히 297mm 간격으로 떨어진다.
+
 ## 12. 아직 안 정한 것
 
 - [ ] 종이 최종 레이아웃 (버블 크기, A4 가로/세로, 경기당 1장 vs 2장) — **인쇄해서 체육관에서 한 주 써봐야 확정 가능**
