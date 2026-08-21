@@ -706,14 +706,31 @@ export function mountStatsPage(container) {
       : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.") + skipNote;
   }
 
+  // 사진인지 가리는 기준을 type 하나에만 걸면 안 된다. 안드로이드 공유나 일부 파일
+  // 관리자는 사진을 application/octet-stream 이나 빈 문자열로 넘긴다. 그러면 조용히
+  // 걸러져서 **아무 일도 안 일어난 것처럼** 보인다 — 실제로 그렇게 한 번 막혔다.
+  // 그래서 확장자로도 한 번 더 본다.
+  const IMAGE_EXT = /\.(jpe?g|png|heic|heif|webp|gif|bmp|tiff?)$/i;
+  const looksLikeImage = (f) => f.type.startsWith("image/") || IMAGE_EXT.test(f.name || "");
+
   async function addFiles(fileList) {
-    const imgs = [...fileList].filter((f) => f.type.startsWith("image/"));
+    const all = [...fileList];
+    const imgs = all.filter(looksLikeImage);
     const added = [];
+    let full = false;
     for (const f of imgs) {
-      if (sheets.length >= MAX_SHEETS) break;
+      if (sheets.length >= MAX_SHEETS) { full = true; break; }
       const item = { name: f.name, url: URL.createObjectURL(f), file: f, state: "wait", team: added.length % 2 };
       sheets.push(item);
       added.push(item);
+    }
+    // 아무것도 못 받았으면 반드시 말한다. 조용히 넘어가면 사람은 앱이 멈춘 줄 안다.
+    const msg = $("#sh-apply-msg");
+    if (msg) {
+      if (!all.length) msg.textContent = "";
+      else if (!imgs.length) msg.textContent = `사진이 아닌 파일이라 못 읽었습니다 (${all.map((f) => f.name).join(", ")}).`;
+      else if (full) msg.textContent = `기록지는 한 번에 ${MAX_SHEETS}장까지만 올릴 수 있습니다.`;
+      else msg.textContent = "";
     }
     renderSheets();
     for (const item of added) await readOne(item);
