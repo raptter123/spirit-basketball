@@ -5,7 +5,7 @@
 <script type="module">
 import { sheetHTML, measureSheet, SHEET_CSS } from "./js/sheetform.js";
 import { ROSTER as CLUB } from "./js/roster.js";
-import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, readSheetRoster } from "./js/sheetread.js";
+import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, readSheetRoster, darkBlobs } from "./js/sheetread.js";
 
 const style = document.createElement("style");
 style.textContent = SHEET_CSS;
@@ -76,6 +76,40 @@ window.__setup = () => {
   paint(sheet);
   window.__geom = measureSheet(sheet);
   return { bubbles: window.__geom.bubbles.length };
+};
+
+// 초점이 나간 귀퉁이 표식도 찾아내는가.
+//
+// IMG_2182 에서 왼쪽 아래 귀퉁이 표식 하나가 흐릿하게 찍혔다. 번진 꼬리가 바깥
+// 네모를 79×70 으로 부풀려 채움률이 0.538 로 떨어졌고, "0.62 이상" 조건에 걸려
+// 표식이 통째로 사라졌다. 판독기는 대신 그 위의 눈금 표식을 귀퉁이로 집었고,
+// 종이 안쪽이 줄 단위로 밀려 읽혔다 — 칠해진 칸 125개짜리 기록지를 53개로 봤다.
+// 표식 하나만 흐려도 판독이 통째로 망가지므로 여기서 못 박아 둔다.
+window.__blobShape = () => {
+  const cv = document.createElement("canvas");
+  cv.width = 900; cv.height = 300;
+  const g = cv.getContext("2d", { willReadFrequently: true });
+  g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height);
+  // 실제로 망가진 그 덩어리를 재현한다. IMG_2182 에서 잰 값이 n=2974, 바깥 네모
+  // 79×70, 채움률 0.538 이었다 — 55×55 짜리 표식에 가느다란 번짐 꼬리가 붙은 꼴이다.
+  const sq = (x, tailX, tailY) => {
+    g.fillStyle = "#000";
+    g.fillRect(x - 27, 150 - 27, 55, 55);
+    if (tailX) g.fillRect(x + 28, 150 - 27, tailX, 2);   // 옆으로 삐친 번짐
+    if (tailY) g.fillRect(x - 27, 150 + 28, 2, tailY);   // 아래로 삐친 번짐
+  };
+  sq(120, 0, 0);      // 또렷한 표식
+  sq(360, 24, 15);    // IMG_2182 의 그 표식 — 채움률 0.54, 예전 코드는 여기서 놓쳤다
+  sq(600, 40, 30);    // 더 심한 것
+  g.strokeStyle = "#000"; g.lineWidth = 3;   // 버블 테두리 — 이건 걸러져야 한다
+  g.beginPath(); g.ellipse(820, 150, 26, 22, 0, 0, Math.PI * 2); g.stroke();
+
+  const found = darkBlobs(g.getImageData(0, 0, cv.width, cv.height))
+    .filter((b) => (b.ex + b.ey) / 2 > 20)
+    .map((b) => Math.round(b.cx))
+    .sort((a, b) => a - b);
+  const near = (x) => found.some((f) => Math.abs(f - x) <= 12);
+  return { found, ok: near(120) && near(360) && near(600) && !near(820) };
 };
 
 // 판독기는 **빈 기록지**를 재어 좌표를 얻고, 사진은 **이름이 든 기록지**를 찍은 것이다.
@@ -192,7 +226,7 @@ window.__run = async (dataUrl, opts) => {
   }
 
   const idata = ctx.getImageData(0, 0, W, H);
-  const found = detectFiducials(idata);
+  const found = detectFiducials(idata, window.__geom);
   if (!found) return { ok:false, why:"귀퉁이 못 찾음" };
   const readings = readBubbles(idata, found, window.__geom);
   const got = readingsToTeam(readings, ROSTER);

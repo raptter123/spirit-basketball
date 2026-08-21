@@ -103,11 +103,11 @@ function blobScan(imageData) {
     let sp = 0;
     stack[sp++] = p;
     seen[p] = 1;
-    let n = 0, minX = W, maxX = 0, minY = H, maxY = 0, sx = 0, sy = 0;
+    let n = 0, minX = W, maxX = 0, minY = H, maxY = 0, sx = 0, sy = 0, sxx = 0, syy = 0;
     while (sp) {
       const q = stack[--sp];
       const x = q % W, y = (q / W) | 0;
-      n++; sx += x; sy += y;
+      n++; sx += x; sy += y; sxx += x * x; syy += y * y;
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (y < minY) minY = y; if (y > maxY) maxY = y;
       if (n > 40000) break; // 배경이 통째로 어두우면 여기서 끊는다
@@ -117,12 +117,25 @@ function blobScan(imageData) {
       if (y < H - 1 && !seen[q + W] && gray[q + W] <= thr) { seen[q + W] = 1; stack[sp++] = q + W; }
     }
     const bw = maxX - minX + 1, bh = maxY - minY + 1;
-    blobs.push({ n, cx: sx / n, cy: sy / n, bw, bh, fill: n / (bw * bh) });
+    const cx = sx / n, cy = sy / n;
+    // 가로·세로 길이를 **바깥 네모가 아니라 퍼진 정도**로 잰다. 속이 꽉 찬 정사각형은
+    // 좌표의 표준편차가 한 변의 1/√12 이므로 √12·σ 가 곧 한 변이다.
+    //
+    // 왜 바꿨나: IMG_2182 의 왼쪽 아래 귀퉁이 표식은 초점이 나가 흐릿하게 찍혔다.
+    // 번진 꼬리가 바깥 네모를 79×70 으로 부풀려 채움률이 0.538 로 떨어졌고,
+    // 0.62 문턱에 걸려 **표식이 통째로 사라졌다**. 그래서 판독기가 왼쪽 아래
+    // 귀퉁이 대신 그 위의 눈금 표식을 집었고, 종이 안쪽이 한 줄씩 밀려 읽혔다.
+    // 퍼진 정도는 꼬리에 거의 흔들리지 않는다 — 흐릿해도 정사각형은 정사각형이다.
+    const ex = n >= 8 ? Math.sqrt(Math.max(1, 12 * (sxx / n - cx * cx))) : bw;
+    const ey = n >= 8 ? Math.sqrt(Math.max(1, 12 * (syy / n - cy * cy))) : bh;
+    blobs.push({ n, cx, cy, bw, bh, ex, ey, fill: n / (bw * bh), solid: n / (ex * ey) });
   }
 
   // 네모지고 속이 꽉 찬 것만 남긴다. 크기로 거르는 일은 부르는 쪽에서 한다 —
-  // 귀퉁이 표식은 6mm, 눈금 표식은 3.4mm 로 서로 다르기 때문이다.
-  return blobs.filter((b) => b.bw / b.bh > 0.6 && b.bw / b.bh < 1.7 && b.fill > 0.62);
+  // 귀퉁이 표식은 5mm, 눈금 표식은 3.4mm 로 서로 다르기 때문이다.
+  // solid 는 꽉 찬 네모면 1.0, 원이면 1.05, 속 빈 동그라미(버블 테두리)면 0.2 근처다.
+  return blobs.filter((b) =>
+    b.ex / b.ey > 0.6 && b.ex / b.ey < 1.7 && b.solid > 0.7 && b.solid < 1.4);
 }
 
 // ── 귀퉁이 표식 찾기 ─────────────────────────────────────
@@ -131,45 +144,72 @@ function blobScan(imageData) {
 //
 // 못 찾으면 null 을 돌려준다 — 종이가 잘려 찍혔거나 그늘이 심한 경우다.
 // 그때는 사람이 네 귀퉁이를 찍어 주는 쪽으로 넘어간다.
-export function detectFiducials(imageData) {
+export function detectFiducials(imageData, geometry) {
   const { width: W, height: H } = imageData;
   const all = darkBlobs(imageData);
 
-  // 표식 크기는 종이 폭의 약 2%(6mm / 297mm). 사진에 종이가 꽉 찼다고 보고 어림한다.
+  // 표식 크기를 종이 폭에서 어림하던 것을 **넓게** 잡는다. 예전에는 "사진에 종이가
+  // 꽉 찼다"고 보고 6mm/297mm = 2% 를 썼는데, 기록지를 78% 로 줄여 인쇄하면서
+  // 그 가정이 깨졌다 — 종이 안에서 기록지가 차지하는 비율이 달라지면 이 값도 달라진다.
   const expect = W * 0.0202;
   const cands = all.filter((b) => {
-    const side = (b.bw + b.bh) / 2;
-    return side > expect * 0.55 && side < expect * 2.4;
+    const side = (b.ex + b.ey) / 2;
+    return side > expect * 0.3 && side < expect * 2.4;
   });
   if (cands.length < 4) return null;
 
-  // 네 귀퉁이에 가장 가까운 것을 하나씩. 크기가 6mm 에서 멀수록 벌점을 준다 —
-  // 안 그러면 바로 옆의 3.4mm 눈금 표식을 귀퉁이로 잘못 잡는다.
-  const corners = { tl: [0, 0], tr: [W, 0], br: [W, H], bl: [0, H] };
-  const picked = {};
-  const used = new Set();
-  for (const [key, [x, y]] of Object.entries(corners)) {
-    let bestB = null, bestD = Infinity;
-    for (const c of cands) {
-      if (used.has(c)) continue;
-      const side = (c.bw + c.bh) / 2;
-      const miss = Math.abs(side - expect) / expect; // 0 이면 딱 6mm
-      const d = Math.hypot(c.cx - x, c.cy - y) * (1 + miss * 1.5);
-      if (d < bestD) { bestD = d; bestB = c; }
-    }
-    if (!bestB) return null;
-    used.add(bestB);
-    picked[key] = { x: bestB.cx, y: bestB.cy };
+  // 귀퉁이 후보를 **하나만** 고르지 않는다. 실제 사진에서 왼쪽 아래 표식 대신
+  // 사진 한가운데의 엉뚱한 덩어리를 집어 판독이 통째로 망가진 적이 있다.
+  // 그래서 귀퉁이마다 후보를 몇 개씩 두고, **눈금 표식을 가장 많이 설명하는 조합**을
+  // 고른다. 종이가 스스로 답을 갖고 있으니 그걸로 채점하면 된다.
+  const CORNERS = { tl: [0, 0], tr: [W, 0], br: [W, H], bl: [0, H] };
+  const TOP_N = 4;
+  const shortlist = {};
+  for (const [key, [x, y]] of Object.entries(CORNERS)) {
+    shortlist[key] = cands
+      .map((c) => {
+        const side = (c.ex + c.ey) / 2;
+        const miss = Math.abs(side - expect) / expect;
+        return { c, d: Math.hypot(c.cx - x, c.cy - y) * (1 + miss * 1.5) };
+      })
+      .sort((a, b) => a.d - b.d)
+      .slice(0, TOP_N)
+      .map((v) => ({ x: v.c.cx, y: v.c.cy }));
+    if (!shortlist[key].length) return null;
   }
 
-  // 네 점이 정말 네 귀퉁이인지 — 서로 너무 붙어 있으면 잘못 잡은 것이다.
-  const span = Math.min(
-    Math.hypot(picked.tr.x - picked.tl.x, picked.tr.y - picked.tl.y),
-    Math.hypot(picked.bl.x - picked.tl.x, picked.bl.y - picked.tl.y)
-  );
-  if (span < Math.min(W, H) * 0.35) return null;
+  const spanOK = (p) => {
+    const span = Math.min(
+      Math.hypot(p.tr.x - p.tl.x, p.tr.y - p.tl.y),
+      Math.hypot(p.bl.x - p.tl.x, p.bl.y - p.tl.y)
+    );
+    return span >= Math.min(W, H) * 0.35;
+  };
 
-  return picked;
+  // 눈금 표식을 셀 수 없으면(옛 양식이거나 좌표를 안 넘겨줬으면) 예전처럼 가장 가까운
+  // 것 하나씩으로 간다.
+  if (!geometry || !geometry.ticks) {
+    const first = { tl: shortlist.tl[0], tr: shortlist.tr[0], br: shortlist.br[0], bl: shortlist.bl[0] };
+    return spanOK(first) ? first : null;
+  }
+
+  let best = null, bestHits = -1;
+  for (const tl of shortlist.tl) {
+    for (const tr of shortlist.tr) {
+      for (const br of shortlist.br) {
+        for (const bl of shortlist.bl) {
+          const p = { tl, tr, br, bl };
+          if (!spanOK(p)) continue;
+          let h;
+          try { h = buildWarp(geometry, p, null).h; } catch { continue; }
+          const t = detectTicks(imageData, p, geometry, h);
+          const hits = t ? t.hits : 0;
+          if (hits > bestHits) { bestHits = hits; best = p; }
+        }
+      }
+    }
+  }
+  return best;
 }
 
 // ── 눈금 표식으로 종이 안쪽 밀림 잡기 ────────────────────
@@ -188,7 +228,7 @@ export function detectTicks(imageData, corners, geometry, h) {
   const all = darkBlobs(imageData);
   const expect = W * 0.0114; // 3.4mm / 297mm
   const cands = all.filter((b) => {
-    const side = (b.bw + b.bh) / 2;
+    const side = (b.ex + b.ey) / 2;
     return side > expect * 0.4 && side < expect * 2.0;
   });
 
@@ -348,9 +388,38 @@ const RED_MARGIN = 22; // R 이 G·B 평균보다 이만큼 크면 빨강
 // 않는다. 찾는 범위는 버블 간격의 절반보다 훨씬 좁게 묶는다 — 넓히면 **옆 줄**에
 // 들러붙어 오히려 망가진다(그렇게 한 번 망가뜨려 봤다).
 //
-// 찾는 범위는 px 가 아니라 **버블 크기에 대한 비율**로 잡는다. 사진 해상도는 제각각인데
-// px 로 고정하면 큰 사진에서는 너무 좁고 작은 사진에서는 옆 줄까지 닿는다.
-const SNAP_RATIO = 0.35; // 버블 세로 반지름의 이만큼까지만 (줄 간격의 절반은 1.4배)
+// 찾는 범위는 px 가 아니라 **줄 간격에 대한 비율**로 잡는다. 사진 해상도는 제각각이고,
+// 위험한 건 "옆 줄에 닿는 것"이므로 기준이 되어야 할 것은 버블 크기가 아니라 줄 간격이다.
+//
+// 예전엔 버블 세로 반지름의 0.35배(= 줄 간격의 0.13배)로 묶어 뒀는데 너무 좁았다.
+// 실제 사진에서 눈금 보정을 다 하고도 세로로 -9~+9px 이 남았는데(버블 반지름 10.2px),
+// 찾는 범위가 3.6px 이라 손도 못 댔다. 줄 간격의 절반보다만 좁으면 옆 줄에는 안 닿는다.
+const SNAP_RATIO = 0.38; // 줄 간격의 이만큼까지 (0.5 미만이어야 옆 줄에 안 닿는다)
+
+// 세로로 이웃한 버블 사이가 사진에서 몇 px 인지 — 스냅 범위의 기준이 되는 값이다.
+// 같은 열(mm 가로가 같은) 버블들을 모아 세로 간격을 보고, 그중 촘촘한 쪽을 쓴다.
+function rowPitchPx(placed) {
+  const cols = new Map();
+  for (const o of placed) {
+    const k = o.mx.toFixed(1);
+    if (!cols.has(k)) cols.set(k, []);
+    cols.get(k).push(o);
+  }
+  const px = [];
+  for (const list of cols.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => a.my - b.my);
+    for (let i = 1; i < list.length; i++) {
+      if (list[i].my - list[i - 1].my > 0.01) {
+        px.push(Math.hypot(list[i].x - list[i - 1].x, list[i].y - list[i - 1].y));
+      }
+    }
+  }
+  if (!px.length) return placed[0].ry * 2.7;
+  px.sort((a, b) => a - b);
+  // 아래쪽 10% 를 쓴다 — 칸 경계를 건너뛴 큰 간격에 끌려가지 않게.
+  return px[Math.floor(px.length * 0.1)];
+}
 
 function ringSnap(imageData, warp, geometry) {
   const { width: W, height: H, data } = imageData;
@@ -363,7 +432,10 @@ function ringSnap(imageData, warp, geometry) {
   const RING = [];
   for (let a = 0; a < 16; a++) RING.push([Math.cos(a * Math.PI / 8), Math.sin(a * Math.PI / 8)]);
 
-  const bs = geometry.bubbles.filter((b) => b.id[0] !== "k" && b.id[0] !== "r").map((b) => {
+  // 이름 칸(r)도 인쇄된 동그라미라 같이 쓴다. 빼 놓으면 표 왼쪽 끝에 표본이 없어
+  // 그 근처 보정이 바깥값으로 밀려나고, 정작 이름 칸이 어긋나 읽힌다.
+  // 코드 칸(k)은 꼬리글에 따로 떨어져 있어 격자 범위만 늘리므로 계속 뺀다.
+  const bs = geometry.bubbles.filter((b) => b.id[0] !== "k").map((b) => {
     const c = warp.at(b.cx, b.cy);
     const ex = warp.at(b.cx + b.rx, b.cy), ey = warp.at(b.cx, b.cy + b.ry);
     return { mx: b.cx, my: b.cy, x: c.x, y: c.y,
@@ -380,8 +452,9 @@ function ringSnap(imageData, warp, geometry) {
     return r / RING.length;
   };
 
-  const medRy = bs.map((o) => o.ry).sort((a, b) => a - b)[bs.length >> 1];
-  const R = Math.max(2, Math.round(medRy * SNAP_RATIO));
+  // 줄 간격을 재서 찾는 범위를 정한다. 같은 열에서 세로로 이웃한 버블 사이 거리다.
+  const pitch = rowPitchPx(bs);
+  const R = Math.max(2, Math.round(pitch * SNAP_RATIO));
 
   const xs = bs.map((o) => o.mx), ys = bs.map((o) => o.my);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -658,7 +731,7 @@ export function debugOverlay(imageData, corners, readings) {
 //   - 한 사람이 한 경기에 40점을 넘기는 일은 거의 없다
 //   - 마킹이 한 줄에 몰리면 세로가 어긋난 것이다
 //   - 기록이 있는데 출전 표시가 없는 줄이 많으면 왼쪽 끝이 어긋난 것이다
-export function judgeReading(team, filled, readings) {
+export function judgeReading(team, filled, readings, rosterRead) {
   const problems = [];
   const live = team.players.filter((p) =>
     p.quarters.length || p.p2a || p.p3a || p.fta || p.reb || p.ast || p.stl || p.blk || p.to || p.pf);
@@ -670,6 +743,32 @@ export function judgeReading(team, filled, readings) {
       problems.push(
         `네 변의 눈금 표식을 ${readings.tickHits}/${readings.tickTotal}개만 찾았습니다 — ` +
         "종이 안쪽이 밀린 채로 읽습니다. 팀 편성에서 기록지를 다시 인쇄해주세요.");
+    }
+    // 이름 칸은 **답을 아는 칸**이다 — 일곱 비트 중 하나가 홀짝 검사라, 잘못 읽으면
+    // 판독기가 스스로 안다. 아래의 다른 검사들은 "이러면 수상하다"는 짐작이지만
+    // 이건 측정이다. 걸린 줄 수만큼은 확실히 틀리게 읽고 있는 것이다.
+    if (rosterRead && rosterRead.bad) {
+      const many = rosterRead.bad >= 2;
+      problems.push(
+        `선수 이름 칸 ${rosterRead.bad}줄이 홀짝 검사에서 걸렸습니다 — ` +
+        (many
+          ? "판독 위치가 줄 단위로 어긋나 있습니다. 아래 숫자를 믿지 마세요."
+          : "그 줄은 이름이 비어 있고 같은 줄의 숫자도 어긋났을 수 있습니다."));
+    }
+    // 홀짝 검사에 안 걸리는 어긋남이 하나 더 있다: 이름 칸을 **통째로 빗나가** 읽어
+    // 일곱 칸이 다 비면 "예비 줄"과 구별이 안 된다. 하지만 예비 줄에는 기록이 없다.
+    // 기록은 있는데 이름 칸이 비어 있는 줄은 빗나간 것이다.
+    // (다른 줄이 하나라도 읽혔을 때만 따진다 — 이름 칸이 아예 없는 옛 양식 제외.)
+    if (rosterRead && rosterRead.read > 0) {
+      const ghost = team.players.filter((p, i) =>
+        !rosterRead.rows[i] &&
+        (p.quarters.length || p.p2a || p.p3a || p.fta || p.reb || p.ast || p.stl || p.blk || p.to || p.pf)
+      ).length;
+      if (ghost) {
+        problems.push(
+          `기록은 있는데 이름 칸이 비어 나온 줄이 ${ghost}줄 있습니다 — ` +
+          "그 줄은 판독 위치가 빗나갔습니다. 이름과 숫자를 종이와 맞춰 보세요.");
+      }
     }
     if (readings.hasCode) {
       // 코드 칸은 답을 아는 칸이다. 여기서 틀리면 다른 칸도 같은 만큼 틀리고 있다.
