@@ -19,7 +19,10 @@ import {
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
 import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS, CODE_BITS } from "./sheetform.js";
-import { detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading, matchSheetCode } from "./sheetread.js";
+import {
+  detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading,
+  matchSheetCode, readSheetRoster,
+} from "./sheetread.js";
 import {
   openWorkbook, readSheet, readSheetRows, appendRows, overwriteRows,
   saveWorkbook, createWorkbook, zipSupported, formatPercentColumns,
@@ -284,27 +287,46 @@ export function mountStatsPage(container) {
   // 못 가리면 비워 두고 사람에게 고르게 한다 — 틀리게 채우느니 안 채우는 게 낫다.
   function fillNames(sheet) {
     sheet.nameSource = null;
-    const saved = allSheetRosters();
-    if (!saved.length) return false;
+    if (!sheet.readings) return false;
 
-    const m = matchSheetCode(sheet.readings, saved.map((s) => ({ key: s.key, roster: s.roster })));
-    sheet.codeScore = m.score;
-    if (!m.match) {
-      sheet.nameSource = sheet.readings?.hasCode
-        ? { ok: false, why: `기록지 코드가 안 맞습니다 (${m.score}/${CODE_BITS}칸).` }
-        : { ok: false, why: "이 기록지에는 코드 칸이 없습니다 — 예전 양식입니다." };
-      return false;
+    // ① 종이가 들고 온 명단이 먼저다. 이름 칸 일곱 개에 로스터 번호가 찍혀 있으므로
+    //    사진을 올리는 사람이 누구든, 어느 기기든 이름이 나온다.
+    const paper = readSheetRoster(sheet.readings, ROSTER);
+    sheet.rosterRead = paper;
+    let hit = 0;
+    if (paper.read) {
+      paper.rows.forEach((who, i) => {
+        if (who && !sheet.names[i]) { sheet.names[i] = who.name; hit++; }
+      });
     }
 
-    let hit = 0;
-    m.match.roster.forEach(([, name], i) => {
-      if (name && !sheet.names[i]) { sheet.names[i] = name; hit++; }
-    });
-    // 코드로 팀까지 알아냈으니 팀 선택도 맞춰 준다.
-    const teamName = m.match.key.split("|")[1];
-    const ti = game.teams.findIndex((t) => t.name === teamName);
-    if (ti >= 0) sheet.team = ti;
-    sheet.nameSource = { ok: true, why: `${CODE_BITS}/${CODE_BITS}칸 일치 — ${teamName} 기록지로 확인` };
+    // ② 기록지 코드로 어느 날 어느 팀 것인지까지 알아낸다. 이건 뽑은 기기에서만 되지만
+    //    (메모가 그 기기에 있다) 안 돼도 이름은 이미 ①에서 채워졌다.
+    const saved = allSheetRosters();
+    const m = saved.length
+      ? matchSheetCode(sheet.readings, saved.map((s) => ({ key: s.key, roster: s.roster })))
+      : { match: null, score: 0 };
+    sheet.codeScore = m.score;
+    if (m.match) {
+      const teamName = m.match.key.split("|")[1];
+      const ti = game.teams.findIndex((t) => t.name === teamName);
+      if (ti >= 0) sheet.team = ti;
+      // 종이가 말하는 이름과 이 기기의 메모가 다르면 둘 중 하나가 틀린 것이다.
+      // 로스터 순서가 바뀐 뒤에 예전 기록지를 올리면 이렇게 된다 — 조용히 넘어가면
+      // 엉뚱한 사람 기록이 된다.
+      const clash = m.match.roster.some(([, name], i) =>
+        paper.rows[i] && name && paper.rows[i].name !== name);
+      sheet.nameSource = clash
+        ? { ok: false, why: `종이에 찍힌 이름과 이 기기에 적어둔 명단이 다릅니다 — 이름을 직접 확인해주세요.` }
+        : { ok: true, why: `${teamName} 기록지 · 종이에서 ${paper.read}명 읽음` };
+      return hit > 0;
+    }
+
+    sheet.nameSource = paper.read
+      ? { ok: true, why: `종이에 찍힌 명단에서 ${paper.read}명 읽었습니다` }
+      : paper.bad
+        ? { ok: false, why: `이름 칸 ${paper.bad}줄을 잘못 읽었습니다 — 판독 위치가 어긋났습니다.` }
+        : { ok: false, why: "이 기록지에는 이름 칸이 없습니다 — 예전 양식입니다." };
     return hit > 0;
   }
 
@@ -334,8 +356,12 @@ export function mountStatsPage(container) {
     lines.push(`사진 ${sheet.imageData.width}×${sheet.imageData.height}px`);
     lines.push(`눈금 표식 ${r.tickHits}/${r.tickTotal} 찾음 · ${r.corrected ? "밀림 보정 함" : "밀림 보정 못 함(옛 양식)"}`);
     lines.push(sheet.nameSource
-      ? `기록지 코드 — ${sheet.nameSource.why}`
-      : `기록지 코드 ${sheet.codeScore ?? "-"}/${CODE_BITS}칸 일치`);
+      ? `선수 이름 — ${sheet.nameSource.why}`
+      : `선수 이름 — 확인 못 함`);
+    if (sheet.rosterRead) {
+      lines.push(`이름 칸 ${sheet.rosterRead.read}줄 읽음` +
+        (sheet.rosterRead.bad ? ` · ${sheet.rosterRead.bad}줄 홀짝 검사 실패` : ""));
+    }
     lines.push(`어둡기 문턱값 ${cut.toFixed(3)} (이보다 어두우면 칠한 것으로 봄)`);
     lines.push(`칠한 것으로 읽은 칸 ${sheet.filled}개`);
     lines.push("");

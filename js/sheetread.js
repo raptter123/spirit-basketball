@@ -17,7 +17,7 @@
 // 않고, 휴대폰 렌즈가 가장자리를 휘고, 인쇄 배율도 딱 맞지 않아서 생기는 것이라
 // 문턱값을 아무리 손봐도 고쳐지지 않는다. 표식을 네 변에 깔아 잡는 수밖에 없다.
 
-import { SHEET_MM, CODE_BITS, sheetCodeBits } from "./sheetform.js";
+import { SHEET_MM, CODE_BITS, sheetCodeBits, ROW_CODE_BITS, rowCodeValue, PLAYER_ROWS } from "./sheetform.js";
 
 // ── 호모그래피 ───────────────────────────────────────────
 // 네 점 대응으로 3×3 변환을 푼다. h33=1 로 고정하면 미지수 8개짜리 선형계가 된다.
@@ -363,7 +363,7 @@ function ringSnap(imageData, warp, geometry) {
   const RING = [];
   for (let a = 0; a < 16; a++) RING.push([Math.cos(a * Math.PI / 8), Math.sin(a * Math.PI / 8)]);
 
-  const bs = geometry.bubbles.filter((b) => b.id[0] !== "k").map((b) => {
+  const bs = geometry.bubbles.filter((b) => b.id[0] !== "k" && b.id[0] !== "r").map((b) => {
     const c = warp.at(b.cx, b.cy);
     const ex = warp.at(b.cx + b.rx, b.cy), ey = warp.at(b.cx, b.cy + b.ry);
     return { mx: b.cx, my: b.cy, x: c.x, y: c.y,
@@ -462,9 +462,9 @@ export function readBubbles(imageData, corners, geometry) {
     if (!px.length) return { b, L: null, rgb: null, x: center.x, y: center.y };
     const rgb = px.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / px.length);
     const item = { b, L: lum(rgb), rgb, x: center.x, y: center.y };
-    // 코드 칸은 인쇄할 때부터 까맣게 칠해져 나온다. "빈 칸" 기준을 재는 무리에
-    // 끼면 기준이 어두워지므로 빼 둔다.
-    if (b.id[0] !== "k") {
+    // 코드 칸(k)과 이름 칸(r)은 인쇄할 때부터 칠해져 나온다. "빈 칸" 기준을 재는
+    // 무리에 끼면 기준이 어두워지므로 빼 둔다.
+    if (b.id[0] !== "k" && b.id[0] !== "r") {
       const key = `${Math.floor(b.cx / CELL_MM)},${Math.floor(b.cy / CELL_MM)}`;
       if (!cells.has(key)) cells.set(key, []);
       cells.get(key).push(item);
@@ -508,7 +508,7 @@ export function readBubbles(imageData, corners, geometry) {
   }
 
   // 3단계 — 문턱값은 오츠로. 칠한 칸은 확실히 어두운 쪽에 몰린다.
-  const ratios = items.filter((it) => it.L != null && it.b.id[0] !== "k").map((it) => it.ratio);
+  const ratios = items.filter((it) => it.L != null && it.b.id[0] !== "k" && it.b.id[0] !== "r").map((it) => it.ratio);
   // 빈 칸이 압도적이라 오츠가 잡음을 자를 수 있다. 0.62~0.90 밖으로는 안 나가게 묶는다.
   const cut = Math.max(0.62, Math.min(otsuOn(ratios), 0.90));
 
@@ -536,6 +536,38 @@ export function readBubbles(imageData, corners, geometry) {
   // 사람에게 해 줄 안내도 다르다.
   out.hasCode = out.code[0] === 1 && out.code[1] === 0 && out.code[2] === 1;
   return out;
+}
+
+/**
+ * 종이에 인쇄된 명단을 읽는다 — 줄마다 "로스터 몇 번째 사람인지".
+ *
+ * 이게 있어야 **누가 어느 기기에서 올리든** 이름이 나온다. 예전에는 기록지를 뽑은
+ * 기기의 localStorage 에 적어 둔 메모에 기대고 있어서, 팀 편성을 한 사람과 사진을
+ * 올리는 사람이 다르면 이름이 통째로 빈칸이었다. 동아리에서 그 둘이 같은 사람이라는
+ * 보장은 전혀 없다.
+ *
+ * roster: 동아리 전체 명단 [{name, number}, ...] — 여기서 번호로 꺼내 쓴다.
+ * 돌려주는 값: { rows: [{no,name}|null, ...], read, bad }
+ *   read = 제대로 읽은 줄, bad = 홀짝 검사에 걸린 줄(판독이 어긋났다는 뜻)
+ */
+export function readSheetRoster(readings, roster) {
+  const rows = [];
+  let read = 0, bad = 0;
+  for (let p = 0; p < PLAYER_ROWS; p++) {
+    const bits = [];
+    for (let i = 0; i < ROW_CODE_BITS; i++) {
+      const r = readings.get(`r:${p}:${i}`);
+      bits.push(r ? (r.v === "blank" ? 0 : 1) : null);
+    }
+    if (bits.some((b) => b === null)) { rows.push(null); continue; }
+    const idx = rowCodeValue(bits);
+    if (idx === -1) { rows.push(null); continue; } // 빈 줄 — 실패가 아니다
+    const who = idx === null ? null : roster?.[idx];
+    if (!who) { rows.push(null); bad++; continue; }
+    rows.push({ no: typeof who.number === "number" ? who.number : null, name: who.name });
+    read++;
+  }
+  return { rows, read, bad };
 }
 
 /**
@@ -701,7 +733,7 @@ export function readingsToTeam(readings, roster) {
   let filled = 0;
   for (const [id, r] of readings) {
     if (r.v === "blank") continue;
-    if (id[0] === "k") continue; // 코드 칸은 기록이 아니다
+    if (id[0] === "k" || id[0] === "r") continue; // 코드·이름 칸은 기록이 아니다
     filled++;
     const t = id.split(":");
     const pi = +t[1];

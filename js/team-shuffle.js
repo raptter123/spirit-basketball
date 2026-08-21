@@ -563,7 +563,8 @@ function showSheetPrintModal(teams, gameDate) {
         용지는 자동으로 A4 가로로 잡힙니다.
         종이 <b>네 변을 따라 작은 검은 사각형</b>이 줄지어 찍히는지 꼭 확인해주세요 — 판독기가 이걸로
         종이 안쪽이 밀린 것까지 바로잡습니다. 이게 없으면 안쪽 칸을 한 줄씩 밀려 읽습니다.
-        ${teams.length}팀 명단을 적어두었으니, 나중에 사진을 올리면 선수 이름이 자동으로 채워집니다.</p>
+        선수 이름은 <b>종이에 같이 찍혀 나갑니다</b> — 이름 밑의 작은 점 일곱 개가 그것입니다.
+        그래서 나중에 <b>누가 어느 기기에서 사진을 올려도</b> 이름이 자동으로 채워집니다.</p>
       <div class="sheet-print-preview">${pages.map((p) => `<div class="sheet-page">${p}</div>`).join("")}</div>
       <div class="modal-actions">
         <button type="button" class="btn" id="sp-close">닫기</button>
@@ -842,8 +843,11 @@ export function mountTeamBuilder(container) {
       const teams = Array.from({ length: teamCount }, (_, i) => ({
         name: `혼 ${TEAM_LETTERS[i]}`,
         // 기록지에는 (C) 같은 꼬리표 없이 이름만 — 판독 뒤 로스터와 짝을 맞춰야 한다.
+        // 세 번째 값은 로스터에서 몇 번째인지. 이게 종이에 버블로 같이 찍혀서,
+        // 사진을 올리는 사람이 누구든 이름이 나온다.
         roster: teamsPlayers[i].map((n) => [
           typeof playersByName[n]?.number === "number" ? playersByName[n].number : null, n,
+          ROSTER.findIndex((p) => p.name === n),
         ]),
       })).filter((t) => t.roster.length > 0);
       if (!teams.length) return;
