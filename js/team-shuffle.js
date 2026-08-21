@@ -598,29 +598,52 @@ function showSheetPrintModal(teams, gameDate) {
   //   3) 네 귀퉁이 표식은 CSS background 다. 크롬은 "배경 그래픽"이 기본으로 꺼져 있어서
   //      그냥 두면 **표식이 아예 안 찍힌다** — 그러면 사진 판독이 원천적으로 불가능하다.
   //      print-color-adjust:exact 로 강제한다.
+  //   4) 세로 A4 를 **꽉 채우면** 안 된다. 종이가 210×297 이어도 실제로 찍히는 영역은
+  //      그보다 작다 — iOS 사파리는 위아래에 주소·날짜·쪽번호를 넣고, 프린터마다
+  //      물리적 여백도 있다. 딱 맞춰 놨더니 매 장마다 자투리가 다음 면으로 넘어가서
+  //      **2장이 4페이지**가 됐다(2·4면은 거의 백지). 그래서 조금 줄여서 앉힌다.
+  // 얼마나 줄일지 — 넉넉하게 잡는다. 0.9(위아래 여유 29.7mm)로 재 봤는데, iOS 의
+  // 머리글·바닥글에 프린터 물리 여백까지 더하면 그 정도는 쉽게 먹는다. 아슬아슬하게
+  // 맞춘 게 이미 한 번 터졌으므로 여기서는 여유를 크게 둔다.
+  // 0.85 → 178.5×252.5mm, 위아래 여유 44.5mm. 버블은 3.2mm→2.7mm 로 여전히 칠할 만하고,
+  // 균일 축소라 판독은 영향받지 않는다.
+  const FIT = 0.85;
+  const pw = (210 * FIT).toFixed(2);             // 회전 뒤 가로 = 178.50mm
+  const ph = (297 * FIT).toFixed(2);             // 회전 뒤 세로 = 252.45mm
+  // 상자는 0.6mm 크게 잡는다. 딱 맞추면 반올림 때문에 0.1mm 가 밖으로 나가고,
+  // 상자를 잘라내게(overflow:hidden) 해 두면 **맨 아래 눈금 표식 줄이 잘린다**.
+  // 표식이 잘리면 판독이 통째로 망가지므로 자르지 않고 여유를 준다.
+  const bw = (210 * FIT + 0.6).toFixed(2);
+  const bh = (297 * FIT + 0.6).toFixed(2);
   const printCss = document.createElement("style");
   printCss.textContent = `
   @page{size:A4 portrait;margin:0}
   @media print{
-    html,body{width:210mm;margin:0!important;padding:0!important;background:#fff!important}
+    html,body{width:auto!important;margin:0!important;padding:0!important;background:#fff!important}
     body>*{display:none!important}
     body>.modal-backdrop{display:block!important;position:static!important;background:#fff!important;
       padding:0!important;margin:0!important;overflow:visible!important}
-    .modal-backdrop .modal{max-width:none!important;width:auto!important;background:#fff!important;
-      box-shadow:none!important;padding:0!important;border:0!important;margin:0!important}
-    .sheet-print-modal h3,.sheet-print-modal .hint,.sheet-print-modal .modal-actions{display:none!important}
+    .modal-backdrop .modal{max-width:none!important;width:auto!important;max-height:none!important;
+      background:#fff!important;box-shadow:none!important;padding:0!important;border:0!important;
+      margin:0!important;display:block!important}
+    .sheet-print-modal h3,.sheet-print-modal .hint,
+    .sheet-print-modal .modal-actions,.sheet-print-why{display:none!important}
     .sheet-print-preview{display:block!important;overflow:visible!important;max-height:none!important;
       background:#fff!important;padding:0!important;margin:0!important;gap:0!important}
-    /* 한 장 = 세로 A4 한 면. 그 안에서 기록지를 90° 돌려 딱 채운다. */
+    /* 한 장 = 한 면. 상자는 **줄여 앉힌 기록지가 차지하는 만큼만** 잡는다 —
+       210×297 로 잡으면 그 자체가 인쇄 영역을 넘겨 빈 면이 하나씩 더 생긴다. */
     .sheet-page{zoom:1!important;transform:none!important;
-      width:210mm!important;height:297mm!important;position:relative!important;
-      overflow:visible!important;margin:0!important;page-break-after:always;break-after:page}
+      width:${bw}mm!important;height:${bh}mm!important;position:relative!important;
+      overflow:visible!important;margin:0 auto!important;
+      page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid}
     .sheet-page:last-child{page-break-after:auto;break-after:auto}
-    /* 좌상단을 축으로 90° 돌리면 x 가 -210~0 으로 가므로 210mm 만큼 오른쪽으로 민다.
-       결과: 정확히 210×297 세로 면을 채운다. */
+    /* 좌상단을 축으로 축소 → 90° 회전 → 오른쪽으로 밀기 (오른쪽부터 적용된다).
+       결과가 정확히 ${pw}×${ph}mm 를 채운다. 균일 축소라 판독에는 영향이 없다 —
+       판독기는 표식 네 점으로 좌표를 다시 잡으므로 종이가 몇 % 작아도 그대로 읽는다. */
     .sheet-page .sheet{position:absolute!important;top:0!important;left:0!important;
       width:297mm!important;height:210mm!important;
-      transform:translateX(210mm) rotate(90deg)!important;transform-origin:top left!important;
+      transform:translateX(${pw}mm) rotate(90deg) scale(${FIT})!important;
+      transform-origin:top left!important;
       -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   }`;
   document.head.appendChild(printCss);
