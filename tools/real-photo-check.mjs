@@ -24,6 +24,12 @@ const PHOTO = "/test/fixtures/sheet-honA-260823.jpg";
 // 파고들어 보니 넣음 칸 하나(어둡기 0.694)가 문턱값 0.62 에 걸려 떨어지고 있었다.
 // 빈 칸 무리(0.89~1.05)에서 0.2 나 떨어져 있는데도. 그래서 문턱값을 분포의
 // 골짜기에서 잡도록 바꿨다 — 이 줄이 그 수정을 지키는 시험이다.
+
+// 종이에 인쇄된 명단 — 이름 칸 판독이 세 번이나 엉뚱한 사람을 내놨던 자리라
+// 여기서 못 박아 둔다(손걸 = 로스터 15번, 어두운 칸이 둘뿐이라 아무 줄이나
+// 바싹 자르면 튀어나오던 함정).
+const NAMES = ["박윤호", "배준혁", "조보규", "이남희", "수잔", "조연우"];
+
 const TRUTH = [
   { name: "조보규", quarters: [1, 2, 4],
     p2m: 5, p2a: 10, p3m: 2, p3a: 4, ftm: 1, fta: 2,
@@ -83,6 +89,7 @@ const got = await page.evaluate(async (photo) => {
     filled: team.filled,
     namesRead: paper.read,
     namesBad: paper.bad,
+    names,
     byName: Object.fromEntries(
       names.map((n, k) => [n, team.players[k]]).filter(([n]) => n)),
   };
@@ -93,9 +100,18 @@ if (got.err) { console.error("❌", got.err); process.exit(1); }
 console.log(`실제 사진 ${got.size.join("x")} · 눈금 ${got.ticks} · ${got.corrected ? "밀림 보정 함" : "보정 못 함"}`);
 console.log(`문턱값 ${got.cut.toFixed(3)} · 칠해진 칸 ${got.filled} · 이름 ${got.namesRead}줄 읽음${got.namesBad ? ` · ${got.namesBad}줄 실패` : ""}\n`);
 
+const bad0 = [];
+
+for (const want of NAMES) {
+  if (!got.names.includes(want)) bad0.push(`명단에 ${want} 가 없습니다 — 읽힌 이름: ${got.names.filter(Boolean).join(", ") || "없음"}`);
+}
+for (const n of got.names) {
+  if (n && !NAMES.includes(n)) bad0.push(`명단에 없는 이름을 읽었습니다: ${n}`);
+}
+
 const KEYS = ["p2m", "p2a", "p3m", "p3a", "ftm", "fta", "reb", "ast", "stl", "blk", "to", "pf"];
 const q = (a) => [...a].sort((x, y) => x - y).join(",");
-const bad = [];
+const bad = [...bad0];
 for (const want of TRUTH) {
   const row = got.byName[want.name];
   if (!row) { bad.push(`${want.name} 줄을 아예 못 찾았습니다`); continue; }
