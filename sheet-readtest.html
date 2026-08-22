@@ -112,6 +112,44 @@ window.__blobShape = () => {
   return { found, ok: near(120) && near(360) && near(600) && !near(820) };
 };
 
+// 종이 좌표를 **숫자로** 못 박는다.
+//
+// __geomStability() 는 "같은 날 그린 두 기록지가 서로 같은가"만 본다. 그런데 실제로
+// 터진 사고는 다른 것이었다 — 비고 칸을 21mm → 11.6mm 로 줄이자 "칸 모자랄 때"가
+// 두 줄로 접히면서 표 머리띠가 8.4mm → 11.1mm 로 자랐다. 그 2.7mm 만큼 선수 줄
+// 아홉 개가 통째로 아래로 밀렸고, **이미 뽑아 둔 종이**가 판독기 모형과 어긋났다.
+// 사진에서 재니 맨 윗줄 19px, 아랫줄 3px 짜리 기울어진 밀림이었다. 두 기록지를
+// 서로 견주는 시험으로는 절대 안 잡힌다. 둘 다 똑같이 틀렸으니까.
+//
+// 그래서 여기서는 아무하고도 견주지 않고 **정해진 숫자**와 견준다. 이 값이 달라지면
+// 그날 이후로 인쇄된 종이와 그 전에 인쇄된 종이가 서로 다른 물건이 된다.
+// 값을 고치기 전에 반드시 멈춰서 생각할 것.
+const GEOM_ANCHOR = { headTop: 28.26, headBot: 36.66, row0: 36.66, rowH: 17.63, tableBot: 195.35 };
+window.__geomAnchor = () => {
+  const h = document.createElement("div");
+  h.style.cssText = "position:absolute;left:-99999px;top:0;width:297mm;background:#fff";
+  document.body.appendChild(h);
+  h.innerHTML = sheetHTML({ roster: [] });
+  const el = h.querySelector(".sheet");
+  const R = el.getBoundingClientRect();
+  const k = 297 / R.width;                       // px → mm
+  const at = (n) => {
+    const r = n.getBoundingClientRect();
+    return { top: (r.top - R.top) * k, bot: (r.bottom - R.top) * k };
+  };
+  const head = at(el.querySelector(".gr.ghead"));
+  const rows = [...el.querySelectorAll(".gr.prow")].map(at);
+  h.remove();
+  const got = {
+    headTop: +head.top.toFixed(2), headBot: +head.bot.toFixed(2),
+    row0: +rows[0].top.toFixed(2),
+    rowH: +((rows[rows.length - 1].bot - rows[0].top) / rows.length).toFixed(2),
+    tableBot: +rows[rows.length - 1].bot.toFixed(2),
+  };
+  const off = Object.keys(GEOM_ANCHOR).filter((n) => Math.abs(got[n] - GEOM_ANCHOR[n]) > 0.15);
+  return { got, want: GEOM_ANCHOR, off, ok: off.length === 0 };
+};
+
 // 판독기는 **빈 기록지**를 재어 좌표를 얻고, 사진은 **이름이 든 기록지**를 찍은 것이다.
 // 둘이 조금이라도 다르게 배치되면 판독은 조용히 어긋난다. 실제로 어긋났었다 —
 // 꼬리글이 글자 길이대로 흘러서 코드 버블이 가로로 13.5mm 밀렸고, 머리글 높이가

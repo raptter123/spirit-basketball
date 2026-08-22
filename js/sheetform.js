@@ -126,10 +126,20 @@ export const SHEET_CSS = `
 .sheet .gr{display:grid;align-items:stretch}
 .sheet .gr>div{border-right:0.3mm solid var(--line-2)}
 .sheet .gr>div:last-child{border-right:0}
-.sheet .ghead{background:var(--hdbg);color:#fff}
-.sheet .ghead>div{font-size:2.6mm;font-weight:600;padding:1.1mm 0;text-align:center;
-           border-right-color:rgba(255,255,255,.3);display:flex;flex-direction:column;justify-content:center;gap:0.3mm}
-.sheet .ghead .k{font-size:2mm;opacity:.7;font-weight:400}
+/* 표 머리띠 높이를 **못 박는다**. 예전에는 글자가 정하게 뒀는데, 비고 칸을
+   21mm → 11.6mm 로 줄였더니 "칸 모자랄 때"가 두 줄로 접히면서 머리띠가
+   8.4mm → 11.1mm 로 자랐다. 머리띠가 자란 만큼 선수 줄 아홉 개가 통째로 밀렸고,
+   그 전에 뽑아 둔 종이는 판독기의 모형과 최대 2.7mm(사진에서 19px) 어긋나게 됐다.
+   실제 사진에서 맨 윗줄이 반 칸 밀려 읽힌 게 이것 때문이다.
+
+   종이 좌표는 인쇄한 날과 읽는 날 사이에 절대 달라지면 안 된다. 그래서 높이를
+   숫자로 못 박고, 속에 든 글자는 넘치면 잘리게 둔다. 이 값을 바꾸면 이미 인쇄된
+   기록지가 전부 어긋난다 — 바꾸지 말 것. sheet-readtest 가 지키고 있다. */
+.sheet .ghead{background:var(--hdbg);color:#fff;height:8.4mm;flex:0 0 auto}
+.sheet .ghead>div{font-size:2.6mm;font-weight:600;padding:0 0.4mm;text-align:center;
+           border-right-color:rgba(255,255,255,.3);display:flex;flex-direction:column;
+           justify-content:center;gap:0.2mm;overflow:hidden}
+.sheet .ghead .k{font-size:2mm;opacity:.7;font-weight:400;white-space:nowrap}
 .sheet .prow{border-top:0.4mm solid var(--line);flex:1}
 
 .sheet .cname{display:flex;flex-direction:column;justify-content:center;gap:0.4mm;padding:0 2mm}
@@ -328,7 +338,7 @@ export function sheetHTML({ date = "", gameNo = 1, us = "", them = "", roster = 
     <div>어시스트<span class="k">경기 전체</span></div>
     <div>스틸<span class="k">전체</span></div><div>블락<span class="k">전체</span></div>
     <div>턴오버<span class="k">전체</span></div><div>파울<span class="k">전체</span></div>
-    <div>비고<span class="k">칸 모자랄 때</span></div>
+    <div>비고<span class="k">메모</span></div>
   </div>`;
 
   const body = rows.map(([no, name, idx], p) => `<div class="gr prow" style="grid-template-columns:${COLS}">

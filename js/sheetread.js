@@ -628,17 +628,44 @@ export function readBubbles(imageData, corners, geometry) {
  * 돌려주는 값: { rows: [{no,name}|null, ...], read, bad }
  *   read = 제대로 읽은 줄, bad = 홀짝 검사에 걸린 줄(판독이 어긋났다는 뜻)
  */
+// 이름 칸 일곱 개를 **그 줄 안의 명암 차이만으로** 0/1 로 가른다.
+//
+// 왜 따로 가르나: 이 칸들은 사람이 칠하는 게 아니라 인쇄되어 나온다. 크기가
+// 2.1×1.9mm 로 작아서 손으로 칠한 칸(어둡기 0.1~0.3)만큼 진하게 안 찍히고
+// 0.45~0.75 쯤에 앉는다. 그런데 문턱값은 손마킹 기준으로 정해지므로(0.62~0.63)
+// 인쇄된 칸 무리 한가운데를 갈라 버린다 — 실제로 조보규 줄이 0.64/0.53/0.54/0.47
+// 이었는데 0.64 하나만 문턱을 넘겨 홀짝 검사에서 걸렸다.
+//
+// 그래서 일곱 개를 정렬해 가장 큰 틈에서 자른다. 틈이 뚜렷하지 않거나 어두운 쪽이
+// 충분히 어둡지 않으면 포기하고 원래 문턱값으로 돌아간다 — 애매하면 안 읽는 게 낫다.
+// 어차피 마지막에 홀짝 검사가 한 번 더 걸러 준다.
+function rowBitsByContrast(ratios) {
+  if (ratios.some((v) => v == null)) return null;
+  const sorted = [...ratios].sort((a, b) => a - b);
+  let gap = 0, cut = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] > gap) { gap = sorted[i] - sorted[i - 1]; cut = i; }
+  }
+  const darkMax = sorted[cut - 1], lightMin = sorted[cut];
+  if (gap < 0.3) return null;        // 틈이 좁다 — 전부 같은 색이거나 애매하다
+  if (darkMax > 0.85) return null;   // "어두운" 쪽이 안 어둡다 — 잡음을 가른 것이다
+  return ratios.map((v) => (v <= darkMax ? 1 : 0));
+}
+
 export function readSheetRoster(readings, roster) {
   const rows = [];
   let read = 0, bad = 0;
   for (let p = 0; p < PLAYER_ROWS; p++) {
-    const bits = [];
+    const bits = [], ratios = [];
     for (let i = 0; i < ROW_CODE_BITS; i++) {
       const r = readings.get(`r:${p}:${i}`);
       bits.push(r ? (r.v === "blank" ? 0 : 1) : null);
+      ratios.push(r && r.ratio != null ? r.ratio : null);
     }
     if (bits.some((b) => b === null)) { rows.push(null); continue; }
-    const idx = rowCodeValue(bits);
+    // 그 줄 안의 명암으로 먼저 풀어 보고, 홀짝 검사를 통과할 때만 그 답을 쓴다.
+    const own = rowBitsByContrast(ratios);
+    const idx = (own && rowCodeValue(own) !== null) ? rowCodeValue(own) : rowCodeValue(bits);
     if (idx === -1) { rows.push(null); continue; } // 빈 줄 — 실패가 아니다
     const who = idx === null ? null : roster?.[idx];
     if (!who) { rows.push(null); bad++; continue; }
