@@ -352,6 +352,26 @@ export function buildWarp(geometry, corners, ticksPx) {
 // 이웃을 모으는 격자 칸 크기(mm). 한 칸에 수십 개가 들어가야 중앙값이 의미가 있다.
 const CELL_MM = 22;
 
+// 칠한 칸과 빈 칸을 가르는 문턱값. 두 무리 사이의 **가장 넓은 빈 구간**을 찾는다.
+//
+// 빈 칸이 열 배쯤 많고 아주 좁게 뭉쳐 있어서(0.9~1.05) 오츠는 자꾸 마킹 쪽을
+// 갈랐다. 골짜기는 사람 눈에는 뻔히 보이는데 — 그 뻔한 것을 그대로 찾는다.
+const GAP_MIN = 0.10;   // 이보다 좁으면 골짜기라고 부르지 않는다
+const CUT_LO = 0.45, CUT_HI = 0.92;
+function valleyCut(values) {
+  const a = [...values].filter((v) => v != null).sort((x, y) => x - y);
+  if (a.length < 50) return Math.max(0.62, Math.min(otsuOn(values), 0.90));
+  // 빈 칸 무리 한가운데(중앙값)보다 위는 볼 것도 없다 — 골짜기는 그 아래에 있다.
+  const mid = a[a.length >> 1];
+  let gap = 0, lo = 0, hi = 0;
+  for (let i = 1; i < a.length; i++) {
+    if (a[i] > mid) break;
+    if (a[i] - a[i - 1] > gap) { gap = a[i] - a[i - 1]; lo = a[i - 1]; hi = a[i]; }
+  }
+  if (gap < GAP_MIN) return Math.max(0.62, Math.min(otsuOn(values), 0.90));
+  return Math.max(CUT_LO, Math.min((lo + hi) / 2, CUT_HI));
+}
+
 function otsuOn(values) {
   if (values.length < 8) return 0.8;
   const lo = Math.min(...values), hi = Math.max(...values);
@@ -613,10 +633,24 @@ export function readBubbles(imageData, corners, geometry) {
       : 1;
   }
 
-  // 3단계 — 문턱값은 오츠로. 칠한 칸은 확실히 어두운 쪽에 몰린다.
+  // 3단계 — 문턱값은 **어둡기 분포의 골짜기**에서 잡는다.
+  //
+  // 예전에는 오츠에 0.62~0.90 clamp 를 걸었는데, 빈 칸이 1,550개 대 마킹 180개로
+  // 압도적이라 오츠가 자꾸 아래쪽(마킹 무리 한가운데)을 잘라 0.62 바닥에 붙었다.
+  // 그런데 실제 분포를 그려 보니 골짜기는 훨씬 위였다:
+  //
+  //   혼A  마킹 0.30~0.78 … 골짜기 0.782~0.889 … 빈 칸 0.89~1.05 (1,540개)
+  //   혼B  마킹 0.30~0.60 … 골짜기 0.597~0.837 … 빈 칸 0.82~1.08
+  //
+  // 0.62 로 자르는 바람에 박윤호의 3점 넣음 한 칸(0.694)이 빈 칸으로 떨어졌다 —
+  // 사람이 종이를 보고 3점 1/3 인데 0/2 로 읽었다고 알려 준 그 칸이다.
+  // 빈 칸 무리에서 0.2 나 떨어져 있는데도 놓쳤다.
+  //
+  // 그래서 두 무리 사이의 **가장 넓은 빈 구간**을 찾아 그 한가운데를 쓴다.
+  // 골짜기가 뚜렷하지 않으면(마킹이 아예 없거나 흐릿한 것이 이어져 있으면)
+  // 예전 방식으로 돌아간다 — 애매하면 덜 읽는 쪽이 낫다.
   const ratios = items.filter((it) => it.L != null && it.b.id[0] !== "k" && it.b.id[0] !== "r").map((it) => it.ratio);
-  // 빈 칸이 압도적이라 오츠가 잡음을 자를 수 있다. 0.62~0.90 밖으로는 안 나가게 묶는다.
-  const cut = Math.max(0.62, Math.min(otsuOn(ratios), 0.90));
+  const cut = valleyCut(ratios);
 
   const out = new Map();
   for (const it of items) {

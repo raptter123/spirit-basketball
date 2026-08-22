@@ -5,8 +5,8 @@
 // 그런데 사진을 눈으로 세어 정답을 만들면 **그 정답이 먼저 틀린다** — 틀린 자를
 // 들고 자를 고치는 셈이다.
 //
-// 그래서 이 파일의 기대값은 추측이 아니다. 2026-08-23 혼 A 기록지의 조보규 줄을
-// 사람이 종이를 직접 보고 한 칸씩 확인해 준 값이다. 이 줄만 200칸쯤 되고,
+// 그래서 이 파일의 기대값은 추측이 아니다. 2026-08-23 혼 A 기록지의 두 줄을
+// 사람이 종이를 직접 보고 한 칸씩 확인해 준 값이다. 한 줄이 200칸쯤 되고,
 // 검정·빨강 마킹이 섞여 있고, 출전·슛·카운트 세 종류가 다 들어 있다.
 //
 // 이 시험이 깨지면 판독기가 실제로 나빠진 것이다. 기대값을 고치지 말 것 —
@@ -18,13 +18,20 @@ import { chromium } from "playwright";
 const URL = "http://127.0.0.1:8911";
 const PHOTO = "/test/fixtures/sheet-honA-260823.jpg";
 
-// 사람이 종이를 보고 확인해 준 값 (2026-08-23 · 1경기 · 혼 A · #55 조보규)
-const TRUTH = {
-  name: "조보규",
-  quarters: [1, 2, 4],
-  p2m: 5, p2a: 10, p3m: 2, p3a: 4, ftm: 1, fta: 2,
-  reb: 4, ast: 4, stl: 2, blk: 1, to: 1, pf: 1,
-};
+// 사람이 종이를 보고 확인해 준 값 (2026-08-23 · 1경기 · 혼 A)
+//
+// 박윤호 줄은 처음엔 3점을 0/2 로 읽었다. 사람이 종이를 보고 1/3 이라고 알려 줬고,
+// 파고들어 보니 넣음 칸 하나(어둡기 0.694)가 문턱값 0.62 에 걸려 떨어지고 있었다.
+// 빈 칸 무리(0.89~1.05)에서 0.2 나 떨어져 있는데도. 그래서 문턱값을 분포의
+// 골짜기에서 잡도록 바꿨다 — 이 줄이 그 수정을 지키는 시험이다.
+const TRUTH = [
+  { name: "조보규", quarters: [1, 2, 4],
+    p2m: 5, p2a: 10, p3m: 2, p3a: 4, ftm: 1, fta: 2,
+    reb: 4, ast: 4, stl: 2, blk: 1, to: 1, pf: 1 },
+  { name: "박윤호", quarters: [1, 2, 3],
+    p2m: 2, p2a: 7, p3m: 1, p3a: 3, ftm: 1, fta: 2,
+    reb: 4, ast: 3, stl: 1, blk: 0, to: 1, pf: 2 },
+];
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
@@ -68,43 +75,46 @@ const got = await page.evaluate(async (photo) => {
     readings,
     names.map((n, k) => [paper.rows[k] ? paper.rows[k].no : null, n]));
 
-  const at = names.indexOf("조보규");
   return {
     size: [idata.width, idata.height],
     ticks: `${readings.tickHits}/${readings.tickTotal}`,
     corrected: readings.corrected,
+    cut: readings.threshold,
     filled: team.filled,
     namesRead: paper.read,
     namesBad: paper.bad,
-    row: at < 0 ? null : { name: "조보규", ...team.players[at] },
+    byName: Object.fromEntries(
+      names.map((n, k) => [n, team.players[k]]).filter(([n]) => n)),
   };
 }, PHOTO);
 
 if (got.err) { console.error("❌", got.err); process.exit(1); }
 
 console.log(`실제 사진 ${got.size.join("x")} · 눈금 ${got.ticks} · ${got.corrected ? "밀림 보정 함" : "보정 못 함"}`);
-console.log(`칠해진 칸 ${got.filled} · 이름 ${got.namesRead}줄 읽음${got.namesBad ? ` · ${got.namesBad}줄 실패` : ""}`);
+console.log(`문턱값 ${got.cut.toFixed(3)} · 칠해진 칸 ${got.filled} · 이름 ${got.namesRead}줄 읽음${got.namesBad ? ` · ${got.namesBad}줄 실패` : ""}\n`);
 
+const KEYS = ["p2m", "p2a", "p3m", "p3a", "ftm", "fta", "reb", "ast", "stl", "blk", "to", "pf"];
+const q = (a) => [...a].sort((x, y) => x - y).join(",");
 const bad = [];
-if (!got.row) {
-  bad.push("조보규 줄을 아예 못 찾았습니다");
-} else {
-  const q = (a) => [...a].sort((x, y) => x - y).join(",");
-  if (q(got.row.quarters) !== q(TRUTH.quarters)) {
-    bad.push(`출전 기대 ${q(TRUTH.quarters)} · 실제 ${q(got.row.quarters) || "없음"}`);
+for (const want of TRUTH) {
+  const row = got.byName[want.name];
+  if (!row) { bad.push(`${want.name} 줄을 아예 못 찾았습니다`); continue; }
+  const miss = [];
+  if (q(row.quarters) !== q(want.quarters)) {
+    miss.push(`출전 기대 ${q(want.quarters)} · 실제 ${q(row.quarters) || "없음"}`);
   }
-  for (const k of ["p2m", "p2a", "p3m", "p3a", "ftm", "fta", "reb", "ast", "stl", "blk", "to", "pf"]) {
-    if (got.row[k] !== TRUTH[k]) bad.push(`${k} 기대 ${TRUTH[k]} · 실제 ${got.row[k]}`);
-  }
+  for (const k of KEYS) if (row[k] !== want[k]) miss.push(`${k} 기대 ${want[k]} · 실제 ${row[k]}`);
+  if (miss.length) { bad.push(...miss.map((m) => `${want.name}: ${m}`)); continue; }
+  console.log(`✅ ${want.name} — 출전 ${want.quarters.join(",")} · 2점 ${want.p2m}/${want.p2a} · ` +
+    `3점 ${want.p3m}/${want.p3a} · 자유투 ${want.ftm}/${want.fta} · ` +
+    `리바 ${want.reb} 어시 ${want.ast} 스틸 ${want.stl} 블락 ${want.blk} 턴오버 ${want.to} 파울 ${want.pf}`);
 }
 if (errs.length) bad.push(`페이지 오류: ${errs.join(" | ")}`);
 
 if (bad.length) {
-  console.error(`\n❌ 사람이 확인한 조보규 줄과 어긋납니다 (${bad.length}건)`);
+  console.error(`\n❌ 사람이 종이를 보고 확인해 준 값과 어긋납니다 (${bad.length}건)`);
   for (const b of bad) console.error("   " + b);
   process.exit(1);
 }
-console.log("\n✅ 사람이 종이를 보고 확인한 조보규 줄과 전부 일치합니다");
-console.log(`   출전 ${TRUTH.quarters.join(",")} · 2점 ${TRUTH.p2m}/${TRUTH.p2a} · 3점 ${TRUTH.p3m}/${TRUTH.p3a} · 자유투 ${TRUTH.ftm}/${TRUTH.fta}`);
-console.log(`   리바 ${TRUTH.reb} 어시 ${TRUTH.ast} 스틸 ${TRUTH.stl} 블락 ${TRUTH.blk} 턴오버 ${TRUTH.to} 파울 ${TRUTH.pf}`);
+console.log(`\n사람이 확인한 ${TRUTH.length}줄 전부 일치합니다.`);
 await browser.close();
