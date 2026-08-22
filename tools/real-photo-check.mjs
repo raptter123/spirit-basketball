@@ -25,16 +25,17 @@ const PHOTO = "/test/fixtures/sheet-honA-260823.jpg";
 // 빈 칸 무리(0.89~1.05)에서 0.2 나 떨어져 있는데도. 그래서 문턱값을 분포의
 // 골짜기에서 잡도록 바꿨다 — 이 줄이 그 수정을 지키는 시험이다.
 
-// 종이에 인쇄된 명단 — 이름 칸 판독이 세 번이나 엉뚱한 사람을 내놨던 자리라
-// 여기서 못 박아 둔다(손걸 = 로스터 15번, 어두운 칸이 둘뿐이라 아무 줄이나
-// 바싹 자르면 튀어나오던 함정).
-const NAMES = ["박윤호", "배준혁", "조보규", "이남희", "수잔", "조연우"];
-
+// 이 사진은 **이름 칸을 키우기 전(2.1×1.9mm)** 에 뽑은 종이다. 이름 칸 버블을
+// 3.2×2.6mm 두 줄로 키우면서 그 자리가 달라졌으므로, 이 종이에서는 이름이 안 읽힌다.
+// 그래서 여기서는 이름이 아니라 **줄 번호**로 찾는다.
+//
+// 그게 이 변경의 값이자 대가다 — 옛 종이도 숫자는 그대로 다 읽히고(아래가 그 증거),
+// 이름만 사람이 골라 주면 된다. 이름 판독 자체는 합성 시험 아홉 종이 지킨다.
 const TRUTH = [
-  { name: "조보규", quarters: [1, 2, 4],
+  { row: 2, name: "조보규", quarters: [1, 2, 4],
     p2m: 5, p2a: 10, p3m: 2, p3a: 4, ftm: 1, fta: 2,
     reb: 4, ast: 4, stl: 2, blk: 1, to: 1, pf: 1 },
-  { name: "박윤호", quarters: [1, 2, 3],
+  { row: 0, name: "박윤호", quarters: [1, 2, 3],
     p2m: 2, p2a: 7, p3m: 1, p3a: 3, ftm: 1, fta: 2,
     reb: 4, ast: 3, stl: 1, blk: 0, to: 1, pf: 2 },
 ];
@@ -90,8 +91,7 @@ const got = await page.evaluate(async (photo) => {
     namesRead: paper.read,
     namesBad: paper.bad,
     names,
-    byName: Object.fromEntries(
-      names.map((n, k) => [n, team.players[k]]).filter(([n]) => n)),
+    rows: team.players,
   };
 }, PHOTO);
 
@@ -100,21 +100,19 @@ if (got.err) { console.error("❌", got.err); process.exit(1); }
 console.log(`실제 사진 ${got.size.join("x")} · 눈금 ${got.ticks} · ${got.corrected ? "밀림 보정 함" : "보정 못 함"}`);
 console.log(`문턱값 ${got.cut.toFixed(3)} · 칠해진 칸 ${got.filled} · 이름 ${got.namesRead}줄 읽음${got.namesBad ? ` · ${got.namesBad}줄 실패` : ""}\n`);
 
+// 읽힌 이름이 있다면 명단 밖 사람이면 안 된다(예전에 용원식을 손걸로 읽었다).
 const bad0 = [];
-
-for (const want of NAMES) {
-  if (!got.names.includes(want)) bad0.push(`명단에 ${want} 가 없습니다 — 읽힌 이름: ${got.names.filter(Boolean).join(", ") || "없음"}`);
-}
+const ON_PAPER = ["박윤호", "배준혁", "조보규", "이남희", "수잔", "조연우"];
 for (const n of got.names) {
-  if (n && !NAMES.includes(n)) bad0.push(`명단에 없는 이름을 읽었습니다: ${n}`);
+  if (n && !ON_PAPER.includes(n)) bad0.push(`종이에 없는 이름을 읽었습니다: ${n}`);
 }
 
 const KEYS = ["p2m", "p2a", "p3m", "p3a", "ftm", "fta", "reb", "ast", "stl", "blk", "to", "pf"];
 const q = (a) => [...a].sort((x, y) => x - y).join(",");
 const bad = [...bad0];
 for (const want of TRUTH) {
-  const row = got.byName[want.name];
-  if (!row) { bad.push(`${want.name} 줄을 아예 못 찾았습니다`); continue; }
+  const row = got.rows[want.row];
+  if (!row) { bad.push(`${want.row + 1}번째 줄(${want.name})을 아예 못 찾았습니다`); continue; }
   const miss = [];
   if (q(row.quarters) !== q(want.quarters)) {
     miss.push(`출전 기대 ${q(want.quarters)} · 실제 ${q(row.quarters) || "없음"}`);

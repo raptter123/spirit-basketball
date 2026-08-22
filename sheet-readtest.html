@@ -125,6 +125,35 @@ window.__blobShape = () => {
 // 그날 이후로 인쇄된 종이와 그 전에 인쇄된 종이가 서로 다른 물건이 된다.
 // 값을 고치기 전에 반드시 멈춰서 생각할 것.
 const GEOM_ANCHOR = { headTop: 28.26, headBot: 36.66, row0: 36.66, rowH: 17.63, tableBot: 195.35 };
+
+// 이름 칸을 키우면서 **다른 열은 한 칸도 안 움직였는지** 못 박는다.
+//
+// 줄 높이는 .prow 의 flex:1 로 표 전체에서 균등 분배되므로, 이름 칸이 커져도 나머지
+// 열의 버블 자리는 그대로여야 한다. 실제로 재 보니 1807칸 중 이름 칸 63개만 움직였다.
+// 이게 지켜져야 **이름 칸을 키우기 전에 뽑아 둔 종이도 숫자는 그대로 읽힌다.**
+const BUBBLE_ANCHOR = {          // 이름 칸을 키우기 **전에** 잰 값이다
+  "q:0:1": [35.51, 39.05],       // 출전 — 이름 칸 바로 옆
+  "s:0:p2:1:0:m": [60.31, 39.45],// 2점 첫 칸
+  "c:0:reb:0": [200.18, 40.21],  // 리바운드 첫 칸
+  "s:8:ft:2:9:x": [193.51, 192.82], // 맨 아랫줄 맨 끝
+  "k:0": [167.45, 200.80],       // 꼬리글 코드
+};
+window.__bubbleAnchor = () => {
+  const h = document.createElement("div");
+  h.style.cssText = "position:absolute;left:-99999px;top:0;width:297mm;background:#fff";
+  document.body.appendChild(h);
+  h.innerHTML = sheetHTML({ roster: [] });
+  const g = measureSheet(h.querySelector(".sheet"));
+  h.remove();
+  const off = [];
+  for (const [id, [x, y]] of Object.entries(BUBBLE_ANCHOR)) {
+    const b = g.bubbles.find((v) => v.id === id);
+    if (!b) { off.push(`${id} 없음`); continue; }
+    const d = Math.hypot(b.cx - x, b.cy - y);
+    if (d > 0.05) off.push(`${id} ${d.toFixed(2)}mm 이동 (${b.cx.toFixed(2)},${b.cy.toFixed(2)})`);
+  }
+  return { off, ok: off.length === 0 };
+};
 window.__geomAnchor = () => {
   const h = document.createElement("div");
   h.style.cssText = "position:absolute;left:-99999px;top:0;width:297mm;background:#fff";
