@@ -486,9 +486,15 @@ export function mountStatsPage(container) {
     const opts = (sel) => `<option value="">선수…</option>` + ROSTER.map((p) =>
       `<option value="${escapeHtml(p.name)}"${sel === p.name ? " selected" : ""}>${escapeHtml(p.name)}${
         typeof p.number === "number" ? ` (#${p.number})` : ""}</option>`).join("");
-    return `<div class="sheet-rows">
+    // 이름을 못 읽은 줄은 **눈에 띄게** 둔다. 기록은 다 읽어 놨는데 이름 하나가
+    // 비어서 그 줄이 통째로 안 넘어가면, 사람은 그 줄을 손으로 다시 치게 된다.
+    // 고를 것 하나만 남겨 두는 게 맞다.
+    const need = live.filter(({ ri }) => !sheet.names[ri]).length;
+    return `${need ? `<p class="sheet-rows-need">이름을 못 읽은 줄이 ${need}개 있습니다 —
+        아래에서 골라주시면 그 줄 기록도 같이 들어갑니다. 숫자는 다시 안 치셔도 됩니다.</p>` : ""}
+      <div class="sheet-rows">
       ${live.map(({ r, ri }) => `
-        <div class="sheet-row">
+        <div class="sheet-row${sheet.names[ri] ? "" : " needs-name"}">
           <span class="sheet-row-no">${ri + 1}줄</span>
           <select data-sheet="${i}" data-row="${ri}">${opts(sheet.names[ri])}</select>
           <span class="sheet-row-stat">${r.quarters.length ? `${r.quarters.join("·")}Q` : "출전 없음"} ·
@@ -672,13 +678,21 @@ export function mountStatsPage(container) {
   }
 
   // 판독 결과를 경기 기록으로 옮긴다. 이름을 고른 줄만 넣는다.
+  //
+  // 예전에는 판정에 걸린 기록지를 **통째로 빼고** 넣었다. 틀린 숫자를 조용히
+  // 보여주지 않겠다는 뜻이었는데, 실제로 벌어진 일은 그게 아니었다 — 한 군데
+  // 어긋났다는 이유로 사람이 140개를 처음부터 손으로 치고 있었다. 그건 도구가
+  // 아니라 벌이다.
+  //
+  // 읽은 건 넣고, 못 믿을 이유를 **크게 붙여서** 사람이 고치게 한다.
+  // 다섯 개 고치는 게 140개 치는 것보다 언제나 낫다.
   function applySheets() {
     let moved = 0;
-    let skipped = 0;
+    const shaky = [];
     const scored = [];
     for (const sh of sheets) {
       if (sh.state !== "read") continue;
-      if (sh.judge && !sh.judge.ok) { skipped++; continue; }
+      if (sh.judge && !sh.judge.ok) shaky.push(sh.name || "기록지");
       const ti = sh.team ?? 0;
       const team = game.teams[ti];
       // 쿼터 점수는 넣은 슛에서 바로 나온다 — 색이 쿼터를 알려주니까.
@@ -701,10 +715,12 @@ export function mountStatsPage(container) {
       });
     }
     touch();
-    const skipNote = skipped ? ` 판독 실패한 기록지 ${skipped}장은 넣지 않았습니다.` : "";
+    const warn = shaky.length
+      ? ` ⚠ ${shaky.length}장은 판독이 미덥지 않습니다 — 「건별 리포트」를 열어 종이와 맞춰보고 아래에서 고쳐주세요.`
+      : "";
     $("#sh-apply-msg").textContent = (moved
       ? `${moved}명을 넣었습니다.` + (scored.length ? ` 쿼터 점수도 계산했습니다 (${scored.join(", ")}).` : "")
-      : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.") + skipNote;
+      : "넣을 줄이 없습니다 — 줄마다 선수를 골라주세요.") + warn;
   }
 
   // 사진인지 가리는 기준을 type 하나에만 걸면 안 된다. 안드로이드 공유나 일부 파일

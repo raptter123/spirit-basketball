@@ -641,14 +641,26 @@ export function readBubbles(imageData, corners, geometry) {
 // 어차피 마지막에 홀짝 검사가 한 번 더 걸러 준다.
 function rowBitsByContrast(ratios) {
   if (ratios.some((v) => v == null)) return null;
+  // 밝기를 **절대값으로 재면 안 된다.** 처음엔 "어두운 쪽이 0.85 보다 밝으면 포기"
+  // 로 했는데, 그 줄만 인쇄가 연하면(0.92 대 1.93 — 차이는 두 배인데 둘 다 밝다)
+  // 멀쩡히 읽을 수 있는 줄을 버렸다. 그러고는 손마킹용 문턱값으로 되돌아가
+  // **엉뚱한 사람 이름**을 그럴듯하게 내놨다 — 용원식을 손걸로 읽었다.
+  // 두 자리가 같이 틀리면 홀짝 검사도 못 잡는다(짝수 개는 그냥 통과한다).
+  //
+  // 자를 자리도 "차이가 가장 큰 곳"으로 잡으면 안 된다. 밝은 쪽은 꼬리가 길어서
+  // (이웃이 어두운 칸은 2.8 까지 간다) 0.07·0.07·0.07·0.07·1.11·2.81·2.81 같은 줄에서
+  // 1.11↔2.81 을 골라 버린다 — 어두운 칸 넷에 1.11 을 얹어 홀짝 검사를 깨뜨렸다.
+  //
+  // 그래서 **몇 배 벌어졌는지**로 자른다. 그건 인쇄가 진하든 연하든 똑같이 동작한다.
   const sorted = [...ratios].sort((a, b) => a - b);
-  let gap = 0, cut = 0;
+  let best = 1, cut = 0;
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] - sorted[i - 1] > gap) { gap = sorted[i] - sorted[i - 1]; cut = i; }
+    const k = sorted[i] / Math.max(0.01, sorted[i - 1]);
+    if (k > best) { best = k; cut = i; }
   }
-  const darkMax = sorted[cut - 1], lightMin = sorted[cut];
-  if (gap < 0.3) return null;        // 틈이 좁다 — 전부 같은 색이거나 애매하다
-  if (darkMax > 0.85) return null;   // "어두운" 쪽이 안 어둡다 — 잡음을 가른 것이다
+  if (!cut) return null;
+  const darkMax = sorted[cut - 1];
+  if (best < 1.35) return null;  // 두 무리가 덜 벌어졌다 — 전부 같은 색이거나 잡음이다
   return ratios.map((v) => (v <= darkMax ? 1 : 0));
 }
 
@@ -663,9 +675,10 @@ export function readSheetRoster(readings, roster) {
       ratios.push(r && r.ratio != null ? r.ratio : null);
     }
     if (bits.some((b) => b === null)) { rows.push(null); continue; }
-    // 그 줄 안의 명암으로 먼저 풀어 보고, 홀짝 검사를 통과할 때만 그 답을 쓴다.
+    // 그 줄 안의 명암으로만 푼다. 손마킹용 문턱값으로 되돌아가는 길은 **없앴다** —
+    // 그 길이 용원식을 손걸로 만들었다. 못 읽으면 못 읽었다고 하는 게 낫다.
     const own = rowBitsByContrast(ratios);
-    const idx = (own && rowCodeValue(own) !== null) ? rowCodeValue(own) : rowCodeValue(bits);
+    const idx = own ? rowCodeValue(own) : (Math.min(...ratios) > 0.8 ? -1 : null);
     if (idx === -1) { rows.push(null); continue; } // 빈 줄 — 실패가 아니다
     const who = idx === null ? null : roster?.[idx];
     if (!who) { rows.push(null); bad++; continue; }

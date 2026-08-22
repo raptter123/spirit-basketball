@@ -267,6 +267,7 @@ window.__run = async (dataUrl, opts) => {
   const found = detectFiducials(idata, window.__geom);
   if (!found) return { ok:false, why:"귀퉁이 못 찾음" };
   const readings = readBubbles(idata, found, window.__geom);
+  window.__lastReadings = readings;
   const got = readingsToTeam(readings, ROSTER);
 
   const want = expectedTeam();

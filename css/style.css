@@ -3235,6 +3235,23 @@ body {
   color: var(--text-muted);
 }
 
+/* 이름만 못 읽은 줄 — 숫자는 다 읽어 놨으니 고르기만 하면 된다. */
+.sheet-rows-need {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 8px 10px;
+}
+
+.sheet-row.needs-name select {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 /* 네 귀퉁이 찍기 */
 .sheet-corner-modal {
   max-width: min(94vw, 720px);
