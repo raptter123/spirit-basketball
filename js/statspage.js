@@ -573,13 +573,24 @@ export function mountStatsPage(container) {
             ? `네 변의 눈금 표식 ${sheet.readings.tickHits}/${sheet.readings.tickTotal}개를 찾아 종이 안쪽 밀림까지 잡았습니다(하늘색 동그라미).`
             : "이 종이에는 <b>눈금 표식이 없습니다</b> — 예전 양식입니다. 귀퉁이 네 점만으로 폈기 때문에 종이 안쪽이 1~2mm 밀린 채로 읽힙니다. 팀 편성에서 <b>다시 인쇄</b>해주세요."}</p>
         <div class="sheet-corner-wrap"><img alt="판독 확인" id="ck-img" /></div>
-        <div class="modal-actions"><button type="button" class="btn" id="ck-close">닫기</button></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="ck-save">그림 저장</button>
+          <button type="button" class="btn" id="ck-close">닫기</button>
+        </div>
       </div>`;
     document.body.appendChild(back);
     back.querySelector("#ck-img").src = cv.toDataURL("image/png");
     const close = () => back.remove();
     back.querySelector("#ck-close").addEventListener("click", close);
     back.addEventListener("click", (e) => { if (e.target === back) close(); });
+    // 안 맞을 때 이 그림 한 장이면 원인이 거의 다 보인다 — 화면 캡처보다 낫다
+    // (캡처는 줄어들어서 동그라미가 얼마나 밀렸는지가 안 보인다).
+    back.querySelector("#ck-save").addEventListener("click", (e) => {
+      cv.toBlob((b) => {
+        if (!b) { e.target.textContent = "저장 실패"; return; }
+        download(b, asciiName(`판독확인-${sheet.name}.png`, `spirit-reading-check.png`));
+      }, "image/png");
+    });
   }
 
   // 칸 하나하나에 대해 무엇을 보고 그렇게 읽었는지 그대로 내려준다.
