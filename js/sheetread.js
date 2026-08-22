@@ -520,6 +520,22 @@ export function readBubbles(imageData, corners, geometry) {
   };
   const lum = (c) => (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000;
 
+  // 칸이 칠해졌는지는 **밝기로 재면 안 된다.** 밝기는 빨강 채널에 0.299 를 주는데,
+  // 빨강 펜은 R 이 그대로 밝게 남아서 검정보다 훨씬 연하게 잰다. 실제로 재 봤다:
+  //
+  //   검정 마킹  중앙값 0.10~0.14
+  //   빨강 마킹  중앙값 0.50~0.54,  가장 연한 것 0.615
+  //   빈 칸      가장 어두운 것 0.636          ← 문턱값 0.62
+  //
+  // 통과한 빨강 중 가장 연한 것과 빈 칸 중 가장 어두운 것 사이가 **0.021** 이었다.
+  // 그 틈에 걸린 빨강은 이미 몇 개씩 빈 칸으로 떨어지고 있었다(0.64~0.68).
+  // 빨강은 짝수 쿼터를 뜻하므로 떨어지면 2·4쿼터 기록이 통째로 사라진다.
+  //
+  // 그래서 세 채널 중 **가장 어두운 것**으로 잰다. 어떤 색 펜이든 적어도 한 채널은
+  // 어두워지므로(빨강 펜은 G·B 가 어둡다) 색에 따라 유불리가 생기지 않는다.
+  // 종이 색은 옆 칸들의 중앙값으로 나누어 상쇄되니 누런 종이도 문제없다.
+  const ink = (c) => Math.min(c[0], c[1], c[2]);
+
   // 1단계 — 버블마다 안쪽 밝기와 색을 잰다. 인쇄된 테두리에 닿지 않게 안쪽만 본다.
   // 버블 **가운데 쪽**만 본다. 반지름의 0.36 까지다.
   // 버블을 3.2→3.4mm 로 키웠더니 0.45 로는 표본이 인쇄된 테두리에 너무 가까워져서,
@@ -539,7 +555,7 @@ export function readBubbles(imageData, corners, geometry) {
     const center = warp.at(b.cx, b.cy);
     if (!px.length) return { b, L: null, rgb: null, x: center.x, y: center.y };
     const rgb = px.reduce((a, c) => [a[0] + c[0], a[1] + c[1], a[2] + c[2]], [0, 0, 0]).map((v) => v / px.length);
-    const item = { b, L: lum(rgb), rgb, x: center.x, y: center.y };
+    const item = { b, L: ink(rgb), rgb, x: center.x, y: center.y };
     // 코드 칸(k)과 이름 칸(r)은 인쇄할 때부터 칠해져 나온다. "빈 칸" 기준을 재는
     // 무리에 끼면 기준이 어두워지므로 빼 둔다.
     if (b.id[0] !== "k" && b.id[0] !== "r") {
@@ -557,32 +573,44 @@ export function readBubbles(imageData, corners, geometry) {
   };
   // 표본이 모자라면 칸을 한 겹씩 넓혀 가며 모은다. 출전 열처럼 버블이 성긴 곳
   // (22mm 칸에 다섯 개뿐)에서 기준값을 못 구해 통째로 빈 칸으로 읽히던 것을 고친다.
+  // 기준값을 **채널마다 따로** 잡는다.
+  //
+  // 세 채널 중 가장 어두운 것 하나만 쓰면 종이 색에 걸린다. 출전 칸처럼 옅게 깔린
+  // 칸에서는 그 바탕색 때문에 기준이 통째로 내려앉아, 멀쩡히 칠한 칸이 상대적으로
+  // 연해 보였다 — 합성 시험 아홉 중 둘이 출전 쿼터를 잃었다.
+  //
+  // 채널마다 "종이 대비 얼마나 어두운가"를 따로 재고 그중 가장 작은 값을 쓰면
+  // 바탕색은 채널 안에서 상쇄된다. 빨강 펜은 G·B 에서, 검정 펜은 세 채널 모두에서
+  // 어두워지므로 색에 따라 유불리가 없다.
   const NEED = 24;
-  const allL = items.map((it) => it.L).filter((v) => v != null);
-  const globalRef = allL.length ? median(allL) : null;
+  const medRGB = (pool) => [0, 1, 2].map((k) => median(pool.map((c) => c[k])));
+  const allRGB = items.map((it) => it.rgb).filter(Boolean);
+  const globalRef = allRGB.length ? medRGB(allRGB) : null;
   const refOf = (b) => {
     const gx = Math.floor(b.cx / CELL_MM), gy = Math.floor(b.cy / CELL_MM);
-    const pool = [];
+    let pool = [];
     for (let ring = 1; ring <= 4; ring++) {
-      pool.length = 0;
+      pool = [];
       for (let dx = -ring; dx <= ring; dx++) {
         for (let dy = -ring; dy <= ring; dy++) {
           const c = cells.get(`${gx + dx},${gy + dy}`);
-          if (c) for (const it of c) if (it.L != null) pool.push(it.L);
+          if (c) for (const it of c) if (it.rgb) pool.push(it.rgb);
         }
       }
-      if (pool.length >= NEED) return median(pool);
+      if (pool.length >= NEED) return medRGB(pool);
     }
-    return pool.length >= 6 ? median(pool) : globalRef;
+    return pool.length >= 6 ? medRGB(pool) : globalRef;
   };
 
   const refCache = new Map();
   for (const it of items) {
-    if (it.L == null) { it.ratio = 1; continue; }
+    if (it.rgb == null) { it.ratio = 1; continue; }
     const key = `${Math.floor(it.b.cx / CELL_MM)},${Math.floor(it.b.cy / CELL_MM)}`;
     if (!refCache.has(key)) refCache.set(key, refOf(it.b));
     const ref = refCache.get(key);
-    it.ratio = ref && ref > 1 ? it.L / ref : 1;
+    it.ratio = ref
+      ? Math.min(...[0, 1, 2].map((k) => (ref[k] > 1 ? it.rgb[k] / ref[k] : 1)))
+      : 1;
   }
 
   // 3단계 — 문턱값은 오츠로. 칠한 칸은 확실히 어두운 쪽에 몰린다.
@@ -651,17 +679,24 @@ function rowBitsByContrast(ratios) {
   // (이웃이 어두운 칸은 2.8 까지 간다) 0.07·0.07·0.07·0.07·1.11·2.81·2.81 같은 줄에서
   // 1.11↔2.81 을 골라 버린다 — 어두운 칸 넷에 1.11 을 얹어 홀짝 검사를 깨뜨렸다.
   //
-  // 그래서 **몇 배 벌어졌는지**로 자른다. 그건 인쇄가 진하든 연하든 똑같이 동작한다.
+  // 그리고 자르는 자리를 **하나만 고르지 않는다.** "가장 많이 벌어진 곳"만 보면,
+  // 그 줄에서 유난히 진한 칸 하나가 나머지를 다 제치고 자기 뒤에서 자르게 만든다 —
+  // 용원식 줄이 0.23·0.57·0.73·0.82·1.01·2.36·2.59 였는데 0.23↔0.57 이 2.48배,
+  // 정작 옳은 자리인 0.82↔1.01 은 1.23배라 첫 칸 하나만 어둡다고 읽었다.
+  //
+  // 대신 여섯 자리를 **많이 벌어진 순서대로 전부** 시험해 보고, 홀짝 검사를 통과하고
+  // 명단에 실제로 있는 사람이 나오는 답만 받는다. 홀짝 비트는 원래 이러라고 있는 것이다.
+  // 그런 답이 둘 이상이면 가려낼 수 없으므로 포기한다 — 애매하면 안 읽는 게 낫다.
   const sorted = [...ratios].sort((a, b) => a - b);
-  let best = 1, cut = 0;
+  const out = [];
   for (let i = 1; i < sorted.length; i++) {
     const k = sorted[i] / Math.max(0.01, sorted[i - 1]);
-    if (k > best) { best = k; cut = i; }
+    const darkMax = sorted[i - 1];
+    // 어두운 쪽이 0.9 를 넘으면 빈 칸을 어둡다고 부르는 것이다 — 빈 이름 칸은
+    // 실제 사진에서 0.93~1.05 로 나온다.
+    if (k >= 1.2 && darkMax < 0.9) out.push(ratios.map((v) => (v <= darkMax ? 1 : 0)));
   }
-  if (!cut) return null;
-  const darkMax = sorted[cut - 1];
-  if (best < 1.35) return null;  // 두 무리가 덜 벌어졌다 — 전부 같은 색이거나 잡음이다
-  return ratios.map((v) => (v <= darkMax ? 1 : 0));
+  return out;
 }
 
 export function readSheetRoster(readings, roster) {
@@ -677,11 +712,31 @@ export function readSheetRoster(readings, roster) {
     if (bits.some((b) => b === null)) { rows.push(null); continue; }
     // 그 줄 안의 명암으로만 푼다. 손마킹용 문턱값으로 되돌아가는 길은 **없앴다** —
     // 그 길이 용원식을 손걸로 만들었다. 못 읽으면 못 읽었다고 하는 게 낫다.
-    const own = rowBitsByContrast(ratios);
-    const idx = own ? rowCodeValue(own) : (Math.min(...ratios) > 0.8 ? -1 : null);
-    if (idx === -1) { rows.push(null); continue; } // 빈 줄 — 실패가 아니다
-    const who = idx === null ? null : roster?.[idx];
-    if (!who) { rows.push(null); bad++; continue; }
+    // 여러 자리에서 잘라 본 답 중 홀짝 검사를 통과하고 명단에도 있는 것만 남긴다.
+    // 그래도 둘 이상 남으면 **어두운 칸이 가장 많은 답**을 고른다.
+    //
+    // 왜 그게 맞나: 너무 바싹 자르면 진짜 어두운 칸을 **잃기만** 하지 없던 칸이
+    // 생기지는 않는다. 그래서 남은 답들은 정답의 부분집합이고, 가장 큰 것이 정답이다.
+    // 실제로 손걸(0000101)은 어두운 칸이 둘뿐이라, 아무 줄이나 바싹 자르면 튀어나오는
+    // 함정이었다 — 심인보·용원식·이찬희 세 줄이 전부 손걸로 읽힐 뻔했다.
+    const hits = [];
+    for (const cand of rowBitsByContrast(ratios) || []) {
+      const v = rowCodeValue(cand);
+      const w = v != null && v >= 0 ? roster?.[v] : null;
+      if (!w) continue;
+      const n = cand.reduce((a, b) => a + b, 0);
+      if (!hits.some((h) => h.who.name === w.name)) hits.push({ who: w, n });
+    }
+    hits.sort((a, b) => b.n - a.n);
+    if (hits.length > 1 && hits[0].n === hits[1].n) hits.length = 0; // 가릴 수 없다
+    if (hits.length < 1) {
+      // 아무 자리에서 잘라도 답이 안 나오는데 일곱 칸이 다 밝으면 그냥 빈 줄이다.
+      const empty = Math.min(...ratios) > 0.8;
+      rows.push(null);
+      if (!empty) bad++;
+      continue;
+    }
+    const who = hits[0].who;
     rows.push({ no: typeof who.number === "number" ? who.number : null, name: who.name });
     read++;
   }
