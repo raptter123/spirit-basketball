@@ -147,10 +147,23 @@ export const SHEET_CSS = `
 .sheet .cname .nm{font-size:3.4mm;font-weight:700;letter-spacing:-0.02em}
 .sheet .cname.blank .nm{color:#c3c8d4}
 
-/* 이름 아래 작은 버블 일곱 개 — 이 사람이 로스터 몇 번째인지. 사람이 칠하는 게 아니라
-   인쇄할 때부터 정해져 나온다. 이름 칸이 22mm(안쪽 18mm)라 크기를 줄여 넣는다. */
-.sheet .rbits{display:flex;gap:0.3mm;align-items:center;margin-top:0.5mm}
-.sheet .rbits .b{width:2.1mm;height:1.9mm;border-color:#7d8496}
+/* 이름 아래 버블 일곱 개 — 이 사람이 로스터 몇 번째인지. 사람이 칠하는 게 아니라
+   인쇄할 때부터 정해져 나온다.
+
+   처음엔 2.1×1.9mm 로 줄여 한 줄에 일곱 개를 넣었다. 이름 칸이 22mm(안쪽 18mm)라
+   그래야 들어갔기 때문이다. 그런데 작아서 진하게 안 찍혔고, 판독이 세 번 연달아
+   엉뚱한 사람을 내놨다(11-25). 어둡기 여유가 0.05 밖에 안 되는데 브라우저만 달라도
+   그만큼 움직인다.
+
+   그래서 **다른 칸과 같은 3.2×2.6mm 로 키우고 두 줄(4+3)로 접었다.**
+   가로 4×3.2 + 3×0.5 = 14.3mm 로 18mm 안에 들어가고, 세로는 5.7mm 를 쓴다.
+   선수 줄 높이가 17.63mm 이라 이름·번호와 같이 놓아도 남는다.
+
+   중요 — 줄 높이는 .prow 의 flex:1 로 표 전체에서 균등 분배되므로, 이 칸이 커져도
+   **다른 열의 버블은 한 칸도 안 움직인다.** 시험으로 못 박아 뒀다. */
+.sheet .rbits{display:flex;flex-wrap:wrap;gap:0.5mm;align-items:center;margin-top:0.6mm;
+              width:14.3mm}
+.sheet .rbits .b{width:3.2mm;height:2.6mm;border-color:#7d8496}
 .sheet .rbits .b.on{background:#111;border-color:#111}
 
 .sheet .qplay{display:flex;flex-direction:column}
