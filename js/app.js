@@ -53,8 +53,8 @@ function tacticCardHTML(t, isFav) {
     <div class="tactic-card-wrap">
       <a class="tactic-card" href="#/tactic/${t.id}">
         <span class="badge ${badgeClassFor(t.category)}">${t.category}</span>
-        <h2>${t.name}</h2>
-        <p>${t.summary}</p>
+        <h2>${escapeHtml(t.name)}</h2>
+        <p>${escapeHtml(t.summary)}</p>
       </a>
       <button type="button" class="fav-btn ${isFav ? "is-fav" : ""}" data-id="${t.id}" aria-label="즐겨찾기">${
     isFav ? "★" : "☆"
@@ -882,15 +882,32 @@ function renderDetail(id) {
     return;
   }
 
+  // 이 브라우저에만 저장된 수정본을 원본 위에 얹는다.
+  //
+  // players 만 조건 없이 덮어쓰고 있었다. 그래서 저장된 수정본에 players 가 없으면
+  // (예전 판에서 저장했거나, 저장소가 어긋났거나) tactic.players 가 undefined 가 되고
+  // 곧바로 forEach 에서 터진다. 그러면 **화면이 통째로 안 그려지고**, 하필 그 화면에
+  // 있는 「초기화」 단추까지 같이 사라져서 사용자가 빠져나올 방법이 없어진다.
+  // 브라우저 저장소를 직접 지우는 것 말고는 답이 없는 막다른 길이다.
+  //
+  // 그래서 나머지 항목처럼 조건을 달고, 그러고도 모양이 이상하면 수정본을 통째로
+  // 버리고 원본을 보여준다. 수정본 하나 잃는 것이 화면을 잃는 것보다 낫다.
   const override = getOverride(id);
   const tactic = cloneTactic(base);
+  let brokenOverride = false;
   if (override) {
-    tactic.players = override.players;
+    if (Array.isArray(override.players)) tactic.players = override.players;
+    else if (override.players !== undefined) brokenOverride = true;
     if (override.ball) tactic.ball = override.ball;
-    if (override.scenarios) tactic.scenarios = override.scenarios;
+    if (Array.isArray(override.scenarios)) tactic.scenarios = override.scenarios;
     if (override.name) tactic.name = override.name;
     if (override.summary != null) tactic.summary = override.summary;
     if (override.description != null) tactic.description = override.description;
+    if (!Array.isArray(tactic.players)) brokenOverride = true;
+  }
+  if (brokenOverride) {
+    clearOverride(id);
+    Object.assign(tactic, cloneTactic(base));
   }
 
   let editing = false;
@@ -1018,8 +1035,8 @@ function renderDetail(id) {
           <span class="badge ${badgeClassFor(tactic.category)}">${tactic.category}</span>
           <button type="button" class="link-btn tap-wide" id="copy-link-btn">🔗 링크 복사</button>
         </div>
-        <h1 id="tactic-name-display">${tactic.name}</h1>
-        <p class="summary" id="tactic-summary-display">${tactic.summary}</p>
+        <h1 id="tactic-name-display">${escapeHtml(tactic.name)}</h1>
+        <p class="summary" id="tactic-summary-display">${escapeHtml(tactic.summary)}</p>
         ${
           getOverride(id)
             ? `<p class="hint override-hint">이 브라우저에만 저장된 수정사항이 적용 중이에요. <button type="button" class="link-btn tap-wide" id="reset-btn">초기화</button></p>`
