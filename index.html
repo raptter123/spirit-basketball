@@ -62,14 +62,21 @@
     </a>
     <button type="button" id="theme-toggle" class="theme-toggle" aria-label="밝은 화면으로 전환">☀️</button>
   </header>
+  <!-- 메뉴는 두 갈래다: 사이트 안으로 가는 것(.utility-nav)과 밖으로 나가는 것(.utility-links).
+       폰에서는 일곱 개가 한 줄에 안 들어가므로 이 두 묶음 단위로 줄바꿈된다. 묶어 두지 않으면
+       화면 너비에 따라 "기록 보관실"만 윗줄에 끼는 어중간한 모양이 나온다. -->
   <div class="utility-bar">
-    <a href="#/tactics" data-nav="tactics">전술</a>
-    <a href="#/board" data-nav="board">작전판</a>
-    <a href="#/schedule" data-nav="schedule">일정</a>
-    <a href="#/team-shuffle" data-nav="team-shuffle">팀 편성</a>
-    <a href="#/roster" data-nav="roster">로스터</a>
-    <a href="https://kimjunseok.github.io/Spirit/" target="_blank" rel="noopener">기록 보관실 ↗</a>
-    <a href="https://band.us/band/47755703" target="_blank" rel="noopener">출석체크 ↗</a>
+    <nav class="utility-nav" aria-label="주요 메뉴">
+      <a href="#/tactics" data-nav="tactics">전술</a>
+      <a href="#/board" data-nav="board">작전판</a>
+      <a href="#/schedule" data-nav="schedule">일정</a>
+      <a href="#/team-shuffle" data-nav="team-shuffle">팀 편성</a>
+      <a href="#/roster" data-nav="roster">로스터</a>
+    </nav>
+    <div class="utility-links">
+      <a class="utility-external" href="https://kimjunseok.github.io/Spirit/" target="_blank" rel="noopener">기록 보관실 ↗</a>
+      <a class="utility-external" href="https://band.us/band/47755703" target="_blank" rel="noopener">출석체크 ↗</a>
+    </div>
   </div>
   <main id="app"></main>
   <script type="module" src="js/app.js"></script>
