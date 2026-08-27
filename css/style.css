@@ -193,15 +193,29 @@ body {
   display: flex;
   flex-wrap: nowrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 6px;
   padding: 8px 24px 14px;
   border-bottom: 1px solid var(--surface-2);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
-.utility-bar::-webkit-scrollbar {
-  display: none;
+.utility-nav,
+.utility-links {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 밖으로 나가는 링크는 사이트 안 메뉴와 성격이 달라서 한 칸 띄우고 세로선으로 가른다.
+   폰에서 줄이 바뀌면 이 선 대신 아랫줄이라는 사실 자체가 구분이 되므로 선을 지운다. */
+.utility-links {
+  padding-left: 10px;
+  border-left: 1px solid var(--surface-2);
+}
+
+.utility-external {
+  opacity: 0.85;
 }
 
 .utility-bar a {
@@ -236,11 +250,27 @@ body {
     padding: 16px 16px 2px;
   }
 
+  /* 폰에서는 일곱 개가 한 줄(552px)에 안 들어간다. 예전엔 옆으로 밀어 보게 두고 오른쪽 끝을
+     흐리게 처리했는데, 실제로는 "기록 보관실"과 "출석체크"가 화면 밖에 통째로 숨어서
+     그런 게 있는 줄도 모르는 상태였다. 그래서 감추지 말고 줄을 바꿔 전부 보여준다. */
   .utility-bar {
+    flex-wrap: wrap;
     justify-content: flex-start;
+    row-gap: 8px;
     padding: 8px 16px 12px;
-    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+  }
+
+  /* 320px 같은 좁은 폰에서는 안쪽 메뉴 다섯 개(313px)도 한 줄에 안 들어간다.
+     묶음 안에서도 줄이 바뀌게 열어 둔다 — 360px 이상에서는 그대로 한 줄이다. */
+  .utility-nav,
+  .utility-links {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .utility-links {
+    padding-left: 0;
+    border-left: 0;
   }
 }
 
