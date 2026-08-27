@@ -23,6 +23,16 @@ export const EVENTS = [
     gameTime: "7분 4Q 경기",
     ball: "윌슨 evo nxt",
   },
+  {
+    date: "2026-09-27",
+    title: "S리그 최종전",
+    type: "대회",
+    location: "중곡문화체육센터",
+    note: "15:20 ~",
+    format: "vs ARA (반대 블록의 검은팀)",
+    gameTime: "7분 4Q 경기 (타임아웃 전반 1, 후반 2)",
+    ball: "윌슨 evo nxt",
+  },
 ];
 
 export const RECURRING_EVENTS = [
