@@ -50,6 +50,42 @@ export function courtMarkingsSVG() {
   `;
 }
 
+// 목록에 붙는 손톱만 한 코트 그림 (약 64×60px).
+//
+// 목록의 21개 카드는 전부 글씨뿐이라 제목을 읽어야만 구분됐다. 시작 배치만 점으로 찍어도
+// 픽앤롤·혼스 세트·2-3 지역방어가 모양으로 갈라져서 훑어보기가 된다.
+//
+// 여기에는 화살표도 스크린 표시도 넣지 않는다. 이 크기에서는 선이 겹쳐 뭉개지기만 하고,
+// 이 그림이 말해야 하는 건 딱 하나 — "이 전술은 이렇게 서서 시작한다" 다.
+// 코트 선도 방향을 알려주는 최소한(외곽·페인트·3점·림)만 남긴다. 브랜딩·그물·자유투 원은
+// 이 배율에서 얼룩으로만 보여서 뺐다. 그라디언트도 안 쓴다 — 한 화면에 21장이 깔리는데
+// defs 의 id 가 21번 겹치기 때문이다.
+export function tacticThumbSVG(tactic) {
+  const players = Array.isArray(tactic?.players) ? tactic.players : [];
+  const dots = players
+    .map((p) => {
+      const at = Array.isArray(p.path) && Array.isArray(p.path[0]) ? p.path[0] : null;
+      if (!at) return "";
+      const [x, y] = at;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
+      // 상대 선수는 코트에서와 같이 속이 빈 동그라미로 그려서 우리 팀과 구분한다.
+      return p.opponent
+        ? `<circle class="thumb-dot is-opponent" cx="${x}" cy="${y}" r="24" />`
+        : `<circle class="thumb-dot" cx="${x}" cy="${y}" r="26" fill="${TEAM_COLOR[p.team] || TEAM_COLOR.offense}" />`;
+    })
+    .join("");
+  return `
+    <svg class="tactic-thumb" viewBox="0 0 500 470" aria-hidden="true" focusable="false">
+      <rect class="thumb-floor" x="10" y="10" width="480" height="450" rx="18" />
+      <rect class="paint-fill" x="170" y="270" width="160" height="190" />
+      <rect class="court-line" x="170" y="270" width="160" height="190" />
+      <path class="court-line" d="M 30 460 L 30 310 A 257 257 0 0 1 470 310 L 470 460" />
+      <circle class="rim" cx="250" cy="442" r="9" />
+      ${dots}
+    </svg>
+  `;
+}
+
 // 프로 경기 코트처럼 바닥에 팀 색을 칠하고 마크를 찍는다. 색·투명도는 CSS(.court-brand)에서 잡는다.
 // 자리는 전술 21개의 선수 경로를 격자로 세어서 고른 것이다:
 //   - 3점 라인 안쪽은 넓게 칠하되 색만 (그림·글자를 얹으면 화살표와 싸운다)
