@@ -2463,9 +2463,41 @@ body {
   border-top: 1px dashed var(--surface-2);
 }
 
+/* 접힌 줄 전체가 누르는 자리다 — 삼각형만 겨우 누르게 두면 폰에서 못 연다. */
+.home-appendix-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.home-appendix-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 펼침 표시는 직접 그린다. 기본 삼각형은 브라우저마다 자리가 달라 줄 높이가 흔들린다. */
+.home-appendix-summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.home-appendix[open] .home-appendix-summary::after {
+  transform: rotate(180deg);
+}
+
+.home-appendix-summary:hover .home-appendix-title {
+  color: var(--text);
+}
+
 .home-appendix-label {
   display: inline-block;
-  font-size: 0.68rem;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -2473,14 +2505,16 @@ body {
   border: 1px solid var(--surface-2);
   border-radius: 999px;
   padding: 3px 10px;
-  margin-bottom: 10px;
 }
 
 .home-appendix-title {
-  margin: 0 0 8px;
   font-size: 1rem;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.home-appendix .hint {
+  margin-top: 10px;
 }
 
 .install-guide-grid {

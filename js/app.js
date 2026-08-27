@@ -135,30 +135,56 @@ function renderHome() {
         ${HOME_MENU.map(homeCardHTML).join("")}
       </div>
 
-      <div class="home-appendix">
+      ${installGuideHTML()}
+    </section>
+  `;
+}
+
+// 이미 홈 화면에 추가해서 앱처럼 열고 있는 중인가.
+// iOS Safari 는 display-mode 를 지원한 지 얼마 안 돼서 예전 navigator.standalone 도 같이 본다.
+function isInstalled() {
+  try {
+    if (window.navigator.standalone === true) return true;
+    return window.matchMedia("(display-mode: standalone)").matches;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 홈 화면 추가 안내.
+//
+// 한 번 따라 하면 끝나는 내용인데 늘 펼쳐져 있어서 홈 전체 1891px 중 442px(23%)을 먹고 있었다.
+// 두 가지를 바꿨다:
+//   - 이미 앱으로 열고 있으면 아예 안 그린다 (그 사람에게는 할 말이 없는 안내다)
+//   - 아니면 접어서 내놓는다. 궁금한 사람만 펴 보면 된다
+function installGuideHTML() {
+  if (isInstalled()) return "";
+  return `
+    <details class="home-appendix">
+      <summary class="home-appendix-summary">
         <span class="home-appendix-label">별첨</span>
-        <h2 class="home-appendix-title">📲 홈 화면에 앱처럼 추가하기</h2>
-        <p class="hint">한 번만 아래대로 추가해두면, 다음부터는 브라우저 없이 아이콘만 눌러서 바로 열 수 있어요.</p>
-        <div class="install-guide-grid">
-          <div class="install-guide-card">
-            <h3>🍎 아이폰 (Safari)</h3>
-            <ol>
-              <li>이 페이지를 <strong>Safari</strong>로 열기</li>
-              <li>하단 공유 버튼(⬆️) 탭</li>
-              <li>"홈 화면에 추가" 선택</li>
-            </ol>
-          </div>
-          <div class="install-guide-card">
-            <h3>🤖 안드로이드 (Chrome)</h3>
-            <ol>
-              <li>이 페이지를 <strong>Chrome</strong>으로 열기</li>
-              <li>오른쪽 위 점 3개(⋮) 메뉴 탭</li>
-              <li>"앱 설치" 또는 "홈 화면에 추가" 선택</li>
-            </ol>
-          </div>
+        <span class="home-appendix-title">📲 홈 화면에 앱처럼 추가하기</span>
+      </summary>
+      <p class="hint">한 번만 아래대로 추가해두면, 다음부터는 브라우저 없이 아이콘만 눌러서 바로 열 수 있어요.</p>
+      <div class="install-guide-grid">
+        <div class="install-guide-card">
+          <h3>🍎 아이폰 (Safari)</h3>
+          <ol>
+            <li>이 페이지를 <strong>Safari</strong>로 열기</li>
+            <li>하단 공유 버튼(⬆️) 탭</li>
+            <li>"홈 화면에 추가" 선택</li>
+          </ol>
+        </div>
+        <div class="install-guide-card">
+          <h3>🤖 안드로이드 (Chrome)</h3>
+          <ol>
+            <li>이 페이지를 <strong>Chrome</strong>으로 열기</li>
+            <li>오른쪽 위 점 3개(⋮) 메뉴 탭</li>
+            <li>"앱 설치" 또는 "홈 화면에 추가" 선택</li>
+          </ol>
         </div>
       </div>
-    </section>
+    </details>
   `;
 }
 
