@@ -189,6 +189,18 @@ body {
   border-color: var(--accent);
 }
 
+/* 동그라미는 38px 이 보기 좋은 크기다. 누르는 범위만 44px 로 넓힌다 —
+   헤더 오른쪽 끝이라 넘쳐도 가로챌 것이 없다. */
+.theme-toggle {
+  position: relative;
+}
+
+.theme-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 .utility-bar {
   display: flex;
   flex-wrap: nowrap;
@@ -256,8 +268,15 @@ body {
   .utility-bar {
     flex-wrap: wrap;
     justify-content: flex-start;
-    row-gap: 8px;
+    row-gap: 16px;
     padding: 8px 16px 12px;
+  }
+
+  /* 누르는 범위를 넓히는 ::after 가 줄바꿈되면 아랫줄 것이 윗줄을 덮는다.
+     실제로 「전술」 바로 1px 아래를 누르면 「기록 보관실」(외부 사이트)이 눌렸다.
+     위아래를 같은 크기로 맞추고 줄 간격을 그 두 배(16px)로 벌려 서로 닿기만 하게 한다. */
+  .utility-bar a::after {
+    inset: -8px 0;
   }
 
   /* 320px 같은 좁은 폰에서는 안쪽 메뉴 다섯 개(313px)도 한 줄에 안 들어간다.
@@ -265,7 +284,7 @@ body {
   .utility-nav,
   .utility-links {
     flex-wrap: wrap;
-    row-gap: 8px;
+    row-gap: 16px;
   }
 
   .utility-links {
@@ -633,6 +652,10 @@ body {
   gap: 7px;
 }
 
+.board-view select {
+  min-height: 44px;
+}
+
 .board-toolbar .board-view span {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -693,6 +716,7 @@ body {
 .board-why-summary {
   display: flex;
   align-items: center;
+  min-height: 44px;
   gap: 10px;
   padding: 9px 0;
   cursor: pointer;
@@ -1072,13 +1096,22 @@ body {
   line-height: 1.6;
 }
 
+/* 카드 맨 아래 한 줄짜리 링크라 세로로 얇다. 카드 폭을 다 쓰므로 아래쪽으로만 넓혀도
+   옆 카드를 가로채지 않는다 (카드 사이 간격이 12px 라 그 안에서만 늘린다). */
 .term-link {
+  position: relative;
   margin-top: auto;
   padding-top: 8px;
   font-size: 0.82rem;
   color: var(--text-muted);
   text-decoration: none;
   border-top: 1px dashed var(--surface-2);
+}
+
+.term-link::after {
+  content: "";
+  position: absolute;
+  inset: -9px 0 -8px;
 }
 
 .term-link:hover {
@@ -1205,6 +1238,10 @@ body {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 1px solid var(--surface-2);
   background: var(--surface);
   color: var(--text);
@@ -1242,6 +1279,19 @@ body {
   padding: 16px;
 }
 
+/* 날짜 칸은 aspect-ratio:1 이라 폭이 곧 높이다. 폰에서 16px 여백 + 4px 간격이면 칸이 41px 로,
+   손가락으로 누르기엔 작다. min-height 를 주면 aspect-ratio 와 싸워 가로가 넘치므로
+   (달력이 400px 이 돼서 390px 화면을 밀어냈다) 여백과 간격을 줄여 칸 자체를 키운다. */
+@media (max-width: 420px) {
+  .calendar {
+    padding: 8px;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+  }
+}
+
 .calendar-header {
   display: flex;
   align-items: center;
@@ -1258,6 +1308,7 @@ body {
 
 .calendar-nav {
   padding: 6px 12px;
+  min-width: 44px;
 }
 
 .calendar-grid {
@@ -1442,6 +1493,10 @@ body {
 }
 
 .btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 1px solid var(--surface-2);
   background: var(--surface);
   color: var(--text);
@@ -1697,6 +1752,7 @@ body {
 
 .search-input {
   flex: 1 1 220px;
+  min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -1711,7 +1767,13 @@ body {
   gap: 6px;
 }
 
+/* 칩은 줄바꿈되며 위아래로 늘어서니 ::after 로 넓히면 서로 겹친다.
+   높이 자체를 44px 로 잡고 글자를 가운데 놓는다. */
 .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 1px solid var(--surface-2);
   background: var(--surface);
   color: var(--text-muted);
@@ -1753,7 +1815,7 @@ body {
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
-  padding: 11px;
+  padding: 13px;
 }
 
 .fav-btn.is-fav {
@@ -2103,6 +2165,7 @@ body {
 }
 
 .ts-date-label input[type="date"] {
+  min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -2121,6 +2184,7 @@ body {
 .ts-roster-chip {
   display: flex;
   align-items: center;
+  min-height: 44px;
   gap: 6px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
@@ -2302,6 +2366,7 @@ body {
 .tactic-sim-summary {
   display: flex;
   align-items: center;
+  min-height: 44px;
   gap: 10px;
   padding: 12px 0;
   cursor: pointer;
