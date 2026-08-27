@@ -1,5 +1,5 @@
 import { TACTICS, getTacticById } from "./data.js";
-import { mountCourt } from "./court.js";
+import { mountCourt, tacticThumbSVG } from "./court.js";
 import { mountCalendar } from "./calendar.js";
 import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
@@ -52,9 +52,12 @@ function tacticCardHTML(t, isFav) {
   return `
     <div class="tactic-card-wrap">
       <a class="tactic-card" href="#/tactic/${t.id}">
-        <span class="badge ${badgeClassFor(t.category)}">${t.category}</span>
-        <h2>${escapeHtml(t.name)}</h2>
-        <p>${escapeHtml(t.summary)}</p>
+        ${tacticThumbSVG(t)}
+        <span class="tactic-card-text">
+          <span class="badge ${badgeClassFor(t.category)}">${t.category}</span>
+          <h2>${escapeHtml(t.name)}</h2>
+          <p>${escapeHtml(t.summary)}</p>
+        </span>
       </a>
       <button type="button" class="fav-btn ${isFav ? "is-fav" : ""}" data-id="${t.id}" aria-label="즐겨찾기">${
     isFav ? "★" : "☆"

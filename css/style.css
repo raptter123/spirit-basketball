@@ -307,12 +307,16 @@ body {
   gap: 16px;
 }
 
+/* 그림이 들어오면서 글씨 칸이 좁아져 줄이 늘어난다. 여백을 18→14 로 줄여 그만큼을 되찾았다:
+   목록 전체 길이가 글씨만 있던 때(3760px)와 사실상 같은 3781px 이다 — 그림이 공짜로 들어간 셈. */
 .tactic-card {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 12px;
-  padding: 18px;
+  padding: 14px;
   text-decoration: none;
   color: var(--text);
   transition: transform 0.15s ease, border-color 0.15s ease;
@@ -323,8 +327,15 @@ body {
   border-color: var(--accent);
 }
 
+/* 글씨 쪽은 남는 너비를 다 쓰되, 긴 전술 이름이 그림을 밀어내지 못하게 0까지 줄어들 수 있어야 한다. */
+.tactic-card-text {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+
 .tactic-card h2 {
-  margin: 10px 0 6px;
+  margin: 6px 0 6px;
   font-size: 1.1rem;
 }
 
@@ -332,6 +343,56 @@ body {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+/* 목록용 손톱 코트. 즐겨찾기 ☆ 이 카드 오른쪽 위에 있어서 그림은 왼쪽에 둔다. */
+.tactic-thumb {
+  flex: 0 0 auto;
+  width: 60px;
+  height: 56px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+/* 코트 바닥은 --court-grad-1 이 아니라 --surface-2 를 쓴다. 밝은 테마에서는 코트 바닥(#ffffff)과
+   카드 배경(#ffffff)이 같은 색이라 판이 아예 안 보이기 때문이다. */
+.thumb-floor {
+  fill: var(--surface-2);
+  stroke: var(--court-line);
+  stroke-width: 3;
+  opacity: 0.9;
+}
+
+/* 이 배율에서는 선이 1.5 두께면 사라진다. 코트 선만 두껍게 다시 잡는다. */
+.tactic-thumb .court-line {
+  stroke-width: 7;
+  opacity: 0.55;
+}
+
+.tactic-thumb .rim {
+  stroke-width: 9;
+}
+
+.thumb-dot {
+  stroke: var(--player-stroke);
+  stroke-width: 5;
+}
+
+.thumb-dot.is-opponent {
+  fill: none;
+  stroke: var(--opponent);
+  stroke-width: 9;
+}
+
+@media (max-width: 380px) {
+  .tactic-card {
+    gap: 10px;
+  }
+
+  .tactic-thumb {
+    width: 52px;
+    height: 49px;
+  }
 }
 
 .badge {
