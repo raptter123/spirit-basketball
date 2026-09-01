@@ -6,6 +6,8 @@ import {
   saveSheetRoster,
   getLastAttendees,
   saveLastAttendees,
+  getGuests,
+  saveGuests,
 } from "./storage.js";
 import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
@@ -57,8 +59,20 @@ function teamCountChipsHTML(current) {
     .join("");
 }
 
-function getAllPlayers() {
-  return [...ROSTER];
+// 게스트는 이름만 있는 사람으로 만든다 — 로스터의 권혁남과 똑같은 모양이라
+// 유니폼(번호 없는 모양)·이름표·예상 스탯 제외가 전부 이미 되던 대로 동작한다.
+function guestPlayer(name) {
+  return { name, guest: true };
+}
+
+function getAllPlayers(guests = []) {
+  return [...ROSTER, ...guests.map(guestPlayer)];
+}
+
+// 주장은 (C), 게스트는 G. 같은 자리에 붙는 꼬리표라 새 규칙을 만들지 않는다.
+// 기록지에는 이 꼬리표 없이 이름만 들어간다(판독 뒤 로스터와 짝을 맞춰야 해서).
+function guestTagHTML(p) {
+  return p && p.guest ? ` <span class="ts-guest-tag">G</span>` : "";
 }
 
 // 실제 경기에서는 한 팀에서 5명만 코트에 뛰기 때문에, 팀 인원이 늘어난다고 해서
@@ -74,7 +88,12 @@ function computeProjection(playerNames, playersByName) {
   const players = playerNames.map((n) => playersByName[n]).filter((p) => p && typeof p.ppg === "number");
   if (!players.length) return null;
   const statCount = players.length;
-  const sizeAdjust = TYPICAL_TEAM_SIZE / statCount;
+  // 나누는 값은 **팀에 실제로 있는 사람 수**여야 한다. 기록 있는 사람 수로 나누면,
+  // 게스트나 기록 없는 선수가 낀 팀은 그만큼 작은 팀처럼 계산돼서 세 보인다.
+  // (6명 + 게스트 4명 팀이 58.2점으로 나왔다 — 이 식대로면 34.9점이 맞다)
+  // 게스트도 코트에서 뛰는 시간을 나눠 쓰므로, 기록이 없다고 인원에서 빼면 안 된다.
+  const teamSize = playerNames.length || statCount;
+  const sizeAdjust = TYPICAL_TEAM_SIZE / teamSize;
   const sum = (key) => players.reduce((acc, p) => acc + (typeof p[key] === "number" ? p[key] : 0), 0);
   const avgOf = (key) => {
     const withStat = players.filter((p) => typeof p[key] === "number");
@@ -90,7 +109,7 @@ function computeProjection(playerNames, playersByName) {
     ppgAvg: sum("ppg") / statCount,
     rpgAvg: sum("rpg") / statCount,
     apgAvg: sum("apg") / statCount,
-    topg: topgSum != null ? topgSum * (TYPICAL_TEAM_SIZE / topgPlayers.length) : null,
+    topg: topgSum != null ? topgSum * sizeAdjust : null,
     topgAvg: topgSum != null ? topgSum / topgPlayers.length : null,
     topgCount: topgPlayers.length,
     fgPctAvg: avgOf("fgPct"),
@@ -717,12 +736,15 @@ function showSheetPrintModal(teams, gameDate) {
 
 export function mountTeamBuilder(container) {
   const draft = getTeamBuilderDraft();
-  const knownNames = new Set(getAllPlayers().map((p) => p.name));
 
   let teamCount = draft?.teamCount === 3 ? 3 : 2;
   let gameDate = draft?.gameDate || getNextEventDate("자체전", todayStr()) || todayStr();
   let search = "";
-  let selected = new Set((draft?.selected || []).filter((n) => knownNames.has(n)));
+  // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
+  let guests = getGuests(gameDate);
+  const rosterNames = new Set(ROSTER.map((p) => p.name));
+  const knownNames = () => new Set(getAllPlayers(guests).map((p) => p.name));
+  let selected = new Set((draft?.selected || []).filter((n) => knownNames().has(n)));
   let assignments = {};
   if (draft?.assignments) {
     Object.entries(draft.assignments).forEach(([name, team]) => {
@@ -734,15 +756,39 @@ export function mountTeamBuilder(container) {
     saveTeamBuilderDraft({ teamCount, gameDate, selected: [...selected], assignments });
     // 다음 주에 불러올 수 있게 따로도 남긴다. 빈 명단은 저장하지 않으므로
     // '전체 초기화'를 눌러도 지난번 기록은 그대로 남는다.
-    saveLastAttendees([...selected], gameDate);
+    // 게스트는 여기 안 담는다 — 다음 주에 되살아나면 안 된다.
+    saveLastAttendees([...selected].filter((n) => rosterNames.has(n)), gameDate);
+    saveGuests(gameDate, guests);
+  }
+
+  // 겹치지 않는 다음 게스트 이름. 이름을 모르는 채로 편성부터 해야 할 때가 많다.
+  function nextGuestName() {
+    for (let i = 1; ; i++) {
+      const n = `게스트 ${i}`;
+      if (!guests.includes(n) && !rosterNames.has(n)) return n;
+    }
+  }
+
+  // 날짜가 바뀌면 그 날의 게스트로 갈아탄다. 전에 뽑았던 게스트가 선택에 남아 있으면
+  // 명단에 없는 이름이 되므로 같이 걷어낸다.
+  function switchDate(next) {
+    gameDate = next;
+    guests = getGuests(gameDate);
+    const known = knownNames();
+    for (const n of [...selected]) {
+      if (!known.has(n)) {
+        selected.delete(n);
+        delete assignments[n];
+      }
+    }
   }
 
   function render() {
-    const players = getAllPlayers();
+    const players = getAllPlayers(guests);
     const playersByName = Object.fromEntries(players.map((p) => [p.name, p]));
     // 지난번 명단에서 그 사이 로스터에서 빠진 사람은 걸러낸다.
     const saved = getLastAttendees();
-    const savedNames = saved ? saved.names.filter((n) => knownNames.has(n)) : [];
+    const savedNames = saved ? saved.names.filter((n) => rosterNames.has(n)) : [];
     const lastAttendees = savedNames.length ? { names: savedNames, savedFor: saved.savedFor } : null;
     const q = search.trim();
     const filtered = q ? players.filter((p) => p.name.includes(q)) : players;
@@ -780,11 +826,35 @@ export function mountTeamBuilder(container) {
           <label class="ts-roster-chip ${selected.has(p.name) ? "is-checked" : ""}">
             <input type="checkbox" data-name="${escapeHtml(p.name)}" ${selected.has(p.name) ? "checked" : ""} />
             <span class="ts-roster-mark" aria-hidden="true"></span>
-            <span class="ts-roster-name">${escapeHtml(nameWithCaptain(p))}</span>
+            <span class="ts-roster-name">${escapeHtml(nameWithCaptain(p))}${guestTagHTML(p)}</span>
           </label>`
                 )
                 .join("")
             : `<p class="hint">검색 결과가 없어요.</p>`
+        }
+      </div>
+
+      <!-- 게스트는 그날만 뛰는 사람이라 로스터에 넣지 않는다.
+           경기 날짜에 묶여 있어서, 날짜를 다음 주로 바꾸면 저절로 빈 목록이 된다. -->
+      <div class="ts-guests">
+        <div class="ts-guest-head">
+          <span class="ts-guest-title">오늘 게스트${guests.length ? ` (${guests.length}명)` : ""}</span>
+          <button type="button" class="btn btn-sm" id="ts-guest-add">＋ 게스트</button>
+        </div>
+        ${
+          guests.length
+            ? `<div class="ts-guest-list">${guests
+                .map(
+                  (name, i) => `
+            <div class="ts-guest-row">
+              <input type="text" class="ts-guest-input" data-guest="${i}" value="${escapeHtml(name)}"
+                     placeholder="게스트 이름" aria-label="게스트 ${i + 1} 이름" />
+              <button type="button" class="btn-icon ts-guest-del" data-guest-del="${i}" aria-label="${escapeHtml(name)} 빼기">×</button>
+            </div>`
+                )
+                .join("")}</div>
+             <p class="hint ts-guest-note">${escapeHtml(shortDate(gameDate) || "이 날")} 경기에만 쓰입니다. 날짜를 바꾸면 사라지고, 「지난번 그대로」에도 안 들어가요.</p>`
+            : `<p class="hint ts-guest-note">로스터에 없는 사람은 여기에 추가하세요. 그날 경기에만 쓰이고 로스터는 그대로예요.</p>`
         }
       </div>
 
@@ -804,7 +874,7 @@ export function mountTeamBuilder(container) {
           <div class="ts-assign-row">
             <span class="ts-assign-name">${jerseyHTML(playersByName[name], "is-sm")}${escapeHtml(
                     nameWithCaptain(playersByName[name])
-                  )}</span>
+                  )}${guestTagHTML(playersByName[name])}</span>
             <div class="ts-team-buttons">
               ${Array.from(
                 { length: teamCount },
@@ -868,8 +938,9 @@ export function mountTeamBuilder(container) {
     `;
 
     document.getElementById("ts-date").addEventListener("input", (e) => {
-      gameDate = e.target.value;
+      switchDate(e.target.value);
       persist();
+      render();
     });
 
     container.querySelectorAll(".team-count-select .chip").forEach((btn) => {
@@ -891,6 +962,50 @@ export function mountTeamBuilder(container) {
       const el = document.getElementById("ts-search");
       el.focus();
       el.setSelectionRange(caret, caret);
+    });
+
+    document.getElementById("ts-guest-add").addEventListener("click", () => {
+      const name = nextGuestName();
+      guests.push(name);
+      selected.add(name);          // 게스트를 넣는 순간 참석이다 — 또 고르게 하지 않는다
+      persist();
+      render();
+      const last = container.querySelector(`[data-guest="${guests.length - 1}"]`);
+      if (last) { last.focus(); last.select(); }
+    });
+
+    // 이름은 칸을 벗어날 때 반영한다. 한 글자마다 다시 그리면 커서가 튀고,
+    // 이름이 바뀌면 선택·배정에 담긴 열쇠도 같이 갈아끼워야 한다.
+    container.querySelectorAll("[data-guest]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const i = Number(input.dataset.guest);
+        const before = guests[i];
+        const after = input.value.trim();
+        // 빈 이름이나 이미 있는 이름은 되돌린다 — 두 사람이 같은 이름이면 배정이 엉킨다.
+        if (!after || after !== before && (guests.includes(after) || rosterNames.has(after))) {
+          input.value = before;
+          return;
+        }
+        guests[i] = after;
+        if (selected.delete(before)) selected.add(after);
+        if (before in assignments) {
+          assignments[after] = assignments[before];
+          delete assignments[before];
+        }
+        persist();
+        render();
+      });
+    });
+
+    container.querySelectorAll("[data-guest-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.guestDel);
+        const [gone] = guests.splice(i, 1);
+        selected.delete(gone);
+        delete assignments[gone];
+        persist();
+        render();
+      });
     });
 
     const recall = document.getElementById("ts-recall");
@@ -951,6 +1066,8 @@ export function mountTeamBuilder(container) {
     document.getElementById("ts-clear-all").addEventListener("click", () => {
       selected = new Set();
       assignments = {};
+      guests = [];              // '전체'니까 게스트도 같이 비운다
+      saveGuests(gameDate, []);
       clearTeamBuilderDraft();
       render();
     });
@@ -974,10 +1091,16 @@ export function mountTeamBuilder(container) {
         // 기록지에는 (C) 같은 꼬리표 없이 이름만 — 판독 뒤 로스터와 짝을 맞춰야 한다.
         // 세 번째 값은 로스터에서 몇 번째인지. 이게 종이에 버블로 같이 찍혀서,
         // 사진을 올리는 사람이 누구든 이름이 나온다.
-        roster: teamsPlayers[i].map((n) => [
-          typeof playersByName[n]?.number === "number" ? playersByName[n].number : null, n,
-          ROSTER.findIndex((p) => p.name === n),
-        ]),
+        // 세 번째 값은 로스터에서 몇 번째인지. 게스트는 로스터에 없으므로 null 을 준다 —
+        // 그러면 이름 칸 버블이 빈 줄로 찍히고, 판독 뒤 그 줄만 사람이 골라 주면 된다.
+        // (findIndex 의 -1 을 그대로 흘려도 결과는 같지만, 뜻이 다른 값이라 구분해 둔다)
+        roster: teamsPlayers[i].map((n) => {
+          const idx = ROSTER.findIndex((p) => p.name === n);
+          return [
+            typeof playersByName[n]?.number === "number" ? playersByName[n].number : null, n,
+            idx >= 0 ? idx : null,
+          ];
+        }),
       })).filter((t) => t.roster.length > 0);
       if (!teams.length) return;
       showSheetPrintModal(teams, gameDate);
