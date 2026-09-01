@@ -2318,8 +2318,13 @@ body {
   outline-offset: 2px;
 }
 
-/* 지난번 명단 불러오기. 참석자를 아직 아무도 안 골랐을 때만 나온다. */
-.ts-recall {
+/* 명단을 통째로 다루는 단추 줄. 상태에 따라 하나만 나오기도, 둘 다 나오기도 한다.
+   아무 단추도 없을 때는 이 줄 자체가 안 그려진다(team-shuffle.js) — :empty 로 접으려
+   했더니 템플릿 안의 줄바꿈이 공백 텍스트 노드로 남아 안 먹었다. */
+.ts-pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
