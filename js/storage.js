@@ -127,6 +127,31 @@ export function clearTeamBuilderDraft() {
   }
 }
 
+// 지난번 자체전에 나온 사람들. 위의 '짜던 것(draft)'과는 다르다 —
+// draft 는 팀 편성 화면을 벗어나면 지워지지만, 이건 다음 주까지 남아 있어야 한다.
+// 매주 오는 얼굴이 크게 안 바뀌는데 36명을 매번 처음부터 찍고 있었다.
+const LAST_ATTENDEES_KEY = "spirit-last-attendees";
+
+export function getLastAttendees() {
+  try {
+    const raw = localStorage.getItem(LAST_ATTENDEES_KEY);
+    const v = raw ? JSON.parse(raw) : null;
+    return v && Array.isArray(v.names) && v.names.length ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+// 빈 명단은 저장하지 않는다. '전체 초기화'가 곧 기억을 지우는 일이 되면 안 된다.
+export function saveLastAttendees(names, savedFor) {
+  if (!Array.isArray(names) || !names.length) return;
+  try {
+    localStorage.setItem(LAST_ATTENDEES_KEY, JSON.stringify({ names, savedFor }));
+  } catch {
+    // no-op
+  }
+}
+
 const TACTIC_SIM_KEY = "spirit-tactic-sim-assignment";
 
 export function getTacticSimAssignment() {
