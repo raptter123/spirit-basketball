@@ -27,6 +27,9 @@
   /* 강조색을 작은 글씨에 그대로 쓰면 어두운 배경에서 명암비가 3.7:1 정도밖에 안 나온다.
      로고·버튼용(--accent)과 글씨용(--accent-text)을 분리해서 글씨 쪽만 밝힌다. */
   --accent-text: #b3a1ff;
+  /* 빨강도 같은 사정이다. --defense 를 어두운 배경 위 작은 글씨에 그대로 쓰면 4.43:1 로
+     기준(4.5)에 미달한다. 선·도형용(--defense)과 글씨용(--defense-text)을 나눈다. */
+  --defense-text: #f87171;
   /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
   --accent-btn: #7857fa;
 
@@ -72,6 +75,8 @@
   --accent-strong: rgba(216, 2, 4, 0.16);
   --accent-ink: #ffffff;
   --accent-text: #b00203;
+  /* 밝은 테마에서는 --defense 그대로도 4.97:1 이라 값이 같다 (토큰만 맞춰 둔다). */
+  --defense-text: #d1332f;
   --accent-btn: #d80204;
 
   --offense: #2563eb;
@@ -161,10 +166,13 @@ body {
   color: var(--accent);
 }
 
+/* 대문자 태그라인. 예전엔 9.92px 라 사이트에서 제일 작은 글씨였다. 12px 로 올리면서
+   좁은 폰(360px)에서 "혼(魂)" 이 둘째 줄로 넘어가 헤더가 무너졌는데, 자간을
+   0.09em → 0.03em 으로 좁히면 12px 로도 한 줄에 들어간다. */
 .brand-tagline {
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -1080,7 +1088,7 @@ body {
 
 .term-when span {
   flex: 0 0 auto;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--accent-text);
@@ -1620,6 +1628,7 @@ body {
 
 .editor-point-row input[type="number"] {
   width: 100%;
+  min-height: 44px;
   background: var(--surface-2);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -1646,6 +1655,7 @@ body {
 }
 
 .editor-screen-row select {
+  min-height: 44px;
   background: var(--surface-2);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -1679,11 +1689,20 @@ body {
 }
 
 .editor-ball-row select {
+  min-height: 44px;
   background: var(--surface-2);
   border: 1px solid var(--surface-2);
   color: var(--text);
   border-radius: 6px;
   padding: 4px;
+}
+
+/* 공 넘어가는 시점을 정하는 슬라이더. 높이가 16px 라 폰에서 손가락으로 잡히지 않았다.
+   막대는 그대로 얇게 두고 손잡이와 누르는 높이만 키운다. */
+.editor-ball-row input[type="range"] {
+  min-height: 44px;
+  width: 100%;
+  margin: 0;
 }
 
 .ball-at-value {
@@ -2024,7 +2043,7 @@ body {
 
 .stat-label em {
   font-style: normal;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-muted);
   white-space: nowrap;
@@ -2500,6 +2519,7 @@ body {
 }
 
 .scenario-edit-row input[type="text"] {
+  min-height: 44px;
   background: var(--surface-2);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -2562,7 +2582,7 @@ body {
 .home-appendix-label {
   display: inline-block;
   flex: 0 0 auto;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -2768,6 +2788,7 @@ body {
 .new-tactic-form input,
 .new-tactic-form select,
 .new-tactic-form textarea {
+  min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   color: var(--text);
@@ -3062,7 +3083,7 @@ body {
 }
 
 .stats-del:hover {
-  color: var(--defense);
+  color: var(--defense-text);
 }
 
 .stats-empty {
@@ -3178,7 +3199,7 @@ body {
 
 .btn-danger {
   border-color: var(--defense);
-  color: var(--defense);
+  color: var(--defense-text);
 }
 
 .btn-danger:hover {
@@ -3301,6 +3322,7 @@ body {
 
 /* ── 접히는 칸 ─────────────────────────────────────────── */
 .stats-fold > summary {
+  min-height: 44px;
   cursor: pointer;
   font-weight: 700;
   font-size: 1.02rem;
@@ -3339,7 +3361,7 @@ body {
 }
 
 .stats-note.is-bad {
-  color: var(--defense);
+  color: var(--defense-text);
   font-weight: 700;
 }
 
@@ -3379,7 +3401,7 @@ body {
 }
 
 .sheet-state.is-bad {
-  color: var(--defense);
+  color: var(--defense-text);
 }
 
 .sheet-assign {
