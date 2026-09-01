@@ -285,8 +285,34 @@ function computeHighlights() {
   ];
 }
 
-function rosterCardHTML(p) {
+// 로스터 정렬 기준. key 가 null 이면 명단 순서(가나다) 그대로다.
+// 승률은 카드에 원래 안 나오던 값이라, 이걸로 정렬할 때만 한 칸 더 붙여 보여준다 —
+// 무엇으로 줄을 세웠는지 눈에 안 보이면 순서가 그냥 뒤죽박죽으로 읽힌다.
+const ROSTER_SORTS = [
+  { label: "이름순", key: null },
+  { label: "득점", key: "ppg" },
+  { label: "리바운드", key: "rpg" },
+  { label: "어시스트", key: "apg" },
+  { label: "승률", key: "winRate" },
+];
+
+function sortRoster(players, key) {
+  if (!key) return [...players];
+  // 기록이 없는 선수는 값을 지어낼 수 없으니 언제나 맨 뒤로 보낸다.
+  return [...players].sort((a, b) => {
+    const av = typeof a.games === "number" ? a[key] : null;
+    const bv = typeof b.games === "number" ? b[key] : null;
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return bv - av || a.name.localeCompare(b.name, "ko");
+  });
+}
+
+function rosterCardHTML(p, sortKey) {
   const hasStats = typeof p.games === "number";
+  const cell = (key, text) =>
+    `<span${key === sortKey ? ' class="is-sorted"' : ""}>${text}</span>`;
   return `
     <a class="roster-card" href="#/player/${encodeURIComponent(p.name)}">
       ${jerseyHTML(p)}
@@ -299,9 +325,10 @@ function rosterCardHTML(p) {
           hasStats
             ? `<div class="roster-stats">
                 <span>${p.games}경기</span>
-                <span>${p.ppg.toFixed(1)} PPG</span>
-                <span>${p.rpg.toFixed(1)} RPG</span>
-                <span>${p.apg.toFixed(1)} APG</span>
+                ${cell("ppg", `${p.ppg.toFixed(1)} PPG`)}
+                ${cell("rpg", `${p.rpg.toFixed(1)} RPG`)}
+                ${cell("apg", `${p.apg.toFixed(1)} APG`)}
+                ${sortKey === "winRate" ? cell("winRate", `승률 ${Math.round(p.winRate * 100)}%`) : ""}
               </div>`
             : `<div class="roster-stats">기록 데이터 없음</div>`
         }
@@ -423,35 +450,64 @@ function renderPlayer(name) {
 
 function renderRoster() {
   const highlights = computeHighlights();
+  let sortIndex = 0;
 
-  app.innerHTML = `
-    <section class="roster-view">
-      <a class="back-link tap-wide" href="#/">← 홈으로</a>
-      <h1>팀 로스터</h1>
-      <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
+  function render() {
+    const sort = ROSTER_SORTS[sortIndex];
+    const players = sortRoster(ROSTER, sort.key);
 
-      <div class="highlight-grid">
-        ${highlights
-          .map(
-            (h, i) => `
-            <div class="highlight-card"${i === STATS_DOOR_INDEX ? ` data-stats-door="1"` : ""}>
-              <span class="highlight-label">${h.label}</span>
-              <strong>${escapeHtml(h.player.name)}</strong>
-              <span class="highlight-value">${h.value(h.player)}</span>
-            </div>`
-          )
-          .join("")}
-      </div>
+    app.innerHTML = `
+      <section class="roster-view">
+        <a class="back-link tap-wide" href="#/">← 홈으로</a>
+        <h1>팀 로스터</h1>
+        <p class="hint">혼(Spirit) 소속 선수 명단입니다. 스탯은 2026년 상반기(1~6월) 팀 기록 기준 평균이에요.</p>
 
-      ${
-        ROSTER.length
-          ? `<div class="roster-grid">${ROSTER.map((p) => rosterCardHTML(p)).join("")}</div>`
-          : `<p class="hint">아직 등록된 선수 정보가 없어요.</p>`
-      }
-    </section>
-  `;
+        <div class="highlight-grid">
+          ${highlights
+            .map(
+              (h, i) => `
+              <div class="highlight-card"${i === STATS_DOOR_INDEX ? ` data-stats-door="1"` : ""}>
+                <span class="highlight-label">${h.label}</span>
+                <strong>${escapeHtml(h.player.name)}</strong>
+                <span class="highlight-value">${h.value(h.player)}</span>
+              </div>`
+            )
+            .join("")}
+        </div>
 
-  bindStatsDoor(app.querySelector("[data-stats-door]"));
+        <div class="roster-sort">
+          <span class="roster-sort-label">정렬</span>
+          <div class="category-filter">
+            ${ROSTER_SORTS.map(
+              (o, i) =>
+                `<button type="button" class="chip ${i === sortIndex ? "chip-active" : ""}" data-sort="${i}">${o.label}</button>`
+            ).join("")}
+          </div>
+        </div>
+        ${
+          sort.key
+            ? `<p class="hint roster-sort-note">위 ‘왕’ 카드는 ${HIGHLIGHT_MIN_GAMES}경기 이상 뛴 선수 중에서만 뽑아요. 아래 순서는 경기 수와 상관없이 ${sort.label} 평균이 높은 차례입니다.</p>`
+            : ""
+        }
+
+        ${
+          players.length
+            ? `<div class="roster-grid">${players.map((p) => rosterCardHTML(p, sort.key)).join("")}</div>`
+            : `<p class="hint">아직 등록된 선수 정보가 없어요.</p>`
+        }
+      </section>
+    `;
+
+    bindStatsDoor(app.querySelector("[data-stats-door]"));
+    app.querySelectorAll("[data-sort]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        sortIndex = Number(btn.dataset.sort);
+        render();
+      });
+    });
+  }
+
+  render();
 }
 
 // 기록 정리 화면으로 가는 문. 승률왕 카드를 누르면 열린다.
