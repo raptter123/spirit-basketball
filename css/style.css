@@ -58,6 +58,17 @@
   --badge-set-bg: rgba(168, 85, 247, 0.18);
   --badge-set-fg: #d8b4fe;
 
+  /* 글씨 크기 사다리. 예전엔 0.7 ~ 1.6rem 사이에 21가지가 흩어져 있었는데,
+     12 ~ 15px 구간에만 열 가지가 몰려 있어 사실상 구분이 안 됐다(0.78 / 0.8 / 0.82 / 0.84 …).
+     여섯 단으로 묶어서 화면마다 글씨 위계가 같아지게 한다. 새 값을 쓰지 말고 여기서 고를 것.
+     코트 그림(SVG) 안의 px 글씨는 500x470 좌표계라 이 사다리와 무관하다 — 그대로 둔다. */
+  --fs-xs: 0.75rem;    /* 12px — 뱃지·캡션·각주 */
+  --fs-sm: 0.875rem;   /* 14px — 보조 본문, 카드 안 설명 */
+  --fs-md: 1rem;       /* 16px — 본문, 버튼 */
+  --fs-lg: 1.125rem;   /* 18px — 카드 제목 */
+  --fs-xl: 1.25rem;    /* 20px — 구역 제목 */
+  --fs-2xl: 1.5rem;    /* 24px — 화면 제목 (h1 은 브라우저 기본 2rem 을 그대로 쓴다) */
+
   --overlay: rgba(0, 0, 0, 0.6);
   --on-bright: #17112e;
 }
@@ -110,6 +121,13 @@
   box-sizing: border-box;
 }
 
+/* .btn / .chip 등에 display 를 직접 주면 브라우저 기본 [hidden]{display:none} 을 이긴다.
+   실제로 기록 화면의 「읽은 기록 넣기」 버튼이 hidden 인데도 처음부터 보이고 있었다.
+   숨기라고 한 건 언제나 숨겨져야 하므로 여기서 못박는다. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
@@ -157,7 +175,7 @@ body {
 }
 
 .brand-title {
-  font-size: 1.5rem;
+  font-size: var(--fs-2xl);
   font-weight: 800;
   line-height: 1.1;
 }
@@ -170,7 +188,7 @@ body {
    좁은 폰(360px)에서 "혼(魂)" 이 둘째 줄로 넘어가 헤더가 무너졌는데, 자간을
    0.09em → 0.03em 으로 좁히면 12px 로도 한 줄에 들어간다. */
 .brand-tagline {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -188,7 +206,7 @@ body {
   border: 1px solid var(--surface-2);
   background: var(--surface);
   color: var(--text);
-  font-size: 1rem;
+  font-size: var(--fs-md);
   line-height: 1;
   cursor: pointer;
 }
@@ -242,7 +260,7 @@ body {
   flex: 0 0 auto;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   white-space: nowrap;
   padding: 5px 12px;
   border-radius: 999px;
@@ -320,7 +338,7 @@ body {
 }
 
 .detail-top-row .link-btn {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .hint {
@@ -363,13 +381,13 @@ body {
 
 .tactic-card h2 {
   margin: 6px 0 6px;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
 }
 
 .tactic-card p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 /* 목록용 손톱 코트. 즐겨찾기 ☆ 이 카드 오른쪽 위에 있어서 그림은 왼쪽에 둔다. */
@@ -424,7 +442,7 @@ body {
 
 .badge {
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 3px 10px;
   border-radius: 999px;
@@ -609,7 +627,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -665,7 +683,7 @@ body {
 }
 
 .board-toolbar .board-view span {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -677,7 +695,7 @@ body {
   border-radius: 8px;
   padding: 9px 10px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   /* 이름이 긴 대형 하나 때문에 목록 전체가 넓어지면 툴바가 한 줄 더 늘어난다. */
   max-width: 146px;
   text-overflow: ellipsis;
@@ -704,7 +722,7 @@ body {
 
 .board-note {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   color: var(--text);
   font-weight: 600;
 }
@@ -728,7 +746,7 @@ body {
   gap: 10px;
   padding: 9px 0;
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   list-style: none;
@@ -742,7 +760,7 @@ body {
   content: "▾";
   margin-left: auto;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   transition: transform 0.15s ease;
 }
 
@@ -758,7 +776,7 @@ body {
 .board-pro,
 .board-con {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   padding-left: 46px;
   text-indent: -46px;
@@ -776,7 +794,7 @@ body {
   margin-right: 12px;
   text-indent: 0;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   border-radius: 4px;
   padding: 1px 0;
@@ -797,7 +815,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 8px;
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -1000,7 +1018,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -1067,12 +1085,12 @@ body {
 
 .term-head h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
 }
 
 .term-en {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -1080,7 +1098,7 @@ body {
 /* '언제 쓰는지'는 라벨을 앞에 붙여 뜻과 구분한다. */
 .term-when {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   display: flex;
   gap: 8px;
@@ -1088,7 +1106,7 @@ body {
 
 .term-when span {
   flex: 0 0 auto;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--accent-text);
@@ -1100,7 +1118,7 @@ body {
 
 .term-idea {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 
@@ -1110,7 +1128,7 @@ body {
   position: relative;
   margin-top: auto;
   padding-top: 8px;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   text-decoration: none;
   border-top: 1px dashed var(--surface-2);
@@ -1128,7 +1146,7 @@ body {
 
 .glossary-footnote {
   margin-top: 20px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .glossary-footnote a {
@@ -1255,7 +1273,7 @@ body {
   color: var(--text);
   padding: 10px 18px;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   cursor: pointer;
 }
 
@@ -1331,7 +1349,7 @@ body {
 
 .calendar-weekday {
   text-align: center;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   padding: 4px 0;
 }
@@ -1346,7 +1364,7 @@ body {
   border: 1px solid transparent;
   border-radius: 8px;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -1389,7 +1407,7 @@ body {
   display: flex;
   gap: 16px;
   margin-top: 12px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -1424,9 +1442,11 @@ body {
   padding: 16px;
 }
 
+/* 크기를 안 준 h3 라 브라우저 기본(1.17em = 18.72px)이 나오고 있었다 — 사다리 밖 값이다. */
 .day-detail h3,
 .upcoming-list h3 {
   margin-top: 0;
+  font-size: var(--fs-lg);
 }
 
 .event-card {
@@ -1443,12 +1463,12 @@ body {
 
 .event-meta {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .event-address {
   margin: 2px 0 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -1456,7 +1476,7 @@ body {
   display: grid;
   gap: 4px;
   margin: 8px 0 0;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .event-detail-label {
@@ -1464,14 +1484,14 @@ body {
   min-width: 44px;
   margin-right: 6px;
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }
 
 .event-rules,
 .event-subnotes {
   margin: 10px 0 0;
   padding-left: 20px;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   display: grid;
   gap: 4px;
@@ -1510,7 +1530,7 @@ body {
   color: var(--text);
   padding: 6px 12px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -1526,7 +1546,7 @@ body {
   height: 24px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   line-height: 1;
 }
 
@@ -1598,7 +1618,7 @@ body {
 
 .editor-opponent-tag {
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   margin-left: 6px;
 }
 
@@ -1623,7 +1643,7 @@ body {
 
 .editor-point-index {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .editor-point-row input[type="number"] {
@@ -1634,7 +1654,7 @@ body {
   color: var(--text);
   border-radius: 6px;
   padding: 4px 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 /* 좌표 줄에 끼워 넣으면 숫자칸이 너무 좁아져서, 스크린 지정은 카드 아래 한 줄로 뺐다. */
@@ -1649,7 +1669,7 @@ body {
 }
 
 .editor-screen-row label {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--text);
   white-space: nowrap;
 }
@@ -1661,7 +1681,7 @@ body {
   color: var(--text);
   border-radius: 6px;
   padding: 4px 6px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .editor-screen-row select.is-set {
@@ -1706,7 +1726,7 @@ body {
 }
 
 .ball-at-value {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   text-align: right;
 }
@@ -1749,7 +1769,7 @@ body {
   border-radius: 8px;
   padding: 10px;
   font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   resize: vertical;
 }
 
@@ -1777,7 +1797,7 @@ body {
   color: var(--text);
   border-radius: 8px;
   padding: 9px 12px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .category-filter {
@@ -1798,7 +1818,7 @@ body {
   color: var(--text-muted);
   padding: 8px 14px;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -1809,7 +1829,7 @@ body {
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
   margin: 24px 0 12px;
 }
@@ -1831,7 +1851,7 @@ body {
   border: none;
   background: none;
   color: var(--text-muted);
-  font-size: 1.2rem;
+  font-size: var(--fs-xl);
   line-height: 1;
   cursor: pointer;
   padding: 13px;
@@ -1859,18 +1879,18 @@ body {
 }
 
 .highlight-label {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
 .highlight-card strong {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
 }
 
 .highlight-value {
   color: var(--accent-text);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .roster-grid {
@@ -1907,7 +1927,7 @@ body {
 .roster-more {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: 1.2rem;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 
@@ -1982,7 +2002,7 @@ body {
   background: var(--surface-2);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   margin-bottom: 16px;
 }
 
@@ -1994,7 +2014,7 @@ body {
 }
 
 .player-strengths-label {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -2007,7 +2027,7 @@ body {
 }
 
 .strength-chip {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -2037,13 +2057,13 @@ body {
 }
 
 .stat-label {
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
 .stat-label em {
   font-style: normal;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--text-muted);
   white-space: nowrap;
@@ -2052,7 +2072,7 @@ body {
 .stat-value {
   font-family: "SF Mono", "Menlo", ui-monospace, monospace;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -2095,7 +2115,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -2105,7 +2125,7 @@ body {
 
 .stat-legend {
   margin-top: 20px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .roster-name {
@@ -2117,13 +2137,13 @@ body {
 
 .roster-position {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
 }
 
 .captain-tag {
   color: var(--accent-text);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -2133,7 +2153,7 @@ body {
   gap: 8px;
   margin-top: 6px;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 /* 정렬 줄. 전술 목록의 칩(.category-filter .chip)을 그대로 쓴다 — 같은 일을 하는 곳은
@@ -2148,7 +2168,7 @@ body {
 
 .roster-sort-label {
   flex: 0 0 auto;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -2184,14 +2204,14 @@ body {
   color: var(--text);
   border-radius: 8px;
   padding: 9px 12px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .team-count-select {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -2207,7 +2227,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -2218,7 +2238,7 @@ body {
   color: var(--text);
   border-radius: 8px;
   padding: 7px 10px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .ts-roster-grid {
@@ -2237,7 +2257,7 @@ body {
   border: 1px solid var(--surface-2);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -2272,7 +2292,7 @@ body {
 
 .ts-roster-mark::after {
   content: "✓";
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   font-weight: 800;
   line-height: 1;
   color: var(--accent-ink);
@@ -2331,7 +2351,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .ts-team-buttons {
@@ -2378,7 +2398,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   margin-bottom: 8px;
 }
@@ -2390,18 +2410,18 @@ body {
 }
 
 .ts-preview-stats {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text);
 }
 
 .ts-preview-stats strong {
   color: var(--team-color);
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .ts-preview-note {
   margin: 6px 0 0;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 
 .ts-image-modal {
@@ -2425,7 +2445,7 @@ body {
 
 .ts-image-theme-tag {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--accent);
   background: var(--accent-soft);
@@ -2443,7 +2463,7 @@ body {
   padding: 10px 14px;
   margin-bottom: 16px;
   color: var(--text);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .editor-local-notice strong {
@@ -2470,7 +2490,7 @@ body {
   gap: 10px;
   padding: 12px 0;
   cursor: pointer;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   list-style: none;
@@ -2485,7 +2505,7 @@ body {
   content: "▾";
   margin-left: auto;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   transition: transform 0.15s ease;
 }
 
@@ -2498,7 +2518,7 @@ body {
 }
 
 .tactic-sim-count {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -2532,7 +2552,7 @@ body {
   padding: 9px 14px;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -2560,7 +2580,7 @@ body {
 .tactic-sim-number {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -2571,7 +2591,7 @@ body {
   color: var(--text);
   border-radius: 6px;
   padding: 5px 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   min-width: 0;
 }
 
@@ -2606,7 +2626,7 @@ body {
   color: var(--text);
   border-radius: 6px;
   padding: 6px 10px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   flex: 1;
   min-width: 0;
   max-width: 220px;
@@ -2617,7 +2637,7 @@ body {
 }
 
 .home-tagline {
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--accent-text);
   margin: 0 0 10px;
@@ -2648,7 +2668,7 @@ body {
   content: "▾";
   margin-left: auto;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   transition: transform 0.15s ease;
 }
 
@@ -2663,7 +2683,7 @@ body {
 .home-appendix-label {
   display: inline-block;
   flex: 0 0 auto;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -2674,7 +2694,7 @@ body {
 }
 
 .home-appendix-title {
-  font-size: 1rem;
+  font-size: var(--fs-md);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -2698,14 +2718,14 @@ body {
 
 .install-guide-card h3 {
   margin: 0 0 10px;
-  font-size: 1rem;
+  font-size: var(--fs-md);
 }
 
 .install-guide-card ol {
   margin: 0;
   padding-left: 20px;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   display: grid;
   gap: 4px;
 }
@@ -2741,11 +2761,11 @@ body {
 
 .home-upcoming-label {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .home-upcoming-more {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -2761,7 +2781,7 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: nowrap;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   min-width: 0;
 }
 
@@ -2791,7 +2811,7 @@ body {
   margin-left: auto;
   white-space: nowrap;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .home-menu {
@@ -2818,18 +2838,18 @@ body {
 }
 
 .home-card-icon {
-  font-size: 1.5rem;
+  font-size: var(--fs-2xl);
 }
 
 .home-card h2 {
   margin: 10px 0 6px;
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
 }
 
 .home-card p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .list-header {
@@ -2862,7 +2882,7 @@ body {
 .new-tactic-form label {
   display: grid;
   gap: 6px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -2875,7 +2895,7 @@ body {
   color: var(--text);
   border-radius: 8px;
   padding: 9px 12px;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-family: inherit;
   resize: vertical;
 }
@@ -2901,7 +2921,7 @@ body {
 }
 
 .stats-block h2 {
-  font-size: 1.02rem;
+  font-size: var(--fs-md);
   margin: 0 0 12px;
   display: flex;
   align-items: baseline;
@@ -2910,7 +2930,7 @@ body {
 }
 
 .stats-note {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
   color: var(--text-muted);
 }
@@ -2925,7 +2945,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -2938,7 +2958,7 @@ body {
   border: 1px solid var(--surface-2);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 0.92rem;
+  font-size: var(--fs-sm);
   font-family: inherit;
 }
 
@@ -2965,7 +2985,7 @@ body {
 }
 
 .stats-qhead {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   text-align: center;
   margin-bottom: 6px;
@@ -2981,7 +3001,7 @@ body {
   border: 1px solid var(--surface-2);
   border-radius: 8px;
   padding: 8px 6px;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   text-align: center;
   font-family: inherit;
   width: 100%;
@@ -2989,14 +3009,14 @@ body {
 
 .stats-qteam {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .stats-qtotal {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--accent-text);
   font-weight: 700;
   text-align: right;
@@ -3021,7 +3041,7 @@ body {
   border-spacing: 0;
   width: max-content;
   min-width: 100%;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .stats-table th,
@@ -3037,7 +3057,7 @@ body {
    겹치는 손해가 커서 뗐다. 가로로 미는 이름 칸(.stats-sticky)만 남긴다. */
 .stats-table thead th {
   background: var(--surface-2);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -3068,7 +3088,7 @@ body {
 
 .stats-no {
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   margin-left: 5px;
 }
 
@@ -3102,7 +3122,7 @@ body {
 }
 
 .stats-team-tag {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--accent-text);
   background: var(--accent-soft);
@@ -3143,7 +3163,7 @@ body {
   background: var(--bg);
   color: var(--text-muted);
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   font-family: inherit;
 }
@@ -3159,7 +3179,7 @@ body {
   background: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   padding: 4px 8px;
 }
 
@@ -3188,7 +3208,7 @@ body {
   display: flex;
   gap: 9px;
   align-items: baseline;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   padding: 9px 12px;
   border-radius: 9px;
   border-left: 3px solid var(--surface-2);
@@ -3212,13 +3232,13 @@ body {
 .stats-issue-tag {
   flex: 0 0 auto;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
 .stats-ok {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -3228,7 +3248,7 @@ body {
   border-radius: 10px;
   padding: 14px 16px;
   margin: 0 0 12px;
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   line-height: 1.65;
   white-space: pre-wrap;
   overflow-x: auto;
@@ -3340,16 +3360,16 @@ body {
 }
 
 .sheet-drop-icon {
-  font-size: 1.6rem;
+  font-size: var(--fs-2xl);
 }
 
 .sheet-drop-main {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .sheet-drop-sub {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -3379,7 +3399,7 @@ body {
 
 .sheet-thumb figcaption {
   padding: 6px 8px;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3397,7 +3417,7 @@ body {
   background: rgba(0, 0, 0, 0.62);
   color: #fff;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   line-height: 1;
 }
 
@@ -3406,7 +3426,7 @@ body {
   min-height: 44px;
   cursor: pointer;
   font-weight: 700;
-  font-size: 1.02rem;
+  font-size: var(--fs-md);
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -3421,7 +3441,7 @@ body {
 .stats-fold > summary::before {
   content: "▸";
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .stats-fold[open] > summary::before {
@@ -3433,7 +3453,7 @@ body {
 }
 
 .stats-h3 {
-  font-size: 0.92rem;
+  font-size: var(--fs-sm);
   margin: 20px 0 10px;
   display: flex;
   align-items: baseline;
@@ -3467,7 +3487,7 @@ body {
 }
 
 .sheet-state {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -3508,7 +3528,7 @@ body {
 }
 
 .sheet-row-no {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   min-width: 30px;
 }
@@ -3519,19 +3539,19 @@ body {
   border: 1px solid var(--surface-2);
   border-radius: 8px;
   padding: 6px 8px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-family: inherit;
 }
 
 .sheet-row-stat {
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
 /* 이름만 못 읽은 줄 — 숫자는 다 읽어 놨으니 고르기만 하면 된다. */
 .sheet-rows-need {
   margin: 10px 0 0;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   line-height: 1.5;
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -3564,7 +3584,7 @@ body {
 .sheet-report {
   max-height: min(56vh, 460px);
   overflow: auto;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -3585,7 +3605,7 @@ body {
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -3638,24 +3658,24 @@ body {
 }
 
 .sheet-print-list li > b {
-  font-size: 1rem;
+  font-size: var(--fs-md);
 }
 
 .sheet-print-list .spl-count {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   color: var(--text-dim, #9aa2b4);
 }
 
 .sheet-print-list .spl-names {
   flex: 1 1 100%;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   line-height: 1.6;
   word-break: keep-all;
 }
 
 .sheet-print-list .spl-names i {
   font-style: normal;
-  font-size: 0.76rem;
+  font-size: var(--fs-xs);
   color: var(--text-dim, #9aa2b4);
   margin-right: 2px;
 }
@@ -3697,7 +3717,7 @@ body {
 /* 설명은 접어 둔다 — 매번 읽을 것이 아니라 한 번 궁금할 때 펴 보는 것이다. */
 .sheet-print-why {
   margin-top: 10px;
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   color: var(--text-dim, #9aa2b4);
 }
 
