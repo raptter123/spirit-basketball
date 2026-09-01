@@ -809,12 +809,29 @@ export function mountTeamBuilder(container) {
       </div>
 
       <h3 class="section-title">참석자 선택 (${selected.size}명)</h3>
+      <!-- 명단을 통째로 다루는 단추는 명단 바로 위에 둔다. '전체 초기화'는 원래 저 아래
+           팀 배정 줄에 있었는데, 정작 지우는 건 이 위의 참석자 선택이라 스크롤을 내려갔다
+           와야 했다. 아래에는 배정만 건드리는 '배정 초기화'를 남긴다.
+
+           둘이 같이 필요한 상태가 있다: 화면을 나갔다 오면 초안이 지워져 선택은 비지만
+           게스트는 날짜에 묶여 남는다. 그때 '지난번 그대로'로 명단을 채우면서
+           '전체 초기화'로 게스트까지 지울 수도 있어야 한다. 그래서 조건을 따로 건다. -->
       ${
-        selected.size === 0 && lastAttendees
-          ? `<button type="button" class="btn btn-sm ts-recall" id="ts-recall">↩ 지난번 그대로 (${lastAttendees.names.length}명${
+        (() => {
+          // 줄 자체를 조건부로 만든다. div 를 늘 두고 :empty 로 접으려 했더니,
+          // 템플릿 안의 줄바꿈이 공백 텍스트 노드로 남아 :empty 가 안 먹고
+          // 아래 여백 10px 만 덩그러니 남았다.
+          const btns = [];
+          if (selected.size === 0 && lastAttendees) {
+            btns.push(`<button type="button" class="btn btn-sm" id="ts-recall">↩ 지난번 그대로 (${lastAttendees.names.length}명${
               lastAttendees.savedFor ? ` · ${shortDate(lastAttendees.savedFor)}` : ""
-            })</button>`
-          : ""
+            })</button>`);
+          }
+          if (selected.size > 0 || guests.length) {
+            btns.push(`<button type="button" class="btn btn-sm" id="ts-clear-all">전체 초기화</button>`);
+          }
+          return btns.length ? `<div class="ts-pick-actions">${btns.join("")}</div>` : "";
+        })()
       }
       <input type="text" id="ts-search" class="search-input" placeholder="이름 검색" value="${escapeHtml(search)}" />
       <div class="ts-roster-grid">
@@ -863,7 +880,6 @@ export function mountTeamBuilder(container) {
       <div class="ts-assign-toolbar">
         <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
         <button type="button" class="link-btn tap-wide" id="ts-clear-assign">배정 초기화</button>
-        <button type="button" class="link-btn tap-wide" id="ts-clear-all">전체 초기화</button>
       </div>
       <div class="ts-assign-list">
         ${
@@ -1063,14 +1079,17 @@ export function mountTeamBuilder(container) {
       render();
     });
 
-    document.getElementById("ts-clear-all").addEventListener("click", () => {
-      selected = new Set();
-      assignments = {};
-      guests = [];              // '전체'니까 게스트도 같이 비운다
-      saveGuests(gameDate, []);
-      clearTeamBuilderDraft();
-      render();
-    });
+    const clearAll = document.getElementById("ts-clear-all");
+    if (clearAll) {
+      clearAll.addEventListener("click", () => {
+        selected = new Set();
+        assignments = {};
+        guests = [];              // '전체'니까 게스트도 같이 비운다
+        saveGuests(gameDate, []);
+        clearTeamBuilderDraft();
+        render();
+      });
+    }
 
     document.getElementById("ts-image-btn").addEventListener("click", () => {
       const rows = Array.from({ length: teamCount }, (_, i) => ({
