@@ -1,5 +1,12 @@
 import { ROSTER } from "./roster.js";
-import { getTeamBuilderDraft, saveTeamBuilderDraft, clearTeamBuilderDraft, saveSheetRoster } from "./storage.js";
+import {
+  getTeamBuilderDraft,
+  saveTeamBuilderDraft,
+  clearTeamBuilderDraft,
+  saveSheetRoster,
+  getLastAttendees,
+  saveLastAttendees,
+} from "./storage.js";
 import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
 import {
@@ -36,6 +43,12 @@ function shuffle(arr) {
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// "2026-09-06" → "9/6". 지난번 명단이 언제 것인지 알려주는 용도라 연도는 뺀다.
+function shortDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  return m ? `${Number(m[2])}/${Number(m[3])}` : "";
 }
 
 function teamCountChipsHTML(current) {
@@ -719,11 +732,18 @@ export function mountTeamBuilder(container) {
 
   function persist() {
     saveTeamBuilderDraft({ teamCount, gameDate, selected: [...selected], assignments });
+    // 다음 주에 불러올 수 있게 따로도 남긴다. 빈 명단은 저장하지 않으므로
+    // '전체 초기화'를 눌러도 지난번 기록은 그대로 남는다.
+    saveLastAttendees([...selected], gameDate);
   }
 
   function render() {
     const players = getAllPlayers();
     const playersByName = Object.fromEntries(players.map((p) => [p.name, p]));
+    // 지난번 명단에서 그 사이 로스터에서 빠진 사람은 걸러낸다.
+    const saved = getLastAttendees();
+    const savedNames = saved ? saved.names.filter((n) => knownNames.has(n)) : [];
+    const lastAttendees = savedNames.length ? { names: savedNames, savedFor: saved.savedFor } : null;
     const q = search.trim();
     const filtered = q ? players.filter((p) => p.name.includes(q)) : players;
     const selectedNames = [...selected];
@@ -743,6 +763,13 @@ export function mountTeamBuilder(container) {
       </div>
 
       <h3 class="section-title">참석자 선택 (${selected.size}명)</h3>
+      ${
+        selected.size === 0 && lastAttendees
+          ? `<button type="button" class="btn btn-sm ts-recall" id="ts-recall">↩ 지난번 그대로 (${lastAttendees.names.length}명${
+              lastAttendees.savedFor ? ` · ${shortDate(lastAttendees.savedFor)}` : ""
+            })</button>`
+          : ""
+      }
       <input type="text" id="ts-search" class="search-input" placeholder="이름 검색" value="${escapeHtml(search)}" />
       <div class="ts-roster-grid">
         ${
@@ -752,7 +779,8 @@ export function mountTeamBuilder(container) {
                   (p) => `
           <label class="ts-roster-chip ${selected.has(p.name) ? "is-checked" : ""}">
             <input type="checkbox" data-name="${escapeHtml(p.name)}" ${selected.has(p.name) ? "checked" : ""} />
-            ${escapeHtml(nameWithCaptain(p))}
+            <span class="ts-roster-mark" aria-hidden="true"></span>
+            <span class="ts-roster-name">${escapeHtml(nameWithCaptain(p))}</span>
           </label>`
                 )
                 .join("")
@@ -864,6 +892,15 @@ export function mountTeamBuilder(container) {
       el.focus();
       el.setSelectionRange(caret, caret);
     });
+
+    const recall = document.getElementById("ts-recall");
+    if (recall) {
+      recall.addEventListener("click", () => {
+        lastAttendees.names.forEach((n) => selected.add(n));
+        persist();
+        render();
+      });
+    }
 
     container.querySelectorAll(".ts-roster-chip input").forEach((input) => {
       input.addEventListener("change", (e) => {

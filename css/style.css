@@ -2246,8 +2246,61 @@ body {
   background: var(--accent-soft);
 }
 
+/* 브라우저 기본 체크박스는 13x13 고정이라 손끝에 잡히지도 않고, 사이트의 다른 곳은
+   전부 알약 칩인데 여기만 ☐ 라 혼자 논다. 눈에서만 치우고 자리는 남겨 둔다 —
+   지우면 키보드로 못 고르고, label 을 눌러 켜지는 동작도 이 input 이 하는 일이다. */
 .ts-roster-chip input {
-  accent-color: var(--accent);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* 체크박스 대신 우리가 그리는 네모. 켜지면 강조색으로 차고 ✓ 가 나타난다. */
+.ts-roster-mark {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.ts-roster-mark::after {
+  content: "✓";
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent-ink);
+  opacity: 0;
+}
+
+.ts-roster-chip.is-checked .ts-roster-mark {
+  background: var(--accent-btn);
+  border-color: var(--accent-btn);
+}
+
+.ts-roster-chip.is-checked .ts-roster-mark::after {
+  opacity: 1;
+}
+
+.ts-roster-name {
+  min-width: 0;
+}
+
+/* 기본 체크박스를 감췄으니 키보드로 옮겨 다닐 때 어디 있는지 칩이 대신 보여줘야 한다. */
+.ts-roster-chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 지난번 명단 불러오기. 참석자를 아직 아무도 안 골랐을 때만 나온다. */
+.ts-recall {
+  margin-bottom: 10px;
 }
 
 .ts-assign-toolbar {
