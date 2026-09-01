@@ -581,27 +581,40 @@ function glossaryCardHTML(g) {
 
 function renderGlossary() {
   let query = "";
+  let group = "전체";
 
   function render() {
     const q = query.trim().toLowerCase();
     const hit = (g) =>
-      !q ||
-      [g.term, g.en, g.when, g.idea, g.group].some((v) => (v || "").toLowerCase().includes(q));
+      (group === "전체" || g.group === group) &&
+      (!q || [g.term, g.en, g.when, g.idea, g.group].some((v) => (v || "").toLowerCase().includes(q)));
     const found = GLOSSARY.filter(hit);
+    // 한 묶음만 골라 놓은 상태에서는 칩이 이미 그 이름을 말하고 있으니 제목을 또 쓰지 않는다.
+    const showHeadings = group === "전체";
 
     app.innerHTML = `
       <section class="glossary-view">
         <a class="back-link tap-wide" href="#/">← 홈으로</a>
         <h1>용어 사전</h1>
         <p class="hint">경기 중에 나오는 콜과 용어를 모아뒀어요. 용어를 누르면 실제로 그 움직임이 나오는 전술로 갈 수 있어요.</p>
-        <input type="text" id="glossary-search" class="search-input" placeholder="용어 검색 (예: 블리츠, switch)" value="${escapeHtml(query)}" />
+        <div class="list-controls">
+          <input type="text" id="glossary-search" class="search-input" placeholder="용어 검색 (예: 블리츠, switch)" value="${escapeHtml(query)}" />
+          <div class="category-filter">
+            ${["전체", ...GLOSSARY_GROUPS]
+              .map(
+                (c) =>
+                  `<button type="button" class="chip ${group === c ? "chip-active" : ""}" data-group="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+              )
+              .join("")}
+          </div>
+        </div>
         ${
           found.length
-            ? GLOSSARY_GROUPS.map((group) => {
-                const list = found.filter((g) => g.group === group);
+            ? GLOSSARY_GROUPS.map((name) => {
+                const list = found.filter((g) => g.group === name);
                 if (!list.length) return "";
                 return `
-          <h2 class="section-title">${escapeHtml(group)}</h2>
+          ${showHeadings ? `<h2 class="section-title">${escapeHtml(name)}</h2>` : ""}
           <div class="term-grid">${list.map(glossaryCardHTML).join("")}</div>`;
               }).join("")
             : `<p class="hint">찾는 용어가 없어요. 팀에서 쓰는 말인데 여기 없으면 알려주세요.</p>`
@@ -621,6 +634,13 @@ function renderGlossary() {
       const next = document.getElementById("glossary-search");
       next.focus();
       next.setSelectionRange(pos, pos);
+    });
+
+    app.querySelectorAll("[data-group]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        group = btn.dataset.group;
+        render();
+      });
     });
   }
 
