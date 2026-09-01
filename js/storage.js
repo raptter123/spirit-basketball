@@ -152,6 +152,44 @@ export function saveLastAttendees(names, savedFor) {
   }
 }
 
+// 그날만 뛰는 게스트. 로스터에는 절대 넣지 않는다 — roster.js 맨 위 경고대로,
+// 이미 인쇄해 둔 기록지의 이름 칸 버블이 그 배열의 *순서*를 가리키고 있어서
+// 중간에 끼우면 종이가 엉뚱한 사람을 가리킨다.
+//
+// 경기 날짜를 열쇠로 쓴다. 그래서 규칙 세 가지가 저절로 맞는다:
+//   - 같은 날이면 화면을 나갔다 와도 남아 있다 (초안처럼 날아가지 않는다)
+//   - 날짜를 다음 주로 바꾸면 빈 목록이다 — 지우는 걸 기억할 필요가 없다
+//   - '지난번 그대로'가 게스트를 데려올 일이 없다 (저장 자체가 분리돼 있다)
+const GUESTS_KEY = "spirit-guests-by-date";
+const GUEST_DAYS_KEPT = 8;
+
+export function getGuests(dateStr) {
+  if (!dateStr) return [];
+  try {
+    const all = JSON.parse(localStorage.getItem(GUESTS_KEY) || "{}");
+    const v = all[dateStr];
+    return Array.isArray(v) ? v.filter((n) => typeof n === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuests(dateStr, names) {
+  if (!dateStr) return;
+  try {
+    const all = JSON.parse(localStorage.getItem(GUESTS_KEY) || "{}");
+    if (names && names.length) all[dateStr] = names;
+    else delete all[dateStr];
+    // 날짜별로 쌓이니 오래된 건 버린다. 지난 경기 것을 며칠은 남겨 둬야
+    // "어제 그 게스트 누구였지"를 다시 볼 수 있다.
+    const keys = Object.keys(all).sort();
+    for (const k of keys.slice(0, Math.max(0, keys.length - GUEST_DAYS_KEPT))) delete all[k];
+    localStorage.setItem(GUESTS_KEY, JSON.stringify(all));
+  } catch {
+    // no-op
+  }
+}
+
 const TACTIC_SIM_KEY = "spirit-tactic-sim-assignment";
 
 export function getTacticSimAssignment() {

@@ -2323,6 +2323,82 @@ body {
   margin-bottom: 10px;
 }
 
+/* ── 오늘 게스트 ─────────────────────────────────────────
+   그날만 뛰는 사람. 로스터와 섞이지 않도록 참석자 칸과 시각적으로 떼어 놓는다. */
+.ts-guests {
+  margin: 0 0 24px;
+  padding: 12px 14px;
+  border: 1px dashed var(--surface-2);
+  border-radius: 10px;
+}
+
+.ts-guest-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.ts-guest-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ts-guest-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ts-guest-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ts-guest-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: var(--fs-sm);
+  font-family: inherit;
+}
+
+/* .btn-icon 의 ::after 는 좌우로 2px 밖에 안 넓힌다(전술 편집기의 좁은 격자에 맞춘 값).
+   여기는 옆이 넉넉하니 단추 자체를 44px 로 잡는다. */
+.ts-guest-del {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.ts-guest-note {
+  margin: 10px 0 0;
+}
+
+/* 이름 옆 꼬리표. 주장 (C)와 같은 자리라 새 규칙을 만들 필요가 없다.
+   게스트는 등번호가 없어 유니폼이 이미 비어 있지만, 그것만으로는
+   '아직 번호를 안 정한 팀원'과 구분되지 않는다. */
+.ts-guest-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: 1px;
+}
+
 .ts-assign-toolbar {
   display: flex;
   flex-wrap: wrap;
