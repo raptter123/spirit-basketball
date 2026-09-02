@@ -28,6 +28,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="혼 Spirit" />
   <link rel="stylesheet" href="css/style.css" />
+  <!-- 배포판 번호. 배포 워크플로가 "<실행번호> · <커밋 앞 8자>" 로 갈아 끼운다.
+       화면 맨 아래에 이 값을 찍어 두면 "내 폰이 최신인지"를 눈으로 바로 확인할 수 있다.
+       index.html 은 캐시 무효화를 안 걸어서 브라우저가 옛 걸 들고 있을 수 있는데,
+       그 옛 index.html 이 어떤 js/css 를 부를지도 정해 주므로 이 번호가 곧 지금 돌고
+       있는 판본이다. 값이 그대로 dev 면 로컬에서 직접 연 것이다. -->
+  <meta name="app-rev" content="dev" />
   <script>
     // 첫 페인트 전에 테마를 정해야 밝은/어두운 화면이 번쩍이지 않는다.
     // 저장된 선택이 없으면 기기 설정(prefers-color-scheme)을 따른다.
@@ -79,6 +85,7 @@
     </div>
   </div>
   <main id="app"></main>
+  <footer class="site-foot"><span id="app-rev" class="app-rev"></span></footer>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1482,6 +1482,19 @@ function router() {
   }
 }
 
+// 화면 맨 아래 배포판 번호. 배포 워크플로가 <meta name="app-rev"> 에 값을 넣어 두면
+// 그걸 그대로 보여준다. 값이 그대로 "dev" 면 로컬에서 직접 연 것이다.
+//
+// 화면마다 그리지 않고 #app 바깥의 <footer> 를 한 번만 채운다 — 어느 화면에서도
+// 맨 아래에 있어야 하는데, 라우터가 #app 안을 통째로 갈아 끼우기 때문이다.
+function showAppRev() {
+  const slot = document.getElementById("app-rev");
+  if (!slot) return;
+  const rev = document.querySelector('meta[name="app-rev"]')?.content?.trim();
+  slot.textContent = !rev || rev === "dev" ? "개발판" : `rev ${rev}`;
+}
+
 initTheme();
+showAppRev();
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", router);
