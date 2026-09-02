@@ -32,6 +32,14 @@ jobs:
           sed -i -E "s#(property=\"og:image\" content=\")[^\"]*#\1${BASE}assets/og-card.png#" index.html
           grep -E 'og:(url|image)"' index.html
 
+      - name: Stamp the build revision
+        run: |
+          # 화면 맨 아래에 찍히는 번호. 실행번호는 배포할 때마다 1씩 늘어서 눈으로 비교하기
+          # 쉽고, 커밋 앞 8자는 어느 코드인지 되짚을 때 쓴다.
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
+          sed -i -E "s#(<meta name=\"app-rev\" content=\")[^\"]*#\1${{ github.run_number }} · ${SHA_SHORT}#" index.html
+          grep -F 'name="app-rev"' index.html
+
       - name: Cache-bust JS/CSS references
         run: |
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)

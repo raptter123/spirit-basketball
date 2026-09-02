@@ -325,6 +325,22 @@ body {
   padding: 24px;
 }
 
+/* 배포판 번호. 있는 줄도 몰라야 할 만큼 작고 옅게 — 평소엔 눈에 안 띄고,
+   "내 폰이 최신인가" 를 확인할 때만 찾아보면 되는 값이다. */
+.site-foot {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 4px 24px 20px;
+  text-align: center;
+}
+
+.app-rev {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  opacity: 0.55;
+  letter-spacing: 0.02em;
+}
+
 .list-view h1,
 .detail-view h1 {
   margin: 8px 0 4px;
