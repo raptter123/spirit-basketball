@@ -20,8 +20,10 @@ import {
   JERSEY_NUM_CY,
 } from "./jersey.js";
 
-const TEAM_LETTERS = ["A", "B", "C"];
-const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6"];
+const TEAM_LETTERS = ["A", "B", "C", "D"];
+// 팀마다 확실히 다른 색이어야 배정 단추에서 헷갈리지 않는다.
+// D 는 보라 — 주황·초록·파랑 어느 것과도 안 겹친다.
+const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6", "#a855f7"];
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
 function escapeHtml(str) {
@@ -53,8 +55,9 @@ function shortDate(iso) {
   return m ? `${Number(m[2])}/${Number(m[3])}` : "";
 }
 
+// 22명이 와서 4팀을 짠 날이 있었다. 5~6명씩이면 코트에서 돌리기 딱 좋다.
 function teamCountChipsHTML(current) {
-  return [2, 3]
+  return [2, 3, 4]
     .map((n) => `<button type="button" class="chip ${current === n ? "chip-active" : ""}" data-count="${n}">${n}팀</button>`)
     .join("");
 }
@@ -211,7 +214,7 @@ function roundRectPath(ctx, x, y, w, h, r) {
 function drawClassicTheme(rows, gameDate, teamCount) {
   const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
   const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#fbe0c4", "#d9f0dc", "#d7e6f7"];
+  const palette = ["#fbe0c4", "#d9f0dc", "#d7e6f7", "#e6dcf5"];
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
@@ -253,7 +256,7 @@ function drawClassicTheme(rows, gameDate, teamCount) {
 function drawNbaTheme(rows, gameDate, teamCount) {
   const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
   const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#f97316", "#38bdf8", "#facc15"];
+  const palette = ["#f97316", "#38bdf8", "#facc15", "#c084fc"];
 
   const grad = ctx.createLinearGradient(0, 0, 0, height);
   grad.addColorStop(0, "#111a30");
@@ -306,7 +309,7 @@ function drawNbaTheme(rows, gameDate, teamCount) {
 function drawSoccerTheme(rows, gameDate, teamCount) {
   const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
   const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#ef4444", "#eab308", "#3b82f6"];
+  const palette = ["#ef4444", "#eab308", "#3b82f6", "#22c55e"];
 
   const grad = ctx.createLinearGradient(0, 0, 0, height);
   grad.addColorStop(0, "#0f3d1e");
@@ -366,7 +369,7 @@ function drawSoccerTheme(rows, gameDate, teamCount) {
 function drawEsportsTheme(rows, gameDate, teamCount) {
   const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
   const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#22d3ee", "#f472b6", "#a3e635"];
+  const palette = ["#22d3ee", "#f472b6", "#a3e635", "#fb923c"];
 
   ctx.fillStyle = "#08080f";
   ctx.fillRect(0, 0, width, height);
@@ -418,7 +421,7 @@ function drawEsportsTheme(rows, gameDate, teamCount) {
 function drawRetroTheme(rows, gameDate, teamCount) {
   const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
   const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#c1440e", "#7a8c3a", "#c9971e"];
+  const palette = ["#c1440e", "#7a8c3a", "#c9971e", "#3f6f7d"];
 
   ctx.fillStyle = "#f3e6c8";
   ctx.fillRect(0, 0, width, height);
@@ -737,7 +740,7 @@ function showSheetPrintModal(teams, gameDate) {
 export function mountTeamBuilder(container) {
   const draft = getTeamBuilderDraft();
 
-  let teamCount = draft?.teamCount === 3 ? 3 : 2;
+  let teamCount = [2, 3, 4].includes(draft?.teamCount) ? draft.teamCount : 2;
   let gameDate = draft?.gameDate || getNextEventDate("자체전", todayStr()) || todayStr();
   let search = "";
   // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
