@@ -59,8 +59,12 @@
 <body>
   <header class="site-header">
     <a class="brand" href="#/">
-      <img class="brand-logo brand-logo-dark" src="assets/logo-dark.svg" alt="혼(Spirit) 로고" />
-      <img class="brand-logo brand-logo-light" src="assets/logo-light.svg" alt="" aria-hidden="true" />
+      <!-- 엠블럼 두 장(다크용·라이트용)은 그림 자체가 달라서 한 장으로 합칠 수 없다.
+           <img> 로 두면 display:none 인 쪽까지 브라우저가 받아 오므로(32.7KB 헛걸음),
+           배경 그림으로 둔다 — 안 그려지는 요소의 배경은 아예 요청하지 않는다.
+           바로 옆 .brand-title 에 "혼(Spirit)" 이 글자로 있으니 여기는 장식으로 둔다. -->
+      <span class="brand-logo brand-logo-dark" aria-hidden="true"></span>
+      <span class="brand-logo brand-logo-light" aria-hidden="true"></span>
       <span class="brand-text">
         <span class="brand-title">혼<span class="brand-title-accent">(Spirit)</span></span>
         <span class="brand-tagline">PLAY WITH SPIRIT, PLAY WITH 혼(魂)</span>

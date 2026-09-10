@@ -149,15 +149,27 @@ body {
   text-decoration: none;
 }
 
-/* 엠블럼은 세로로 긴 형태라 예전 곰 로고보다 살짝 키워야 시각적 무게가 비슷해진다. */
+/* 엠블럼은 세로로 긴 형태라 예전 곰 로고보다 살짝 키워야 시각적 무게가 비슷해진다.
+   <img> 가 아니라 배경 그림이라 가로를 브라우저가 재 주지 않는다. 그래서 두 판본의
+   viewBox 비율을 aspect-ratio 로 적어 준다 — <img width:auto> 와 같은 크기가 나온다. */
 .brand-logo {
   height: 54px;
-  width: auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  flex: none;
 }
 
 /* 다크판은 불꽃이 흰색, 라이트판은 보라/빨강이라 배경에 맞는 쪽만 보여준다. */
+.brand-logo-dark {
+  aspect-ratio: 308.5 / 369.8;
+  background-image: url("../assets/logo-dark.svg");
+}
+
 .brand-logo-light {
   display: none;
+  aspect-ratio: 294 / 344.2;
+  background-image: url("../assets/logo-light.svg");
 }
 
 :root[data-theme="light"] .brand-logo-dark {
