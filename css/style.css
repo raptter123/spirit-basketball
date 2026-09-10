@@ -3857,3 +3857,19 @@ body {
 .sheet-assign.is-bad {
   border-color: var(--defense);
 }
+
+/* 공지 이미지 스타일 고르는 줄. 칩이 여러 개라 좁은 화면에서는 줄바꿈된다 —
+   가로로 스크롤시키면 뒤쪽 칩이 있는 줄 모르고 지나친다. 줄바꿈되며 위아래로
+   늘어서므로 ::after 로 넓히지 않고 높이 자체를 44px 로 준다(겹침 방지). */
+.ts-style-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ts-style-row .chip {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: var(--fs-sm);
+}
