@@ -55,7 +55,7 @@ function shortDate(iso) {
   return m ? `${Number(m[2])}/${Number(m[3])}` : "";
 }
 
-// 22명이 와서 4팀을 짠 날이 있었다. 5~6명씩이면 코트에서 돌리기 딱 좋다.
+// 2팀 아니면 3팀이다. 4팀은 한 번 해 보고 접었다.
 function teamCountChipsHTML(current) {
   return [2, 3]
     .map((n) => `<button type="button" class="chip ${current === n ? "chip-active" : ""}" data-count="${n}">${n}팀</button>`)
@@ -178,7 +178,6 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// ── 시안용 (골라서 하나만 남길 것) ───────────────────────────────
 // 팀 색 위에 올릴 글자색을 색마다 자동으로 고른다. 어두운 글자와 밝은 글자 중
 // 명암비가 높은 쪽을 쓴다. 고정하면 황금색 위 흰 글자가 2.04:1 로 안 읽힌다.
 // 팀 색을 글씨에 그대로 쓰면 바탕에 묻는다 — 은행노랑이 크림 위에서 2.19:1 이었다.
@@ -219,7 +218,7 @@ function inkOn(bg) {
 // "자기 안에서 어디가 제일 나은가" 로 고른다. 그래서 나쁜 별명은 아무에게도
 // 붙지 않고, 기록이 있는 사람은 모두 하나씩 받는다.
 const TAG_STATS = [
-  { key: "ppg", 별명: "해결사", 근거: "평균" },
+  { key: "ppg", 별명: "해결사", 근거: "득점" },
   { key: "rpg", 별명: "리바운더", 근거: "리바운드" },
   { key: "apg", 별명: "지휘관", 근거: "어시스트" },
   { key: "spg", 별명: "인터셉트", 근거: "스틸" },
@@ -264,10 +263,12 @@ function playerBadge(p) {
     if (!best || z > best.z) best = { ...it, z, v };
   }
   if (!best) return { 별명: "기대주", 근거: "기록 준비 중" };
-  const 값 = best.key === "winRate" || best.key === "fgPct"
-    ? `${Math.round(best.v * 100)}%`
-    : best.key === "games" ? `${best.v}경기` : best.v.toFixed(1);
-  return { 별명: best.별명, 근거: `${best.근거} ${값}` };
+  // 값만 적으면 그게 잘한 건지 알 수 없다. 로스터 평균을 나란히 적어 두면
+  // "8.0 이 평균 4.0 의 두 배구나" 가 한눈에 보인다.
+  const 적기 = (v) => best.key === "winRate" || best.key === "fgPct"
+    ? `${Math.round(v * 100)}%`
+    : best.key === "games" ? `${Math.round(v)}경기` : v.toFixed(1);
+  return { 별명: best.별명, 근거: `${best.근거} ${적기(best.v)} · 평균 ${적기(n[best.key].m)}` };
 }
 
 // ── 세로형 시안 ────────────────────────────────────────────────
