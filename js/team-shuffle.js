@@ -57,7 +57,7 @@ function shortDate(iso) {
 
 // 22명이 와서 4팀을 짠 날이 있었다. 5~6명씩이면 코트에서 돌리기 딱 좋다.
 function teamCountChipsHTML(current) {
-  return [2, 3, 4]
+  return [2, 3]
     .map((n) => `<button type="button" class="chip ${current === n ? "chip-active" : ""}" data-count="${n}">${n}팀</button>`)
     .join("");
 }
@@ -156,39 +156,6 @@ function drawJersey(ctx, x, y, h, p, ink) {
   ctx.restore();
 }
 
-// [유니폼][이름]을 한 덩어리로 묶어 칸 가운데에 놓는다.
-// 덩어리 전체 폭을 재서 배치해야 이름만 있던 때와 가운데가 어긋나지 않는다.
-function drawPlayerCell(ctx, p, cx, cy, font, ink) {
-  const jerseyH = 34;
-  const jerseyW = (jerseyH * JERSEY_VIEW.w) / JERSEY_VIEW.h;
-  const gap = 7;
-  ctx.font = font;
-  const nameW = ctx.measureText(p.name).width;
-  const left = cx - (jerseyW + gap + nameW) / 2;
-  drawJersey(ctx, left, cy - jerseyH / 2, jerseyH, p, ink);
-  ctx.font = font;
-  ctx.fillStyle = ink;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(p.name, left + jerseyW + gap, cy + 1);
-  // 다음 칸이 가운데 정렬을 기대하고 있으므로 되돌려 놓는다.
-  ctx.textAlign = "center";
-}
-
-function computeCanvasLayout(rows) {
-  // 유니폼이 이름 앞에 붙는 만큼 칸이 넓어야 한다(예전 132).
-  // 가장 긴 조합이 "유니폼 + 김성훈(C)" 118px(클래식 20px 기준)이라 양옆에 16px씩 남는다.
-  const cellW = 150;
-  const cellH = 58;
-  const labelW = 70;
-  const padding = 26;
-  const titleH = 64;
-  const maxCols = Math.max(1, ...rows.map((t) => t.players.length));
-  const width = padding * 2 + labelW + maxCols * cellW;
-  const height = padding * 2 + titleH + rows.length * cellH;
-  return { cellW, cellH, labelW, padding, titleH, width, height };
-}
-
 function createScaledCanvas(width, height, scale = 2) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width * scale);
@@ -211,271 +178,328 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawClassicTheme(rows, gameDate, teamCount) {
-  const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
-  const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#fbe0c4", "#d9f0dc", "#d7e6f7", "#e6dcf5"];
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
-  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
-  ctx.fillStyle = "#3b5bdb";
-  ctx.font = `bold 24px ${FONT}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(`[${dateLabel}_자체${teamCount}파전 팀공지]`, padding, padding + 26);
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.strokeStyle = "#c9c9c9";
-  ctx.lineWidth = 1;
-
-  rows.forEach((team, r) => {
-    const color = palette[r % palette.length];
-    const y = padding + titleH + r * cellH;
-    ctx.fillStyle = color;
-    ctx.fillRect(padding, y, labelW, cellH);
-    ctx.strokeRect(padding, y, labelW, cellH);
-    ctx.fillStyle = "#1a1a1a";
-    ctx.font = `bold 20px ${FONT}`;
-    ctx.fillText(team.letter, padding + labelW / 2, y + cellH / 2 + 1);
-
-    team.players.forEach((p, i) => {
-      const x = padding + labelW + i * cellW;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, cellW, cellH);
-      ctx.strokeRect(x, y, cellW, cellH);
-      drawPlayerCell(ctx, p, x + cellW / 2, y + cellH / 2, `20px ${FONT}`, "#1a1a1a");
-    });
-  });
-
-  return canvas;
-}
-
-function drawNbaTheme(rows, gameDate, teamCount) {
-  const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
-  const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#f97316", "#38bdf8", "#facc15", "#c084fc"];
-
-  const grad = ctx.createLinearGradient(0, 0, 0, height);
-  grad.addColorStop(0, "#111a30");
-  grad.addColorStop(1, "#05070d");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, width, height);
-
-  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.shadowColor = "rgba(249,115,22,0.55)";
-  ctx.shadowBlur = 16;
-  ctx.fillStyle = "#f97316";
-  ctx.font = `900 26px ${FONT}`;
-  ctx.fillText(`${dateLabel} 자체${teamCount}파전`, padding, padding + 28);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = `600 13px ${FONT}`;
-  ctx.fillText("TEAM ANNOUNCEMENT", padding, padding + 48);
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  rows.forEach((team, r) => {
-    const color = palette[r % palette.length];
-    const y = padding + titleH + r * cellH;
-    ctx.fillStyle = color;
-    roundRectPath(ctx, padding, y + 4, labelW - 8, cellH - 8, 8);
-    ctx.fill();
-    ctx.fillStyle = "#05070d";
-    ctx.font = `900 18px ${FONT}`;
-    ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
-
-    team.players.forEach((p, i) => {
-      const x = padding + labelW + i * cellW;
-      ctx.fillStyle = "#111827";
-      roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 8);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 8);
-      ctx.stroke();
-      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#f8fafc");
-    });
-  });
-
-  return canvas;
-}
-
-function drawSoccerTheme(rows, gameDate, teamCount) {
-  const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
-  const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#ef4444", "#eab308", "#3b82f6", "#22c55e"];
-
-  const grad = ctx.createLinearGradient(0, 0, 0, height);
-  grad.addColorStop(0, "#0f3d1e");
-  grad.addColorStop(1, "#1c6b32");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, width, height);
-  ctx.fillStyle = "rgba(255,255,255,0.04)";
-  const stripeH = 24;
-  for (let y = 0; y < height; y += stripeH * 2) {
-    ctx.fillRect(0, y, width, stripeH);
+// ── 시안용 (골라서 하나만 남길 것) ───────────────────────────────
+// 팀 색 위에 올릴 글자색을 색마다 자동으로 고른다. 어두운 글자와 밝은 글자 중
+// 명암비가 높은 쪽을 쓴다. 고정하면 황금색 위 흰 글자가 2.04:1 로 안 읽힌다.
+// 팀 색을 글씨에 그대로 쓰면 바탕에 묻는다 — 은행노랑이 크림 위에서 2.19:1 이었다.
+// 화면 CSS 가 --accent 와 --accent-text 를 나눠 쓰는 것과 같은 이유로, 글씨용은
+// 기준(4.5)을 넘길 때까지 색을 옮겨 쓴다. 선·면에는 원래 색을 그대로 쓴다.
+//
+// 옮기는 방향은 바탕 밝기에 따라 다르다. 밝은 바탕에서는 어둡게, 어두운 바탕에서는
+// 밝게 가야 한다. 어둡게만 섞도록 두었더니 어두운 색표(은행)에서 주홍·청록·자주가
+// 1.58:1 까지 떨어져 거의 안 보였다.
+function readableOn(color, bg) {
+  const v = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const s = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (h) => { const [r, g, b] = v(h); return 0.2126 * s(r) + 0.7152 * s(g) + 0.0722 * s(b); };
+  const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const [r0, g0, b0] = v(color);
+  const 밝게 = lum(bg) < 0.5;
+  let out = color;
+  for (let t = 0; t <= 0.95 && cr(out, bg) < 4.5; t += 0.02) {
+    const f = 밝게 ? (x) => Math.round(x + (255 - x) * t) : (x) => Math.round(x * (1 - t));
+    out = "#" + [f(r0), f(g0), f(b0)].map((x) => x.toString(16).padStart(2, "0")).join("");
   }
-
-  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold 24px ${FONT}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(`${dateLabel} 자체${teamCount}파전 라인업`, padding, padding + 26);
-  ctx.strokeStyle = "#eab308";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(padding, padding + 36);
-  ctx.lineTo(padding + 220, padding + 36);
-  ctx.stroke();
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  rows.forEach((team, r) => {
-    const color = palette[r % palette.length];
-    const y = padding + titleH + r * cellH;
-    const labelR = (labelW - 16) / 2;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(padding + labelR, y + cellH / 2, labelR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 18px ${FONT}`;
-    ctx.fillText(team.letter, padding + labelR, y + cellH / 2 + 1);
-
-    team.players.forEach((p, i) => {
-      const x = padding + labelW + i * cellW;
-      ctx.fillStyle = "rgba(255,255,255,0.95)";
-      roundRectPath(ctx, x, y + 6, cellW - 10, cellH - 12, cellH / 2 - 6);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      roundRectPath(ctx, x, y + 6, cellW - 10, cellH - 12, cellH / 2 - 6);
-      ctx.stroke();
-      drawPlayerCell(ctx, p, x + (cellW - 10) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#111827");
-    });
-  });
-
-  return canvas;
+  return out;
 }
 
-function drawEsportsTheme(rows, gameDate, teamCount) {
-  const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
-  const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#22d3ee", "#f472b6", "#a3e635", "#fb923c"];
-
-  ctx.fillStyle = "#08080f";
-  ctx.fillRect(0, 0, width, height);
-
-  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
-  const titleGrad = ctx.createLinearGradient(padding, 0, padding + 260, 0);
-  titleGrad.addColorStop(0, "#22d3ee");
-  titleGrad.addColorStop(1, "#f472b6");
-  ctx.fillStyle = titleGrad;
-  ctx.font = `900 26px ${FONT}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(`${dateLabel}_자체${teamCount}파전`.toUpperCase(), padding, padding + 28);
-  ctx.fillStyle = "#64748b";
-  ctx.font = `600 12px ${FONT}`;
-  ctx.fillText("SPIRIT ROSTER LOCK-IN", padding, padding + 48);
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  rows.forEach((team, r) => {
-    const color = palette[r % palette.length];
-    const y = padding + titleH + r * cellH;
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    roundRectPath(ctx, padding, y + 4, labelW - 8, cellH - 8, 6);
-    ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.font = `900 18px ${FONT}`;
-    ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
-
-    team.players.forEach((p, i) => {
-      const x = padding + labelW + i * cellW;
-      ctx.fillStyle = "#101018";
-      roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 6);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      roundRectPath(ctx, x, y + 4, cellW - 8, cellH - 8, 6);
-      ctx.stroke();
-      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#f1f5f9");
-    });
-  });
-
-  return canvas;
+function inkOn(bg) {
+  const v = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const s = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (h) => { const [r, g, b] = v(h); return 0.2126 * s(r) + 0.7152 * s(g) + 0.0722 * s(b); };
+  const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  return cr("#241a10", bg) >= cr("#fff8ea", bg) ? "#241a10" : "#fff8ea";
 }
 
-function drawRetroTheme(rows, gameDate, teamCount) {
-  const { padding, titleH, cellW, cellH, labelW, width, height } = computeCanvasLayout(rows);
-  const { canvas, ctx } = createScaledCanvas(width, height);
-  const palette = ["#c1440e", "#7a8c3a", "#c9971e", "#3f6f7d"];
-
-  ctx.fillStyle = "#f3e6c8";
-  ctx.fillRect(0, 0, width, height);
-
-  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.font = `900 26px ${FONT}`;
-  ctx.fillStyle = "#3f2a1a";
-  ctx.fillText(`${dateLabel} 자체${teamCount}파전 팀공지`, padding + 2, padding + 30);
-  ctx.fillStyle = "#7f1d1d";
-  ctx.fillText(`${dateLabel} 자체${teamCount}파전 팀공지`, padding, padding + 28);
-
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  rows.forEach((team, r) => {
-    const color = palette[r % palette.length];
-    const y = padding + titleH + r * cellH;
-
-    ctx.fillStyle = color;
-    ctx.fillRect(padding, y + 4, labelW - 8, cellH - 8);
-    ctx.fillStyle = "#fff8ea";
-    ctx.font = `bold 18px ${FONT}`;
-    ctx.fillText(team.letter, padding + (labelW - 8) / 2, y + cellH / 2 + 1);
-
-    team.players.forEach((p, i) => {
-      const x = padding + labelW + i * cellW;
-      ctx.fillStyle = "#fff8ea";
-      ctx.fillRect(x, y + 4, cellW - 8, cellH - 8);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 4]);
-      ctx.strokeRect(x, y + 4, cellW - 8, cellH - 8);
-      ctx.setLineDash([]);
-      drawPlayerCell(ctx, p, x + (cellW - 8) / 2, y + cellH / 2, `bold 17px ${FONT}`, "#3f2a1a");
-    });
-  });
-
-  return canvas;
-}
-
-const IMAGE_THEMES = [
-  { key: "classic", label: "클래식", draw: drawClassicTheme },
-  { key: "nba", label: "NBA 스코어보드", draw: drawNbaTheme },
-  { key: "soccer", label: "축구 라인업", draw: drawSoccerTheme },
-  { key: "esports", label: "e스포츠 네온", draw: drawEsportsTheme },
-  { key: "retro", label: "레트로 포스터", draw: drawRetroTheme },
+// ── 선수 한 줄 정보 ────────────────────────────────────────────
+// 이름 밑에 붙일 수 있는 것: 없음 / 별명 / 숫자.
+//
+// 별명은 기록에서 뽑는다. 항목마다 로스터 평균과 편차를 구하고, 그 사람이 어디서
+// 가장 튀는지를 본다. 절대 순위로 고르면 잘하는 사람에게만 별명이 몰리므로,
+// "자기 안에서 어디가 제일 나은가" 로 고른다. 그래서 나쁜 별명은 아무에게도
+// 붙지 않고, 기록이 있는 사람은 모두 하나씩 받는다.
+const TAG_STATS = [
+  { key: "ppg", 별명: "해결사", 근거: "평균" },
+  { key: "rpg", 별명: "보드지기", 근거: "리바운드" },
+  { key: "apg", 별명: "지휘관", 근거: "어시스트" },
+  { key: "spg", 별명: "가로채기", 근거: "스틸" },
+  { key: "fgPct", 별명: "효율왕", 근거: "야투" },
+  { key: "games", 별명: "개근왕", 근거: "출전" },
+  { key: "winRate", 별명: "복덩이", 근거: "승률" },
 ];
 
-function pickTheme(excludeKey) {
-  const pool = excludeKey ? IMAGE_THEMES.filter((t) => t.key !== excludeKey) : IMAGE_THEMES;
-  return pool[Math.floor(Math.random() * pool.length)];
+let TAG_NORM = null;
+function tagNorm() {
+  if (TAG_NORM) return TAG_NORM;
+  TAG_NORM = {};
+  const 있는 = ROSTER.filter((p) => typeof p.ppg === "number");
+  for (const { key } of TAG_STATS) {
+    const v = 있는.map((p) => p[key]).filter((x) => typeof x === "number");
+    const m = v.reduce((a, c) => a + c, 0) / v.length;
+    const sd = Math.sqrt(v.reduce((a, c) => a + (c - m) ** 2, 0) / v.length) || 1;
+    TAG_NORM[key] = { m, sd };
+  }
+  return TAG_NORM;
 }
+
+// 공지 이미지에 넘어오는 이름에는 주장 꼬리표가 이미 붙어 있다("김성훈(C)").
+// 로스터에는 꼬리표 없이 들어 있으므로 떼고 찾아야 한다. 안 그러면 주장만
+// 늘 "기대주"로 나온다.
+function baseName(n) {
+  return String(n).replace(/\(C\)$/, "");
+}
+
+/** 별명과 그 근거. 라인업 그림의 오른쪽 빈 자리에 함께 적는다.
+ *  근거를 같이 적어야 "왜 저 별명인지"가 보이고, 숫자만 있을 때보다 덜 딱딱하다. */
+function playerBadge(p) {
+  if (p.guest) return { 별명: "게스트", 근거: "오늘 함께" };
+  const stat = ROSTER.find((r) => r.name === baseName(p.name));
+  if (!stat || typeof stat.ppg !== "number") return { 별명: "기대주", 근거: "기록 준비 중" };
+  const n = tagNorm();
+  let best = null;
+  for (const it of TAG_STATS) {
+    const v = stat[it.key];
+    if (typeof v !== "number") continue;
+    const z = (v - n[it.key].m) / n[it.key].sd;
+    if (!best || z > best.z) best = { ...it, z, v };
+  }
+  if (!best) return { 별명: "기대주", 근거: "기록 준비 중" };
+  const 값 = best.key === "winRate" || best.key === "fgPct"
+    ? `${Math.round(best.v * 100)}%`
+    : best.key === "games" ? `${best.v}경기` : best.v.toFixed(1);
+  return { 별명: best.별명, 근거: `${best.근거} ${값}` };
+}
+
+// ── 세로형 시안 ────────────────────────────────────────────────
+// 지금 가로형은 2팀 12명일 때 2044x464(4.41:1)이라, 폰 폭에 맞추면 35%로 줄고
+// 이름 글씨가 7.0px 이 된다. 세로로 세워서 폰 화면을 채우는 쪽을 시험한다.
+// 색은 '단풍' 하나로 고정한다 — 여기서 비교할 것은 색이 아니라 배치다.
+const AUTUMN = {
+  maple:  { team: ["#c0392b", "#e0a021", "#556b2f", "#6b3f5e"], paper: "#fdf3e0", card: "#fffaf0", ink: "#4a2a15", title: "#8c3113" },
+  kraft:  { team: ["#8f5136", "#c08a3e", "#5a6b45", "#6b3f5e"], paper: "#e6d5b8", card: "#f5ead6", ink: "#3d2a18", title: "#4b3421" },
+  ginkgo: { team: ["#e5a812", "#c2410c", "#0f766e", "#7c3f58"], paper: "#1e2436", card: "#2b3348", ink: "#f0ead8", title: "#f4c542" },
+};
+function pal(colorKey) {
+  return AUTUMN[colorKey] || AUTUMN.maple;
+}
+
+// 왼쪽에 유니폼, 오른쪽에 이름. 세로 배치에서는 가운데 정렬보다 왼쪽 정렬이
+// 이름 첫 글자가 세로로 맞아떨어져서 훑어보기 쉽다.
+function drawPlayerLeft(ctx, p, x, cy, font, ink, jerseyH, sub) {
+  const jerseyW = (jerseyH * JERSEY_VIEW.w) / JERSEY_VIEW.h;
+  drawJersey(ctx, x, cy - jerseyH / 2, jerseyH, p, ink);
+  const tx = x + jerseyW + 8;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.font = font;
+  ctx.fillStyle = ink;
+  // 아랫줄이 있으면 이름을 살짝 올려 두 줄이 세로 가운데에 오게 한다.
+  ctx.fillText(p.name, tx, cy + (sub ? -8 : 1));
+  if (!sub) return;
+  ctx.font = `600 13px ${FONT}`;
+  ctx.globalAlpha = 0.62;
+  ctx.fillText(sub, tx, cy + 11);
+  ctx.globalAlpha = 1;
+}
+
+function drawTitle(ctx, gameDate, teamCount, x, y, color, size) {
+  const dateLabel = gameDate ? gameDate.replaceAll("-", ".") : "";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `900 ${size}px ${FONT}`;
+  ctx.fillStyle = color;
+  ctx.fillText(`${dateLabel} 자체${teamCount}파전`, x, y);
+}
+
+// V1. 세로 칼럼 — 팀이 가로로 나란히 서고, 선수가 그 안에서 세로로 쌓인다.
+function drawColumnTheme(rows, gameDate, teamCount, colorKey) {
+  const P = pal(colorKey);
+  const pad = 24, titleH = 58, headH = 38, rowH = 62, gap = 12;
+  const colW = rows.length <= 2 ? 190 : rows.length === 3 ? 165 : 150;
+  const maxRows = Math.max(...rows.map((t) => t.players.length));
+  const width = pad * 2 + rows.length * colW + (rows.length - 1) * gap;
+  const height = pad * 2 + titleH + headH + maxRows * rowH;
+  const { canvas, ctx } = createScaledCanvas(width, height);
+
+  ctx.fillStyle = P.paper;
+  ctx.fillRect(0, 0, width, height);
+  drawTitle(ctx, gameDate, teamCount, pad, pad + 30, P.title, 26);
+
+  rows.forEach((team, r) => {
+    const color = P.team[r % P.team.length];
+    const x = pad + r * (colW + gap);
+    const top = pad + titleH;
+
+    roundRectPath(ctx, x, top, colW, headH + maxRows * rowH, 14);
+    ctx.fillStyle = P.card;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    roundRectPath(ctx, x, top, colW, headH, 14);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.fillRect(x, top + headH - 14, colW, 14);
+    ctx.fillStyle = inkOn(color);
+    ctx.font = `900 19px ${FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${team.letter}팀 · ${team.players.length}명`, x + colW / 2, top + headH / 2 + 1);
+
+    team.players.forEach((p, i) => {
+      const cy = top + headH + i * rowH + rowH / 2;
+      if (i % 2 === 1) {
+        ctx.fillStyle = colorKey === "ginkgo" ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
+        ctx.fillRect(x + 2, cy - rowH / 2, colW - 4, rowH);
+      }
+      drawPlayerLeft(ctx, p, x + 14, cy, `bold 19px ${FONT}`, P.ink, 30);
+    });
+  });
+  return canvas;
+}
+
+// V2. 팀 블록 — 팀이 세로로 쌓이고, 한 팀 안에서 선수가 두 줄로 들어간다.
+// 팀이 몇 개든 가로 폭이 그대로라, 폰에서 항상 같은 크기로 읽힌다.
+function drawBlockTheme(rows, gameDate, teamCount, colorKey) {
+  const P = pal(colorKey);
+  const pad = 22, titleH = 58, headH = 36, rowH = 58, blockGap = 12;
+  const width = 460;
+  const colW = (width - pad * 2 - 12) / 2;
+  const blockH = (t) => headH + Math.ceil(t.players.length / 2) * rowH + 8;
+  const height = pad * 2 + titleH + rows.reduce((a, t) => a + blockH(t) + blockGap, 0) - blockGap;
+  const { canvas, ctx } = createScaledCanvas(width, height);
+
+  ctx.fillStyle = P.paper;
+  ctx.fillRect(0, 0, width, height);
+  drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 27);
+
+  let y = pad + titleH;
+  rows.forEach((team, r) => {
+    const color = P.team[r % P.team.length];
+    const h = blockH(team);
+
+    roundRectPath(ctx, pad, y, width - pad * 2, h, 14);
+    ctx.fillStyle = P.card;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    roundRectPath(ctx, pad, y, width - pad * 2, headH, 14);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.fillRect(pad, y + headH - 14, width - pad * 2, 14);
+    ctx.fillStyle = inkOn(color);
+    ctx.font = `900 18px ${FONT}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${team.letter}팀`, pad + 14, y + headH / 2 + 1);
+    ctx.textAlign = "right";
+    ctx.font = `bold 15px ${FONT}`;
+    ctx.fillText(`${team.players.length}명`, width - pad - 14, y + headH / 2 + 1);
+
+    team.players.forEach((p, i) => {
+      const cx = pad + 10 + (i % 2) * (colW + 12);
+      const cy = y + headH + Math.floor(i / 2) * rowH + rowH / 2 + 4;
+      drawPlayerLeft(ctx, p, cx, cy, `bold 19px ${FONT}`, P.ink, 30);
+    });
+    y += h + blockGap;
+  });
+  return canvas;
+}
+
+// V3. 라인업 — 한 줄에 한 명. 이름 왼쪽, 오른쪽 빈 자리에 별명과 그 근거를 적는다.
+// 별명만 있으면 "왜?" 가 남고, 숫자만 있으면 딱딱하다. 둘을 같이 두면 서로를 설명한다.
+function drawLineupTheme(rows, gameDate, teamCount, colorKey) {
+  const P = pal(colorKey);
+  const pad = 20, titleH = 56, headH = 34, rowH = 56, blockGap = 10;
+  const width = 440;
+  const blockH = (t) => headH + t.players.length * rowH + 6;
+  const height = pad * 2 + titleH + rows.reduce((a, t) => a + blockH(t) + blockGap, 0) - blockGap;
+  const { canvas, ctx } = createScaledCanvas(width, height);
+
+  ctx.fillStyle = P.paper;
+  ctx.fillRect(0, 0, width, height);
+  drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 26);
+
+  let y = pad + titleH;
+  rows.forEach((team, r) => {
+    const color = P.team[r % P.team.length];
+    const h = blockH(team);
+    const right = width - pad - 12;
+
+    roundRectPath(ctx, pad, y, width - pad * 2, h, 12);
+    ctx.fillStyle = P.card;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    roundRectPath(ctx, pad, y, width - pad * 2, headH, 12);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.fillRect(pad, y + headH - 12, width - pad * 2, 12);
+    ctx.fillStyle = inkOn(color);
+    ctx.font = `900 17px ${FONT}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${team.letter}팀`, pad + 12, y + headH / 2 + 1);
+    ctx.textAlign = "right";
+    ctx.font = `bold 14px ${FONT}`;
+    ctx.fillText(`${team.players.length}명`, right, y + headH / 2 + 1);
+
+    team.players.forEach((p, i) => {
+      const cy = y + headH + i * rowH + rowH / 2 + 3;
+      if (i % 2 === 1) {
+        ctx.fillStyle = colorKey === "ginkgo" ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
+        ctx.fillRect(pad + 2, cy - rowH / 2, width - pad * 2 - 4, rowH);
+      }
+      drawPlayerLeft(ctx, p, pad + 14, cy, `bold 21px ${FONT}`, P.ink, 32);
+
+      // 오른쪽 빈 자리 — 위에 별명, 아래에 그 근거.
+      const { 별명, 근거 } = playerBadge(p);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 15px ${FONT}`;
+      ctx.fillStyle = readableOn(color, P.card);
+      ctx.fillText(별명, right, cy - 9);
+      ctx.font = `600 12px ${FONT}`;
+      ctx.fillStyle = P.ink;
+      ctx.globalAlpha = 0.55;
+      ctx.fillText(근거, right, cy + 10);
+      ctx.globalAlpha = 1;
+    });
+    y += h + blockGap;
+  });
+  return canvas;
+}
+
+// 세로형은 팀 수에 따라 배치를 바꾼다. 2팀이면 좌우로 나란히 세우는 쪽이 대칭이
+// 살아서 보기 좋고, 3팀부터는 칼럼이 좁아져 글씨가 작아지므로(4팀 9.9px) 위아래로
+// 쌓는 쪽이 낫다. 블록형은 팀이 몇이든 가로 폭이 같아 글씨 크기가 변하지 않는다.
+function drawVerticalTheme(rows, gameDate, teamCount, colorKey) {
+  return rows.length <= 2
+    ? drawColumnTheme(rows, gameDate, teamCount, colorKey)
+    : drawBlockTheme(rows, gameDate, teamCount, colorKey);
+}
+
+// 남은 스타일은 둘뿐이다. 둘 다 세로로 세운 명단이고, 다른 건 선수 옆에 무엇이
+// 붙느냐다. 색은 세 가지 중에 고른다.
+//
+// 예전에는 가로로 눕힌 스타일이 다섯 개 더 있었는데(클래식·NBA·축구·e스포츠·
+// 레트로), 2팀 12명 기준으로 2044x464(4.41:1)이라 폰 폭에 맞추면 35%로 줄고
+// 이름 글씨가 7.0px 이 됐다. 확대하지 않으면 읽을 수 없어서 전부 걷어냈다.
+const IMAGE_THEMES = [
+  { key: "lineup1", label: "라인업1", draw: drawVerticalTheme },
+  { key: "lineup2", label: "라인업2 · 별명", draw: drawLineupTheme },
+];
+
+const VERT_COLORS = [
+  { key: "maple", label: "\u{1F341} 단풍" },
+  { key: "kraft", label: "\u{1F342} 낙엽" },
+  { key: "ginkgo", label: "\u{1F33E} 은행" },
+];
 
 function downloadCanvas(canvas, filename) {
   canvas.toBlob((blob) => {
@@ -511,8 +535,9 @@ function copyCanvasToClipboard(canvas) {
 }
 
 function showTeamImageModal(rows, gameDate, teamCount) {
-  let theme = pickTheme();
-  let canvas = theme.draw(rows, gameDate, teamCount);
+  let theme = IMAGE_THEMES[0];
+  let colorKey = "maple";
+  let canvas = theme.draw(rows, gameDate, teamCount, colorKey);
 
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
@@ -522,12 +547,17 @@ function showTeamImageModal(rows, gameDate, teamCount) {
     const dataUrl = canvas.toDataURL("image/png");
     backdrop.innerHTML = `
       <div class="modal ts-image-modal">
-        <h3>팀 공지 이미지 <span class="ts-image-theme-tag">${theme.label}</span></h3>
-        <p class="hint">이미지를 길게 눌러 저장하거나, 아래 버튼으로 복사/다운로드해서 밴드나 카톡에 붙여넣어주세요.</p>
+        <h3>팀 공지 이미지</h3>
+        <div class="ts-style-row" role="group" aria-label="이미지 스타일">
+          ${IMAGE_THEMES.map((t) => `<button type="button" class="chip ts-style-chip${t.key === theme.key ? " chip-active" : ""}" data-style="${t.key}">${t.label}</button>`).join("")}
+        </div>
+        <div class="ts-style-row" role="group" aria-label="색">
+          ${VERT_COLORS.map((c) => `<button type="button" class="chip ts-color-chip${c.key === colorKey ? " chip-active" : ""}" data-color="${c.key}">${c.label}</button>`).join("")}
+        </div>
         <div class="ts-image-preview"><img src="${dataUrl}" alt="팀 공지 이미지 (${theme.label} 스타일)" /></div>
+        <p class="hint">이미지를 길게 눌러 저장하거나, 아래 버튼으로 복사/다운로드해서 밴드나 카톡에 붙여넣어주세요.</p>
         <div class="modal-actions">
           <button type="button" class="btn" id="ts-image-close">닫기</button>
-          <button type="button" class="btn" id="ts-image-reroll">🎲 다른 스타일로</button>
           <button type="button" class="btn" id="ts-image-download">다운로드</button>
           <button type="button" class="btn btn-primary" id="ts-image-copy">클립보드에 복사</button>
         </div>
@@ -535,11 +565,20 @@ function showTeamImageModal(rows, gameDate, teamCount) {
     `;
 
     backdrop.querySelector("#ts-image-close").addEventListener("click", () => backdrop.remove());
-    backdrop.querySelector("#ts-image-reroll").addEventListener("click", () => {
-      theme = pickTheme(theme.key);
-      canvas = theme.draw(rows, gameDate, teamCount);
-      renderModal();
-    });
+    for (const el of backdrop.querySelectorAll(".ts-style-chip")) {
+      el.addEventListener("click", () => {
+        theme = IMAGE_THEMES.find((t) => t.key === el.dataset.style) || theme;
+        canvas = theme.draw(rows, gameDate, teamCount, colorKey);
+        renderModal();
+      });
+    }
+    for (const el of backdrop.querySelectorAll(".ts-color-chip")) {
+      el.addEventListener("click", () => {
+        colorKey = el.dataset.color;
+        canvas = theme.draw(rows, gameDate, teamCount, colorKey);
+        renderModal();
+      });
+    }
     backdrop.querySelector("#ts-image-download").addEventListener("click", () =>
       downloadCanvas(canvas, `spirit-team-${gameDate || "today"}-${theme.key}.png`)
     );
@@ -740,7 +779,9 @@ function showSheetPrintModal(teams, gameDate) {
 export function mountTeamBuilder(container) {
   const draft = getTeamBuilderDraft();
 
-  let teamCount = [2, 3, 4].includes(draft?.teamCount) ? draft.teamCount : 2;
+  // 예전에 4팀으로 저장해 둔 초안이 있을 수 있다. 고를 수 없는 값이 되살아나면
+  // 화면과 어긋나므로 2팀으로 되돌린다.
+  let teamCount = [2, 3].includes(draft?.teamCount) ? draft.teamCount : 2;
   let gameDate = draft?.gameDate || getNextEventDate("자체전", todayStr()) || todayStr();
   let search = "";
   // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
