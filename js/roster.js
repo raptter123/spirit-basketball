@@ -53,4 +53,6 @@ export const ROSTER = [
   { name: "홍광식", number: 9, games: 2, winRate: 0.5, ppg: 1.5, rpg: 6, apg: 0.5, spg: 0.5, fgPct: 0.167, topg: 0, ts: 0.25 },
   { name: "홍재현", number: 14, games: 33, winRate: 0.576, ppg: 8.212, rpg: 3.485, apg: 3.879, spg: 1.091, fgPct: 0.289, topg: 1.242, ts: 0.37 },
   { name: "황규철", number: 35, games: 43, winRate: 0.465, ppg: 10.14, rpg: 8.047, apg: 0.953, spg: 0.605, fgPct: 0.406, topg: 2.023, ts: 0.437 },
+  // 2026-09-18 합류. 등번호와 기록은 아직 없다 — 위 규칙대로 배열 맨 뒤에만 붙인다.
+  { name: "허휘재" },
 ];
