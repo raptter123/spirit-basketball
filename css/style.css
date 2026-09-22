@@ -3873,3 +3873,222 @@ body {
   padding: 0 14px;
   font-size: var(--fs-sm);
 }
+
+/* ── 경기 기록 ─────────────────────────────────────────────
+   자체전은 교체가 거의 없어 코트 위 5명이 그대로 간다. 그래서 선수 버튼을 화면에
+   상주시킨다 — 자리가 안 변하면 눈으로 찾지 않고 손이 기억하게 되고, "누가 쐈어?"
+   같은 단계 전환이 필요 없어진다. 390px 기준으로 코트·10명·결과·이벤트가 한
+   화면에 들어가도록 높이를 맞춰 두었다(스크롤이 생기면 경기에서 눈을 떼게 된다). */
+
+.rec-beta {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 3px 9px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+/* ── 설정 화면 ── */
+.rec-from-draft {
+  background: var(--surface);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+.rec-draft-teams { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
+.rec-draft-team {
+  border-left: 4px solid var(--c);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.rec-nodraft { margin-bottom: 18px; }
+
+.rec-pick-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.rec-pick-col {
+  border-top: 3px solid var(--c);
+  background: var(--surface);
+  border-radius: 0 0 10px 10px;
+  padding: 8px;
+  min-height: 90px;
+}
+.rec-pick-col > b { display: block; font-size: var(--fs-sm); margin-bottom: 6px; }
+.rec-pick-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-empty { font-size: var(--fs-xs); color: var(--text-muted); }
+.rec-picked {
+  min-height: 44px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--accent-line); background: var(--surface-2);
+  color: var(--text); font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+}
+.rec-roster { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.rec-rchip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 11px; border-radius: 9px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+}
+.rec-rchip .no {
+  background: var(--surface-2); color: var(--text-muted);
+  border-radius: 6px; padding: 2px 6px; font-size: var(--fs-xs);
+}
+.rec-rchip.is-used { opacity: .35; }
+
+/* ── 입력 화면 ── */
+.rec-live { display: block; }
+.rec-top {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border-radius: 10px;
+  padding: 6px 10px; margin-bottom: 6px;
+}
+.rec-score { font-weight: 800; font-size: var(--fs-sm); }
+.rec-score b { font-size: var(--fs-xl); font-weight: 900; }
+.rec-colon { color: var(--text-muted); margin: 0 5px; }
+.rec-qbtn {
+  margin-left: auto; min-height: 44px; padding: 0 12px;
+  border-radius: 9px; border: 1px solid var(--accent-line);
+  background: transparent; color: var(--text);
+  font-size: var(--fs-sm); font-weight: 800; cursor: pointer;
+}
+
+.rec-court {
+  position: relative; background: var(--surface);
+  border-radius: 10px; padding: 4px; margin-bottom: 6px;
+}
+.rec-court svg { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: crosshair; }
+/* 코트 선 위에 글씨만 얹으면 읽히지 않는다. 바탕을 깐 칩으로 띄운다. */
+.rec-tip {
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+  max-width: calc(100% - 20px);
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--accent-line);
+  font-size: var(--fs-sm); font-weight: 800; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+}
+.rec-shot-made { fill: var(--c); }
+.rec-shot-miss { fill: none; stroke: var(--c); stroke-width: 3; opacity: .75; }
+.rec-shot-live { fill: #facc15; stroke: var(--surface); stroke-width: 2.5; }
+.rec-zone { fill: #facc15; font-weight: 900; font-size: 24px; text-anchor: middle; }
+
+.rec-team-row {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 5px; margin-bottom: 5px;
+}
+.rec-team-tag {
+  grid-column: 1 / -1; font-size: var(--fs-xs); font-weight: 800;
+  color: var(--c); margin: 2px 0 -1px 2px;
+}
+.rec-pchip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; min-height: 54px; padding: 0 2px;
+  border-radius: 10px; border: 2px solid var(--c);
+  background: var(--surface); color: var(--text); cursor: pointer;
+}
+.rec-pchip .no { font-size: var(--fs-lg); font-weight: 900; line-height: 1; }
+.rec-pchip .nm {
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.rec-pchip.is-armed { background: rgba(250, 204, 21, .16); border-color: #facc15; }
+.rec-pchip.is-armed .nm { color: var(--text); }
+
+.rec-bench { margin-bottom: 6px; }
+.rec-bench > summary {
+  min-height: 44px; display: flex; align-items: center;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); cursor: pointer;
+}
+.rec-bench-body { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 4px; }
+.rec-bench-team { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rec-bench-team > b { font-size: var(--fs-xs); color: var(--c); }
+.rec-sub {
+  min-height: 44px; padding: 0 10px; border-radius: 8px;
+  border: 1px dashed var(--c); background: transparent;
+  color: var(--text); font-size: var(--fs-xs); font-weight: 700; cursor: pointer;
+}
+
+.rec-act { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.rec-rbtn {
+  min-height: 58px; border-radius: 12px; border: none;
+  font-size: var(--fs-lg); font-weight: 900; color: #fff; cursor: pointer;
+}
+.rec-rbtn.made { background: #16a34a; }
+.rec-rbtn.miss { background: #b91c1c; }
+.rec-rbtn:disabled { opacity: .32; cursor: default; }
+
+.rec-events { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
+.rec-ebtn {
+  min-height: 46px; border-radius: 9px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+}
+.rec-ebtn.is-armed { border-color: #facc15; background: rgba(250, 204, 21, .16); }
+
+.rec-log {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border-radius: 10px; padding: 6px 8px; margin-bottom: 8px;
+}
+.rec-undo {
+  flex: none; min-height: 44px; padding: 0 12px; border-radius: 9px;
+  border: 1px solid var(--defense); background: transparent;
+  color: var(--defense-text); font-size: var(--fs-sm); font-weight: 800; cursor: pointer;
+}
+.rec-undo:disabled { opacity: .35; cursor: default; }
+.rec-last { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.45; }
+.rec-last b { color: var(--text); font-size: var(--fs-sm); }
+.rec-none { font-style: italic; }
+.rec-n { margin-left: auto; flex: none; text-align: right; font-size: var(--fs-xs); color: var(--text-muted); }
+
+.rec-bottom { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ── 결과 화면 ── */
+.rec-final { margin: 0 0 4px; }
+.rec-final b { font-size: var(--fs-2xl); }
+.rec-bs-team { border-left: 4px solid var(--c); padding-left: 8px; margin: 18px 0 8px; }
+.rec-bs { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.rec-bs th, .rec-bs td { padding: 7px 6px; text-align: center; white-space: nowrap; }
+.rec-bs th { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
+.rec-bs tbody tr { border-top: 1px solid var(--accent-line); }
+.rec-bs-name { text-align: left !important; font-weight: 800; }
+
+/* 넓은 화면에서는 코트와 선수를 나란히 — 단계 전환이 아예 사라진다. */
+@media (min-width: 720px) {
+  .rec-live {
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-areas: "top top" "court side" "log log" "bottom bottom";
+    gap: 8px 14px; align-items: start;
+  }
+  .rec-top { grid-area: top; margin: 0; }
+  .rec-court { grid-area: court; margin: 0; }
+  .rec-side { grid-area: side; }
+  .rec-log { grid-area: log; margin: 0; }
+  .rec-bottom { grid-area: bottom; }
+  .rec-pchip { min-height: 64px; }
+  .rec-rbtn { min-height: 68px; }
+  .rec-ebtn { min-height: 52px; }
+}
+
+/* 경기 중 집중 모드. 기록 UI 는 390px 화면에 들어가지만 로고·메뉴·제목이 332px 을
+   먹어 스크롤이 생긴다. 누를 때마다 코트에서 눈을 떼게 되므로 경기 중에는 접는다.
+   나갈 길은 스코어 줄의 ✕ 하나로 남겨 둔다. */
+body.rec-focus .site-header,
+body.rec-focus .utility-bar,
+body.rec-focus .record-view > h1,
+body.rec-focus .record-view > .back-link,
+body.rec-focus .site-foot {
+  display: none;
+}
+body.rec-focus main { padding-top: 8px; padding-bottom: 8px; }
+
+.rec-exit {
+  flex: none; display: grid; place-items: center;
+  min-width: 44px; min-height: 44px; border-radius: 9px;
+  border: 1px solid var(--accent-line);
+  color: var(--text-muted); text-decoration: none;
+  font-size: var(--fs-md); font-weight: 800;
+}

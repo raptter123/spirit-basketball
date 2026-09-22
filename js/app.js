@@ -5,6 +5,7 @@ import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { mountBoard } from "./board.js";
 import { mountStatsPage } from "./statspage.js";
+import { mountRecord } from "./record.js";
 import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
@@ -545,6 +546,17 @@ function renderTeamShuffle() {
     </section>
   `;
   mountTeamBuilder(document.getElementById("team-builder-container"));
+}
+
+function renderRecord() {
+  app.innerHTML = `
+    <section class="record-view">
+      <a class="back-link tap-wide" href="#/">← 홈으로</a>
+      <h1>경기 기록 <span class="rec-beta">시험 중</span></h1>
+      <div id="record-container"></div>
+    </section>
+  `;
+  mountRecord(document.getElementById("record-container"));
 }
 
 function renderSchedule() {
@@ -1408,6 +1420,8 @@ function updateNavActive() {
     active = "schedule";
   } else if (hash === "#/board") {
     active = "board";
+  } else if (hash === "#/record") {
+    active = "record";
   }
 
   document.querySelectorAll(".utility-bar a[data-nav]").forEach((a) => {
@@ -1449,13 +1463,15 @@ let previousHash = null;
 
 function router() {
   const hash = location.hash;
-  if (previousHash === "#/team-shuffle" && hash !== "#/team-shuffle") {
+  // 기록 화면은 방금 짠 팀을 그대로 가져다 쓰므로, 그리로 갈 때는 초안을 남겨 둔다.
+  if (previousHash === "#/team-shuffle" && hash !== "#/team-shuffle" && hash !== "#/record") {
     clearTeamBuilderDraft();
   }
   if (previousHash && previousHash.startsWith("#/tactic/") && previousHash !== hash) {
     clearTacticSimAssignment();
   }
   previousHash = hash;
+  if (hash !== "#/record") document.body.classList.remove("rec-focus");
   updateNavActive();
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));
@@ -1477,6 +1493,8 @@ function router() {
     renderTeamShuffle();
   } else if (hash === "#/stats") {
     renderStats();
+  } else if (hash === "#/record") {
+    renderRecord();
   } else {
     renderHome();
   }
