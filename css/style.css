@@ -4027,6 +4027,10 @@ body {
 }
 .rec-rbtn.made { background: #16a34a; }
 .rec-rbtn.miss { background: #b91c1c; }
+/* 공수를 자동으로 못 가른 리바운드를 물을 때만 성공/실패 자리를 빌려 쓴다.
+   성공(초록)·실패(빨강)과 헷갈리면 안 되므로 색을 아예 다른 계열로 둔다. */
+.rec-rbtn.reb-o { background: #7c3aed; }
+.rec-rbtn.reb-d { background: #0369a1; }
 .rec-rbtn:disabled { opacity: .32; cursor: default; }
 
 .rec-events { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
@@ -4084,6 +4088,9 @@ body {
 .rec-bs th { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
 .rec-bs tbody tr { border-top: 1px solid var(--accent-line); }
 .rec-bs-name { text-align: left !important; font-weight: 800; }
+/* 리바운드 칸의 (공격/수비). 합계 숫자보다 작고 흐리게 둬서 주된 값이 무엇인지
+   눈에 먼저 들어오게 한다. --fs-xs 가 이 사다리의 맨 아래 단이다. */
+.rec-bs-sub { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
 
 /* 넓은 화면에서는 코트와 선수를 나란히 — 단계 전환이 아예 사라진다. */
 @media (min-width: 720px) {

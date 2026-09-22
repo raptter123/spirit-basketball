@@ -57,7 +57,28 @@ const SPOT_EVENTS = [
 const EVENT_LABEL = {
   ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
   to: "턴오버", pf: "파울", ftm: "자유투 ✓", fta: "자유투 ✗",
+  rebO: "공격 리바운드", rebD: "수비 리바운드",
 };
+
+/** 공격 리바운드는 "슛을 쏜 팀이 잡은 것", 수비 리바운드는 "상대가 잡은 것"이다.
+ *  어느 쪽인지는 사람이 판단할 일이 아니라 규칙상 정해져 있다 — 직전에 빗나간 슛이
+ *  누구 것인지만 알면 갈린다. 그래서 버튼을 둘로 늘리지 않고 여기서 자동으로 가른다.
+ *  (버튼을 늘리면 4열 두 줄이 세 줄이 되는데, 기록 화면은 390×844 에 꽉 차 있어
+ *  늘릴 자리가 없다.)
+ *
+ *  돌아오는 값
+ *    "rebO" | "rebD"  — 직전 빗나간 슛으로 갈렸다
+ *    null             — 가를 수 없다. 기록자가 슛을 놓쳤거나, 직전 슛이 들어갔다.
+ *                       이때는 화면이 공격/수비를 묻는다. */
+export function 리바구분(events, team) {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type === "shot") return e.made ? null : (e.team === team ? "rebO" : "rebD");
+    if (e.type === "ftm") return null;
+    if (e.type === "fta") return e.team === team ? "rebO" : "rebD";
+  }
+  return null;
+}
 
 // 선수 기록이 아니라 경기 진행을 적어 둔 줄. 합계에는 안 들어간다.
 // 이벤트로 남기는 이유는 되돌리기로 취소할 수 있게 하기 위해서다.
@@ -113,7 +134,11 @@ export function boxScore(game, events = game.events) {
         p2m: p2.filter((e) => e.made).length, p2a: p2.length,
         p3m: p3.filter((e) => e.made).length, p3a: p3.length,
         ftm: n("ftm"), fta: n("ftm") + n("fta"),
-        reb: n("reb"), ast: n("ast"), stl: n("stl"), blk: n("blk"), to: n("to"), pf: n("pf"),
+        rebO: n("rebO"), rebD: n("rebD"),
+        // 공수를 안 가른 옛 기록("reb")도 합계에는 그대로 들어간다.
+        // 보관함에 이미 들어 있는 경기의 숫자가 이 변경으로 줄어들면 안 된다.
+        reb: n("reb") + n("rebO") + n("rebD"),
+        ast: n("ast"), stl: n("stl"), blk: n("blk"), to: n("to"), pf: n("pf"),
       });
     }
   });
@@ -194,6 +219,7 @@ export function mountRecord(container) {
   let armed = null;     // { team, player } | null  (선수를 먼저 눌렀을 때)
   let spot = null;      // SPOT_EVENTS 의 key — 다음에 누르는 선수에게 붙는다
   let subIn = null;     // { team, name } | null   — 교체로 들어올 사람
+  let rebAsk = null;    // { team, player } | null — 공수를 자동으로 못 가른 리바운드
   let screen = game ? "live" : "setup";
 
   function save() {
@@ -357,6 +383,17 @@ export function mountRecord(container) {
 
   function 안내글() {
     if (subIn) return `${subIn.name} 넣기 — 누가 나가?`;
+    if (rebAsk) return `${rebAsk.player} 리바운드 — 공격이야 수비야?`;
+    if (spot === "reb") {
+      // 직전에 빗나간 슛이 누구 것인지에 따라 같은 자리에서 공수가 갈린다.
+      // 누르기 전에 미리 알려 주면, 잘못 눌렀을 때 바로 알아챌 수 있다.
+      const 미리 = [0, 1].map((t) => 리바구분(game.events, t));
+      if (미리[0] && 미리[0] !== 미리[1]) {
+        const 공격팀 = 미리[0] === "rebO" ? 0 : 1;
+        return `리바운드 — 누구? (${game.teams[공격팀].name}이면 공격)`;
+      }
+      return "리바운드 — 누구?";
+    }
     if (spot) return `${EVENT_LABEL[spot]} — 누구?`;
     if (pending && armed) return "들어갔어?";
     if (pending) return `${pending.pts}점 자리 — 누가 쐈어?`;
@@ -442,8 +479,13 @@ export function mountRecord(container) {
             </details>` : ""}
 
           <div class="rec-act">
-            <button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
-            <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>
+            ${rebAsk
+              // 자동으로 못 가른 리바운드만 여기서 묻는다. 자리를 새로 만들지 않고
+              // 성공/실패 줄을 잠깐 빌려 쓴다 — 그때는 슛을 기다리는 중이 아니다.
+              ? `<button type="button" class="rec-rbtn reb-o" id="rec-reb-o">↑ 공격 리바</button>
+                 <button type="button" class="rec-rbtn reb-d" id="rec-reb-d">↓ 수비 리바</button>`
+              : `<button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
+                 <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>`}
           </div>
 
           <div class="rec-events">
@@ -486,6 +528,9 @@ export function mountRecord(container) {
       const { x, y } = 코트좌표(svg, e);
       pending = { x, y, pts: zoneOf(x, y) };
       spot = null;
+      // 공수를 묻는 중에 코트를 누르면 그 물음은 접는다. 경기는 계속 굴러가는데
+      // 대답하기 전까지 아무것도 못 찍으면, 묻는 창이 곧 놓친 기록이 된다.
+      rebAsk = null;
       renderLive();
     });
 
@@ -499,6 +544,20 @@ export function mountRecord(container) {
           t.onCourt = t.onCourt.map((n) => (n === player ? subIn.name : n));
           이벤트추가({ type: "sub", team, player: subIn.name, out: player });
           subIn = null;
+          renderLive();
+          return;
+        }
+        if (rebAsk) return;   // 공격/수비를 고르는 중에는 선수를 바꾸지 않는다
+        if (spot === "reb") {
+          const 구분 = 리바구분(game.events, team);
+          if (구분) {
+            이벤트추가({ type: 구분, team, player });
+          } else {
+            // 가를 근거가 없으면 지어내지 않고 사람에게 묻는다.
+            rebAsk = { team, player };
+          }
+          spot = null;
+          armed = null;
           renderLive();
           return;
         }
@@ -517,6 +576,7 @@ export function mountRecord(container) {
     for (const el of container.querySelectorAll("[data-spot]")) {
       el.addEventListener("click", () => {
         spot = spot === el.dataset.spot ? null : el.dataset.spot;
+        rebAsk = null;   // 다른 걸 찍으려는 것이니 묻던 것은 접는다
         renderLive();
       });
     }
@@ -529,10 +589,23 @@ export function mountRecord(container) {
       armed = null;
       renderLive();
     };
-    container.querySelector("#rec-made").addEventListener("click", () => 슛기록(true));
-    container.querySelector("#rec-miss").addEventListener("click", () => 슛기록(false));
+    const 리바기록 = (type) => {
+      if (!rebAsk) return;
+      이벤트추가({ type, team: rebAsk.team, player: rebAsk.player });
+      rebAsk = null;
+      renderLive();
+    };
+    const 짝 = [["#rec-made", () => 슛기록(true)], ["#rec-miss", () => 슛기록(false)],
+      ["#rec-reb-o", () => 리바기록("rebO")], ["#rec-reb-d", () => 리바기록("rebD")]];
+    for (const [sel, fn] of 짝) {
+      const el = container.querySelector(sel);
+      if (el) el.addEventListener("click", fn);
+    }
 
     container.querySelector("#rec-undo").addEventListener("click", () => {
+      // 공수를 묻는 중이면 아직 아무것도 안 들어갔다. 묻던 것만 접는다 —
+      // 여기서 이벤트를 지우면 엉뚱하게 그 앞 기록이 날아간다.
+      if (rebAsk) { rebAsk = null; renderLive(); return; }
       const 지운것 = game.events.pop();
       // 진행 이벤트는 화면 상태까지 같이 되돌려야 한다. 줄만 지우면
       // 쿼터와 코트 위 명단이 취소한 뒤의 값으로 남는다.
@@ -543,7 +616,7 @@ export function mountRecord(container) {
         if (지운것.out) t.onCourt = t.onCourt.map((n) => (n === 지운것.player ? 지운것.out : n));
         else t.onCourt = t.onCourt.filter((n) => n !== 지운것.player);
       }
-      pending = null; armed = null; spot = null; subIn = null;
+      pending = null; armed = null; spot = null; subIn = null; rebAsk = null;
       save();
       renderLive();
     });
@@ -554,7 +627,7 @@ export function mountRecord(container) {
       // 잘못 눌렀으면 되돌리기로 취소한다.
       이벤트추가({ type: "quarter", from: game.q, to: game.q + 1 });
       game.q += 1;
-      pending = null; armed = null; spot = null; subIn = null;
+      pending = null; armed = null; spot = null; subIn = null; rebAsk = null;
       save();
       renderLive();
     });
@@ -610,7 +683,8 @@ export function mountRecord(container) {
         <td class="rec-bs-name">${esc(r.name)}</td>
         <td><b>${r.pts}</b></td>
         <td>${r.p2m}/${r.p2a}</td><td>${r.p3m}/${r.p3a}</td><td>${r.ftm}/${r.fta}</td>
-        <td>${r.reb}</td><td>${r.ast}</td><td>${r.stl}</td><td>${r.blk}</td><td>${r.to}</td><td>${r.pf}</td>
+        <td>${r.reb}${r.rebO + r.rebD ? ` <span class="rec-bs-sub">(${r.rebO}/${r.rebD})</span>` : ""}</td>
+        <td>${r.ast}</td><td>${r.stl}</td><td>${r.blk}</td><td>${r.to}</td><td>${r.pf}</td>
       </tr>`;
     container.innerHTML = `
       <div class="rec-done">
@@ -621,7 +695,8 @@ export function mountRecord(container) {
           <div class="table-scroll">
             <table class="rec-bs">
               <thead><tr><th>선수</th><th>득점</th><th>2점</th><th>3점</th><th>자유투</th>
-                <th>리바</th><th>어시</th><th>스틸</th><th>블락</th><th>턴오버</th><th>파울</th></tr></thead>
+                <th>리바 <span class="rec-bs-sub">(공/수)</span></th>
+                <th>어시</th><th>스틸</th><th>블락</th><th>턴오버</th><th>파울</th></tr></thead>
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}

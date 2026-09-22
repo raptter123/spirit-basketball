@@ -23,6 +23,7 @@ import { boxScore, pointsOf, zoneOf, qLabel } from "./record.js";
 const 종류이름 = {
   shot: "슛", ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
   to: "턴오버", pf: "파울", ftm: "자유투", fta: "자유투",
+  rebO: "공격리바", rebD: "수비리바",
   sub: "교체", quarter: "쿼터",
 };
 
@@ -51,12 +52,14 @@ function 경과(e, startedAt) {
 
 const 합계머리 = ["날짜", "팀", "등번호", "선수", "득점",
   "2점성공", "2점시도", "3점성공", "3점시도", "자유투성공", "자유투시도",
-  "리바운드", "어시스트", "스틸", "블락", "턴오버", "파울"];
+  "리바운드", "공격리바", "수비리바", "어시스트", "스틸", "블락", "턴오버", "파울"];
 
 function 합계줄(game, r) {
   return [game.date, game.teams[r.team].name, typeof r.number === "number" ? r.number : "", r.name,
     r.pts, r.p2m, r.p2a, r.p3m, r.p3a, r.ftm, r.fta,
-    r.reb, r.ast, r.stl, r.blk, r.to, r.pf];
+    // 리바운드는 공수의 합이다. 공수를 안 가른 옛 기록도 여기에는 들어가므로
+    // 공격+수비가 리바운드보다 작을 수 있다.
+    r.reb, r.rebO, r.rebD, r.ast, r.stl, r.blk, r.to, r.pf];
 }
 
 /** 선수기록 시트 — 경기 전체 합계. 한 줄이 한 선수다. */
@@ -74,6 +77,7 @@ export function 쿼터시트(game) {
     const 그쿼터 = game.events.filter((e) => (e.q || 1) === q);
     for (const r of boxScore(game, 그쿼터)) {
       // 기록이 하나라도 있는 줄만 남긴다.
+      // 리바운드는 이미 공수를 합친 값이라 여기서 또 더하지 않는다.
       const 합 = r.pts + r.p2a + r.p3a + r.fta + r.reb + r.ast + r.stl + r.blk + r.to + r.pf;
       if (!합) continue;
       const [날짜, ...나머지] = 합계줄(game, r);
