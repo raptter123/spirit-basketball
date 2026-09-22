@@ -25,7 +25,7 @@ import {
   getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
   getRecordArchive, archiveRecordGame, removeArchivedGame,
 } from "./storage.js";
-import { 효율, plusMinus, 팀지표, pct1, num1, 부호, MIN_POSS } from "./record-stats.js";
+import { 효율, plusMinus, 팀지표, 경기요약, pct1, num1, 부호, MIN_POSS } from "./record-stats.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -228,6 +228,36 @@ export function mountRecord(container) {
   }
 
   // ── 설정 화면 ────────────────────────────────────────────
+
+  /** 지난 경기 한 줄. 목록에서 찾는 단서는 "언제 · 몇 대 몇 · 누가 잘했나" 셋이라
+   *  그 셋을 먼저 두고, 누르는 것들은 아래 줄로 내린다. */
+  function 경기줄(g) {
+    const s = 경기요약(g);
+    const 결과 = s.이긴팀 === -1 ? "무" : `${s.이름[s.이긴팀]} 승`;
+    return `
+      <div class="rec-arch-row">
+        <div class="rec-arch-when">${esc(s.날짜)}</div>
+        <div class="rec-arch-mid">
+          <div class="rec-arch-score">
+            ${[0, 1].map((i) => `
+              <span class="rec-arch-side${s.이긴팀 === i ? " win" : ""}" data-t="${i}">
+                <span class="nm">${esc(s.이름[i])}</span><b>${s.점수[i]}</b>
+              </span>`).join(`<span class="rec-arch-colon">:</span>`)}
+          </div>
+          <div class="rec-arch-sub">
+            <span>${qLabel(s.마지막쿼터, g.quarters)}까지 · 기록 ${s.기록수}개</span>${
+              s.최다 ? ` <span>· 최다 <b>${esc(s.최다.name)} ${s.최다.pts}점</b></span>` : ""}
+          </div>
+        </div>
+        <div class="rec-arch-badge ${s.이긴팀 === -1 ? "tie" : ""}">${esc(결과)}</div>
+        <div class="rec-arch-btns">
+          <button type="button" class="btn-sm" data-arch-open="${g.startedAt}">열기</button>
+          <button type="button" class="btn-sm" data-arch-xlsx="${g.startedAt}">엑셀</button>
+          <button type="button" class="btn-sm rec-arch-del" data-arch-del="${g.startedAt}">지우기</button>
+        </div>
+      </div>`;
+  }
+
   function renderSetup() {
     const fromDraft = teamsFromDraft(getTeamBuilderDraft());
     const 있음 = !!fromDraft;
@@ -239,7 +269,7 @@ export function mountRecord(container) {
           ? `<div class="rec-from-draft">
                <b>방금 짠 팀이 있어요</b>
                <div class="rec-draft-teams">${fromDraft.teams.map((t, i) =>
-                 `<span class="rec-draft-team" style="--c:${TEAM_COLOR[i]}">${esc(t.name)} ${t.players.length}명</span>`).join("")}</div>
+                 `<span class="rec-draft-team" data-t="${i}">${esc(t.name)} ${t.players.length}명</span>`).join("")}</div>
                <button type="button" class="btn btn-primary" id="rec-use-draft">이 팀으로 시작</button>
              </div>`
           : `<p class="hint rec-nodraft">팀 편성 화면에서 팀을 먼저 짜면 여기로 바로 넘어옵니다.</p>`}
@@ -248,7 +278,7 @@ export function mountRecord(container) {
           <p class="hint">A팀과 B팀을 번갈아 채웁니다. 이름을 누르면 다음 팀으로 들어갑니다.</p>
           <div class="rec-pick-teams">
             ${[0, 1].map((i) => `
-              <div class="rec-pick-col" style="--c:${TEAM_COLOR[i]}">
+              <div class="rec-pick-col" data-t="${i}">
                 <b>${i ? "B팀" : "A팀"}</b>
                 <div class="rec-pick-list" data-team="${i}"></div>
               </div>`).join("")}
@@ -264,16 +294,10 @@ export function mountRecord(container) {
         ${보관함.length ? `
           <div class="rec-archive">
             <h3>지난 경기 ${보관함.length}개</h3>
-            <p class="hint">이 기기에만 남아 있습니다. 최근 20경기까지 보관하고, 오래된 것부터 지워집니다.</p>
-            ${보관함.map((g) => `
-              <div class="rec-arch-row">
-                <span class="rec-arch-say">${esc(한줄요약(g))}</span>
-                <span class="rec-arch-btns">
-                  <button type="button" class="btn-sm" data-arch-open="${g.startedAt}">열기</button>
-                  <button type="button" class="btn-sm" data-arch-xlsx="${g.startedAt}">엑셀</button>
-                  <button type="button" class="btn-sm rec-arch-del" data-arch-del="${g.startedAt}">지우기</button>
-                </span>
-              </div>`).join("")}
+            <p class="hint">기록 ${보관함.reduce((a, g) => a + playCount(g.events), 0)}개가 쌓였어요.
+              이 기기에만 남아 있고, 최근 20경기까지 보관해요 — 오래된 것부터 지워지니
+              남길 경기는 엑셀로 받아 두세요.</p>
+            ${보관함.map((g) => 경기줄(g)).join("")}
           </div>` : ""}
       </div>
     `;
@@ -377,8 +401,8 @@ export function mountRecord(container) {
   function shotsSVG() {
     return game.events.filter((e) => e.type === "shot").map((e) =>
       e.made
-        ? `<circle class="rec-shot-made" cx="${e.x}" cy="${e.y}" r="7" style="--c:${TEAM_COLOR[e.team]}" />`
-        : `<path class="rec-shot-miss" d="M ${e.x - 6} ${e.y - 6} L ${e.x + 6} ${e.y + 6} M ${e.x + 6} ${e.y - 6} L ${e.x - 6} ${e.y + 6}" style="--c:${TEAM_COLOR[e.team]}" />`
+        ? `<circle class="rec-shot-made" cx="${e.x}" cy="${e.y}" r="7" data-t="${e.team}" />`
+        : `<path class="rec-shot-miss" d="M ${e.x - 6} ${e.y - 6} L ${e.x + 6} ${e.y + 6} M ${e.x + 6} ${e.y - 6} L ${e.x - 6} ${e.y + 6}" data-t="${e.team}" />`
     ).join("");
   }
 
@@ -428,10 +452,10 @@ export function mountRecord(container) {
       <div class="rec-live">
         <div class="rec-top">
           <span class="rec-score">
-            <span style="color:${TEAM_COLOR[0]}">${esc(game.teams[0].name)}</span>
-            <b style="color:${TEAM_COLOR[0]}">${sa}</b><span class="rec-colon">:</span>
-            <b style="color:${TEAM_COLOR[1]}">${sb}</b>
-            <span style="color:${TEAM_COLOR[1]}">${esc(game.teams[1].name)}</span>
+            <span data-t="0">${esc(game.teams[0].name)}</span>
+            <b data-t="0">${sa}</b><span class="rec-colon">:</span>
+            <b data-t="1">${sb}</b>
+            <span data-t="1">${esc(game.teams[1].name)}</span>
           </span>
           <button type="button" class="rec-qbtn" id="rec-q">
             <b>${qLabel(game.q, game.quarters)}</b>
@@ -461,7 +485,7 @@ export function mountRecord(container) {
 
         <div class="rec-side">
           ${game.teams.map((t, ti) => `
-            <div class="rec-team-row" style="--c:${TEAM_COLOR[ti]}">
+            <div class="rec-team-row" data-t="${ti}">
               <span class="rec-team-tag">${esc(t.name)}</span>
               ${onCourt[ti].map((p) => playerChip(ti, p)).join("")}
             </div>`).join("")}
@@ -471,7 +495,7 @@ export function mountRecord(container) {
               <summary>벤치 ${bench.flat().length}명 · 교체</summary>
               <div class="rec-bench-body">
                 ${game.teams.map((t, ti) => bench[ti].length ? `
-                  <div class="rec-bench-team" style="--c:${TEAM_COLOR[ti]}">
+                  <div class="rec-bench-team" data-t="${ti}">
                     <b>${esc(t.name)}</b>
                     ${bench[ti].map((p) => `<button type="button" class="rec-sub" data-team="${ti}" data-in="${esc(p.name)}">${esc(p.name)} 넣기</button>`).join("")}
                   </div>` : "").join("")}
@@ -702,7 +726,7 @@ export function mountRecord(container) {
     const 팀카드 = (ti) => {
       const t = 팀[ti];
       return `
-        <div class="rec-adv-card" style="--c:${TEAM_COLOR[ti]}">
+        <div class="rec-adv-card" data-t="${ti}">
           <div class="rec-adv-head">
             <span class="rec-adv-team">${esc(game.teams[ti].name)}</span>
             <span class="rec-adv-score">${[sa, sb][ti]}점 · ${t.poss.toFixed(1)}포제션</span>
@@ -740,7 +764,7 @@ export function mountRecord(container) {
              잴 거리가 없다는 뜻이거든요. 한 쿼터쯤 쌓이면 나와요.`}</p>
 
         ${game.teams.map((t, ti) => `
-          <h3 class="rec-bs-team" style="--c:${TEAM_COLOR[ti]}">${esc(t.name)}</h3>
+          <h3 class="rec-bs-team" data-t="${ti}">${esc(t.name)}</h3>
           <div class="table-scroll">
             <table class="rec-bs">
               <thead><tr><th>선수</th><th>득점</th><th>2점</th><th>3점</th><th>자유투</th>
