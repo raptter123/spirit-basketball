@@ -25,6 +25,7 @@ import {
   getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
   getRecordArchive, archiveRecordGame, removeArchivedGame,
 } from "./storage.js";
+import { 효율, plusMinus, 팀지표, pct1, num1, 부호, MIN_POSS } from "./record-stats.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -678,25 +679,75 @@ export function mountRecord(container) {
   function renderDone() {
     const rows = boxScore(game);
     const [sa, sb] = scoreOf(game.events);
-    const col = (r) => `
+    const pm = plusMinus(game);
+    const 팀 = 팀지표(game);
+    const col = (r) => {
+      const e = 효율(r);
+      const p = pm[`${r.team}|${r.name}`] ?? 0;
+      return `
       <tr>
         <td class="rec-bs-name">${esc(r.name)}</td>
         <td><b>${r.pts}</b></td>
         <td>${r.p2m}/${r.p2a}</td><td>${r.p3m}/${r.p3a}</td><td>${r.ftm}/${r.fta}</td>
         <td>${r.reb}${r.rebO + r.rebD ? ` <span class="rec-bs-sub">(${r.rebO}/${r.rebD})</span>` : ""}</td>
         <td>${r.ast}</td><td>${r.stl}</td><td>${r.blk}</td><td>${r.to}</td><td>${r.pf}</td>
+        <td class="rec-bs-adv">${pct1(e.efg)}</td>
+        <td class="rec-bs-adv">${pct1(e.ts)}</td>
+        <td class="rec-bs-adv">${e.astTo == null ? "–" : num1(e.astTo)}</td>
+        <td class="rec-bs-adv ${p > 0 ? "up" : p < 0 ? "down" : ""}">${부호(p)}</td>
       </tr>`;
+    };
+
+    // 100 포제션당 득점·실점. 박스스코어가 "무엇을 했나" 라면 이쪽은 "얼마나 잘했나" 다.
+    const 팀카드 = (ti) => {
+      const t = 팀[ti];
+      return `
+        <div class="rec-adv-card" style="--c:${TEAM_COLOR[ti]}">
+          <div class="rec-adv-head">
+            <span class="rec-adv-team">${esc(game.teams[ti].name)}</span>
+            <span class="rec-adv-score">${[sa, sb][ti]}점 · ${t.poss.toFixed(1)}포제션</span>
+          </div>
+          <div class="rec-adv-rtg">
+            <div><b>${num1(t.ortg)}</b><span>공격 ORtg</span></div>
+            <div><b>${num1(t.drtg)}</b><span>수비 DRtg</span></div>
+          </div>
+          <div class="rec-adv-net ${t.net > 0 ? "up" : t.net < 0 ? "down" : ""}">
+            ${t.net == null ? "–" : `${t.net > 0 ? "▲ +" : t.net < 0 ? "▼ " : ""}${t.net.toFixed(1)}`}
+            <span>Net Rating</span>
+          </div>
+          <div class="rec-adv-grid">
+            <div><b>${pct1(t.efg)}</b><span>eFG%</span></div>
+            <div><b>${pct1(t.ts)}</b><span>TS%</span></div>
+            <div><b>${t.tov == null ? "–" : `${t.tov.toFixed(1)}%`}</b><span>턴오버율</span></div>
+            <div><b>${pct1(t.orbPct)}</b><span>공격리바%</span></div>
+          </div>
+        </div>`;
+    };
     container.innerHTML = `
       <div class="rec-done">
         <h2 class="rec-final">${esc(game.teams[0].name)} <b>${sa}</b> : <b>${sb}</b> ${esc(game.teams[1].name)}</h2>
         <p class="hint">${game.date} · 기록 ${playCount(game.events)}개 · ${qLabel(마지막쿼터(), game.quarters)}까지</p>
+
+        <h3 class="rec-adv-title">팀 효율</h3>
+        <div class="rec-adv">${[0, 1].map(팀카드).join("")}</div>
+        <p class="hint rec-adv-note">100 포제션당 낸 점수(ORtg)와 내준 점수(DRtg)예요.
+          경기가 빠르든 느리든 같은 자로 잴 수 있어요 — 같은 20점도 공격 기회 40번에서 낸 것과
+          80번에서 낸 것은 다르니까요.
+          포제션은 <b>슛 시도 − 공격리바 + 턴오버 + 0.44 × 자유투시도</b> 로 셉니다.
+          ${팀[0].넉넉 ? "" :
+            `<br /><b>포제션이 ${MIN_POSS}개도 안 돼서 ORtg·DRtg 는 안 보여줘요.</b>
+             한 번의 공격에서 2점이 나면 계산상 200이 되는데, 그건 잘했다는 뜻이 아니라
+             잴 거리가 없다는 뜻이거든요. 한 쿼터쯤 쌓이면 나와요.`}</p>
+
         ${game.teams.map((t, ti) => `
           <h3 class="rec-bs-team" style="--c:${TEAM_COLOR[ti]}">${esc(t.name)}</h3>
           <div class="table-scroll">
             <table class="rec-bs">
               <thead><tr><th>선수</th><th>득점</th><th>2점</th><th>3점</th><th>자유투</th>
                 <th>리바 <span class="rec-bs-sub">(공/수)</span></th>
-                <th>어시</th><th>스틸</th><th>블락</th><th>턴오버</th><th>파울</th></tr></thead>
+                <th>어시</th><th>스틸</th><th>블락</th><th>턴오버</th><th>파울</th>
+                <th class="rec-bs-adv">eFG%</th><th class="rec-bs-adv">TS%</th>
+                <th class="rec-bs-adv">AST/TO</th><th class="rec-bs-adv">+/-</th></tr></thead>
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}

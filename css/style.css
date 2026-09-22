@@ -30,6 +30,12 @@
   /* 빨강도 같은 사정이다. --defense 를 어두운 배경 위 작은 글씨에 그대로 쓰면 4.43:1 로
      기준(4.5)에 미달한다. 선·도형용(--defense)과 글씨용(--defense-text)을 나눈다. */
   --defense-text: #f87171;
+  /* 좋다/나쁘다를 색으로 가르는 자리(Net Rating, +/-)에만 쓴다.
+     --accent-text / --defense-text 를 쓰면 밝은 테마에서 둘 다 빨강 계열이라
+     ΔE 13.9 로 눈에 구별되지 않는다. 여기 값은 --surface-2 위에서 재서 고른 것이다.
+     다크: 초록 8.26:1 · 빨강 5.21:1 · 서로 ΔE 112.5 */
+  --good: #4ade80;
+  --bad: #f87171;
   /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
   --accent-btn: #7857fa;
 
@@ -88,6 +94,9 @@
   --accent-text: #b00203;
   /* 밝은 테마에서는 --defense 그대로도 4.97:1 이라 값이 같다 (토큰만 맞춰 둔다). */
   --defense-text: #d1332f;
+  /* 라이트: 초록 5.66:1 · 빨강 6.60:1 · 서로 ΔE 86.6 (--surface-2 위에서 잰 값) */
+  --good: #166534;
+  --bad: #991b1b;
   --accent-btn: #d80204;
 
   --offense: #2563eb;
@@ -4088,6 +4097,58 @@ body {
 .rec-bs th { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
 .rec-bs tbody tr { border-top: 1px solid var(--accent-line); }
 .rec-bs-name { text-align: left !important; font-weight: 800; }
+
+/* 표가 화면보다 넓으면 표만 옆으로 밀리게 한다.
+   이 클래스는 붙어만 있고 규칙이 없어서, 390px 에서 표(468px)가 페이지를 통째로
+   밀어내고 있었다 — 가로 스크롤이 생기면 다른 화면까지 같이 어긋난다.
+   효율 칸을 더하면서 634px 가 되어 더 벌어졌다. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* 옆으로 밀어도 누구 기록인지 보여야 하므로 이름 칸은 붙잡아 둔다. */
+.rec-bs-name { position: sticky; left: 0; background: var(--bg); z-index: 1; }
+.rec-bs thead .rec-bs-name, .rec-bs th:first-child {
+  position: sticky; left: 0; background: var(--bg); z-index: 1;
+}
+/* 박스스코어 오른쪽에 붙는 효율 지표. 왼쪽의 "무엇을 했나"(센 값)와
+   오른쪽의 "얼마나 잘했나"(계산한 값)를 선 하나로 갈라 둔다. */
+.rec-bs th.rec-bs-adv:first-of-type, .rec-bs td.rec-bs-adv:first-of-type {
+  border-left: 1px solid var(--accent-line);
+}
+.rec-bs td.rec-bs-adv { font-variant-numeric: tabular-nums; }
+.rec-bs td.rec-bs-adv.up { color: var(--good); font-weight: 800; }
+.rec-bs td.rec-bs-adv.down { color: var(--bad); font-weight: 800; }
+
+/* ── 팀 효율 카드 ── */
+.rec-adv-title { margin: 20px 0 8px; }
+.rec-adv { display: grid; gap: 10px; }
+@media (min-width: 560px) { .rec-adv { grid-template-columns: 1fr 1fr; } }
+.rec-adv-card {
+  background: var(--surface); border-radius: 12px; padding: 12px;
+  border-left: 4px solid var(--c);
+}
+.rec-adv-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rec-adv-team { font-size: var(--fs-lg); font-weight: 900; color: var(--c); }
+.rec-adv-score { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
+.rec-adv-rtg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.rec-adv-rtg > div { text-align: center; }
+.rec-adv-rtg b { display: block; font-size: var(--fs-2xl); font-weight: 900; line-height: 1.1; }
+.rec-adv-rtg span, .rec-adv-grid span {
+  display: block; font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700;
+}
+/* Net Rating 은 이 카드의 결론이라 한 줄을 통째로 준다. */
+.rec-adv-net {
+  margin-top: 10px; padding: 8px; border-radius: 9px; text-align: center;
+  background: var(--surface-2); font-size: var(--fs-lg); font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.rec-adv-net span { font-size: var(--fs-xs); color: var(--text-muted); margin-left: 6px; }
+.rec-adv-net.up { color: var(--good); }
+.rec-adv-net.down { color: var(--bad); }
+.rec-adv-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px;
+}
+.rec-adv-grid > div { text-align: center; }
+.rec-adv-grid b { display: block; font-size: var(--fs-sm); font-weight: 900; }
+.rec-adv-note { margin-top: 8px; }
 /* 리바운드 칸의 (공격/수비). 합계 숫자보다 작고 흐리게 둬서 주된 값이 무엇인지
    눈에 먼저 들어오게 한다. --fs-xs 가 이 사다리의 맨 아래 단이다. */
 .rec-bs-sub { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }

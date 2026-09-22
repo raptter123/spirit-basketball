@@ -19,6 +19,7 @@
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
 import { boxScore, pointsOf, zoneOf, qLabel } from "./record.js";
+import { 효율, plusMinus, 팀지표, 승패 } from "./record-stats.js";
 
 const 종류이름 = {
   shot: "슛", ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
@@ -54,6 +55,10 @@ const 합계머리 = ["날짜", "팀", "등번호", "선수", "득점",
   "2점성공", "2점시도", "3점성공", "3점시도", "자유투성공", "자유투시도",
   "리바운드", "공격리바", "수비리바", "어시스트", "스틸", "블락", "턴오버", "파울"];
 
+// 효율 지표는 뒤에 따로 붙인다. 앞쪽은 센 값(정수), 뒤쪽은 계산한 값(비율)이라
+// 섞어 두면 나중에 합계를 낼 때 비율까지 더하는 실수가 나온다.
+const 효율머리 = ["eFG%", "TS%", "AST/TO", "+/-"];
+
 function 합계줄(game, r) {
   return [game.date, game.teams[r.team].name, typeof r.number === "number" ? r.number : "", r.name,
     r.pts, r.p2m, r.p2a, r.p3m, r.p3a, r.ftm, r.fta,
@@ -62,9 +67,34 @@ function 합계줄(game, r) {
     r.reb, r.rebO, r.rebD, r.ast, r.stl, r.blk, r.to, r.pf];
 }
 
+// 잴 수 없는 값은 빈 칸으로 둔다. 0 으로 적으면 "못 쐈다" 와 "넣지 못했다" 가 섞인다.
+const 값 = (v) => (v == null ? "" : v);
+
 /** 선수기록 시트 — 경기 전체 합계. 한 줄이 한 선수다. */
 export function 합계시트(game) {
-  return [합계머리, ...boxScore(game).map((r) => 합계줄(game, r))];
+  const pm = plusMinus(game);
+  return [[...합계머리, ...효율머리], ...boxScore(game).map((r) => {
+    const e = 효율(r);
+    return [...합계줄(game, r), 값(e.efg), 값(e.ts), 값(e.astTo), pm[`${r.team}|${r.name}`] ?? 0];
+  })];
+}
+
+/** 팀효율 시트 — 한 줄이 한 팀. 100 포제션당 득점·실점과 네 가지 요소다. */
+export function 팀시트(game) {
+  const T = 팀지표(game);
+  const rows = [["날짜", "팀", "승패", "득점", "실점", "포제션",
+    "ORtg", "DRtg", "NetRtg", "eFG%", "TS%", "턴오버%", "공격리바%", "수비리바%"]];
+  [0, 1].forEach((ti) => {
+    const t = T[ti];
+    rows.push([game.date, game.teams[ti].name, 승패(game, ti),
+      t.pts, T[1 - ti].pts, Math.round(t.poss * 10) / 10,
+      값(t.ortg && Math.round(t.ortg * 10) / 10),
+      값(t.drtg && Math.round(t.drtg * 10) / 10),
+      값(t.net && Math.round(t.net * 10) / 10),
+      값(t.efg), 값(t.ts), 값(t.tov && Math.round(t.tov * 10) / 10),
+      값(t.orbPct), 값(t.drbPct)]);
+  });
+  return rows;
 }
 
 /** 쿼터별 시트 — 한 줄이 한 선수의 한 쿼터.
@@ -123,9 +153,16 @@ export function 파일이름(game) {
 /** 세 시트를 담은 xlsx 바이트. */
 export async function 엑셀만들기(game) {
   const { createWorkbookSheets } = await import("./xlsx-lite.js");
+  // 비율 칸은 0.562 같은 분수로 넣고 엑셀에서 0.00% 서식으로 보이게 한다.
+  // 56.2 로 넣으면 나중에 평균을 낼 때 100배 틀린 값이 나온다 (js/gamestats.js:236 과 같은 이유).
+  const 합계 = 합계시트(game);
+  const 팀 = 팀시트(game);
+  const 쿼터 = 쿼터시트(game);
+  const 비율 = (머리, 이름들) => 이름들.map((n) => 머리.indexOf(n)).filter((i) => i >= 0);
   return createWorkbookSheets([
-    { name: "선수기록", rows: 합계시트(game) },
-    { name: "쿼터별", rows: 쿼터시트(game) },
+    { name: "선수기록", rows: 합계, percentCols: 비율(합계[0], ["eFG%", "TS%"]) },
+    { name: "팀효율", rows: 팀, percentCols: 비율(팀[0], ["eFG%", "TS%", "공격리바%", "수비리바%"]) },
+    { name: "쿼터별", rows: 쿼터 },
     { name: "이벤트원본", rows: 원본시트(game) },
   ]);
 }
