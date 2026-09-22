@@ -339,3 +339,37 @@ export function allSheetRosters() {
     return [];
   }
 }
+
+const RECORD_GAME_KEY = "spirit-record-game";
+
+// 기록 중인 경기. 이벤트 원본을 통째로 담는다.
+//
+// 화면을 나가도, 폰이 잠겨도 남아 있어야 한다 — 경기 도중에 전화가 오거나 사파리가
+// 탭을 재우는 일이 실제로 생긴다. 지우는 건 사람이 '기록 버리기'나 '새 경기'를
+// 눌렀을 때뿐이다.
+export function getRecordGame() {
+  try {
+    const raw = localStorage.getItem(RECORD_GAME_KEY);
+    const g = raw ? JSON.parse(raw) : null;
+    // 모양이 깨진 것은 없는 셈 친다 — 반쯤 읽힌 경기로 화면이 죽는 것보다 낫다.
+    return g && Array.isArray(g.events) && Array.isArray(g.teams) ? g : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveRecordGame(game) {
+  try {
+    localStorage.setItem(RECORD_GAME_KEY, JSON.stringify(game));
+  } catch {
+    // no-op
+  }
+}
+
+export function clearRecordGame() {
+  try {
+    localStorage.removeItem(RECORD_GAME_KEY);
+  } catch {
+    // no-op
+  }
+}
