@@ -552,10 +552,9 @@ export async function saveWorkbook(wb) {
 
 // ── 새 통합 문서 ─────────────────────────────────────────
 // 업로드할 파일이 없을 때 쓰는 최소 구성. 첫 줄은 굵게, 열 너비는 글자 수에 맞춘다.
-export async function createWorkbook(sheetName, rows, percentCols = []) {
-  if (!zipSupported()) {
-    throw new Error("이 브라우저는 엑셀 파일 만들기를 지원하지 않습니다. 크롬이나 최신 사파리에서 열어주세요.");
-  }
+
+/** 시트 하나를 XML 로 만든다. rows 는 [[셀, 셀, …], …]. */
+function sheetXml(rows, percentCols) {
   const widths = [];
   rows.forEach((row) => {
     row.forEach((v, i) => {
@@ -587,6 +586,30 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
     .join("");
 
   const lastRef = `${colLetter(Math.max(1, widths.length))}${Math.max(1, rows.length)}`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<dimension ref="A1:${lastRef}"/>` +
+    `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetFormatPr defaultRowHeight="15"/>` +
+    (cols ? `<cols>${cols}</cols>` : "") +
+    `<sheetData>${body}</sheetData></worksheet>`;
+}
+
+/** 시트 하나짜리 통합 문서. 시트를 여럿 넣으려면 createWorkbookSheets 를 쓴다. */
+export async function createWorkbook(sheetName, rows, percentCols = []) {
+  return createWorkbookSheets([{ name: sheetName, rows, percentCols }]);
+}
+
+/** 시트 여러 장짜리 통합 문서. sheets 는 [{ name, rows, percentCols }, …].
+ *  합계와 원본을 한 파일에 담으려고 나눠 두었다 — 파일이 여러 개면 짝이 흩어진다. */
+export async function createWorkbookSheets(sheets) {
+  if (!zipSupported()) {
+    throw new Error("이 브라우저는 엑셀 파일 만들기를 지원하지 않습니다. 크롬이나 최신 사파리에서 열어주세요.");
+  }
+  if (!sheets.length) throw new Error("시트가 없습니다.");
+
+  // 스타일은 마지막 관계 번호로 둔다. 시트가 rId1..rIdN 을 차례로 쓴다.
+  const styleRel = sheets.length + 1;
   const files = {
     "[Content_Types].xml":
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -594,7 +617,8 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
       `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
       `<Default Extension="xml" ContentType="application/xml"/>` +
       `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
-      `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+      sheets.map((_, i) =>
+        `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("") +
       `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
       `</Types>`,
     "_rels/.rels":
@@ -606,12 +630,14 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
       `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-      `<sheets><sheet name="${escXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      `<sheets>${sheets.map((s, i) =>
+        `<sheet name="${escXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>`,
     "xl/_rels/workbook.xml.rels":
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
-      `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
-      `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+      sheets.map((_, i) =>
+        `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("") +
+      `<Relationship Id="rId${styleRel}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
       `</Relationships>`,
     "xl/styles.xml":
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -627,15 +653,10 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
       `<xf numFmtId="${PERCENT_NUMFMT}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>` +
       `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
       `</styleSheet>`,
-    "xl/worksheets/sheet1.xml":
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-      `<dimension ref="A1:${lastRef}"/>` +
-      `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
-      `<sheetFormatPr defaultRowHeight="15"/>` +
-      (cols ? `<cols>${cols}</cols>` : "") +
-      `<sheetData>${body}</sheetData></worksheet>`,
   };
+  sheets.forEach((s, i) => {
+    files[`xl/worksheets/sheet${i + 1}.xml`] = sheetXml(s.rows, s.percentCols || []);
+  });
 
   const enc = new TextEncoder();
   const stamp = dosTime();

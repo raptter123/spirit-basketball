@@ -4054,7 +4054,28 @@ body {
 
 .rec-bottom { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* ── 지난 경기 보관함 ── */
+.rec-archive { margin-top: 22px; border-top: 1px solid var(--surface-2); padding-top: 14px; }
+.rec-archive h3 { margin: 0 0 4px; }
+.rec-arch-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  background: var(--surface); border-radius: 10px; padding: 8px 10px; margin-top: 8px;
+}
+.rec-arch-say { flex: 1 1 200px; font-size: var(--fs-sm); font-weight: 700; }
+.rec-arch-btns { display: flex; gap: 6px; flex: none; }
+/* 지우는 버튼만 색을 달리한다. --defense 는 선용 색이라 작은 글씨에는
+   명암비가 모자라므로 --defense-text 를 쓴다. */
+.rec-arch-del { color: var(--defense-text); border-color: var(--defense); }
+
 /* ── 결과 화면 ── */
+/* 엑셀 받기는 결과 화면에서 제일 중요한 버튼이다. 여기서 안 받고 나가면
+   보관함(최근 20경기)에서 다시 받아야 하므로, 아래 줄과 떼어 놓는다. */
+.rec-save {
+  background: var(--surface); border-radius: 12px;
+  padding: 12px; margin: 18px 0 12px;
+}
+.rec-save .btn { width: 100%; }
+.rec-save .hint { margin: 8px 0 0; }
 .rec-final { margin: 0 0 4px; }
 .rec-final b { font-size: var(--fs-2xl); }
 .rec-bs-team { border-left: 4px solid var(--c); padding-left: 8px; margin: 18px 0 8px; }

@@ -21,7 +21,10 @@
 //   영원히 못 뽑는다. 원본이 있으면 무엇이든 다시 계산된다.
 import { ROSTER } from "./roster.js";
 import { hasNumber } from "./jersey.js";
-import { getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft } from "./storage.js";
+import {
+  getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
+  getRecordArchive, archiveRecordGame, removeArchivedGame,
+} from "./storage.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -93,12 +96,13 @@ export function scoreOf(events) {
   return s;
 }
 
-/** 이벤트 목록 → 선수별 합계. 종이 기록지가 받던 항목을 전부 되살린다. */
-export function boxScore(game) {
+/** 이벤트 목록 → 선수별 합계. 종이 기록지가 받던 항목을 전부 되살린다.
+ *  events 를 따로 주면 그 범위만 센다 — 쿼터별 표가 이걸로 나온다. */
+export function boxScore(game, events = game.events) {
   const rows = [];
   game.teams.forEach((team, ti) => {
     for (const p of team.players) {
-      const mine = game.events.filter((e) => e.team === ti && e.player === p.name);
+      const mine = events.filter((e) => e.team === ti && e.player === p.name);
       const shots = mine.filter((e) => e.type === "shot");
       const n = (t) => mine.filter((e) => e.type === t).length;
       const p2 = shots.filter((e) => e.pts === 2);
@@ -114,6 +118,32 @@ export function boxScore(game) {
     }
   });
   return rows;
+}
+
+/** 보관함 목록에 한 줄로 적을 말. */
+export function 한줄요약(game) {
+  const [a, b] = scoreOf(game.events);
+  return `${game.date} · ${game.teams[0]?.name || "A팀"} ${a} : ${b} ${game.teams[1]?.name || "B팀"} · 기록 ${playCount(game.events)}개`;
+}
+
+/** 내보내기 코드는 버튼을 누를 때만 불러온다. 정적으로 import 하면 기록 화면이
+ *  app.js 에 실려 있는 탓에 엑셀을 안 받는 사람까지 같이 내려받는다.
+ *  재 보니 첫 화면에서 빠지고, 누르면 그때 6.1KB 를 받는다. */
+async function 엑셀내려받기(game, btn) {
+  const 원래 = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "만드는 중…";
+  try {
+    const { 엑셀받기 } = await import("./record-export.js");
+    await 엑셀받기(game);
+    btn.textContent = "받았어요 ✓";
+  } catch (err) {
+    btn.textContent = "엑셀 받기";
+    alert(`엑셀을 만들지 못했어요.\n${err?.message || err}`);
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = 원래; }, 2500);
+  }
 }
 
 /** 팀 편성 초안({assignments:{이름:팀번호}, gameDate})에서 두 팀을 꺼낸다.
@@ -174,6 +204,7 @@ export function mountRecord(container) {
   function renderSetup() {
     const fromDraft = teamsFromDraft(getTeamBuilderDraft());
     const 있음 = !!fromDraft;
+    const 보관함 = getRecordArchive();
     container.innerHTML = `
       <div class="rec-setup">
         <p class="hint">경기 시작 전에 뛰는 사람을 정해주세요. 팀 편성 화면에서 팀을 짰다면 그대로 가져옵니다.</p>
@@ -203,6 +234,20 @@ export function mountRecord(container) {
           </div>
           <button type="button" class="btn btn-primary" id="rec-start" disabled>경기 시작</button>
         </div>
+        ${보관함.length ? `
+          <div class="rec-archive">
+            <h3>지난 경기 ${보관함.length}개</h3>
+            <p class="hint">이 기기에만 남아 있습니다. 최근 20경기까지 보관하고, 오래된 것부터 지워집니다.</p>
+            ${보관함.map((g) => `
+              <div class="rec-arch-row">
+                <span class="rec-arch-say">${esc(한줄요약(g))}</span>
+                <span class="rec-arch-btns">
+                  <button type="button" class="btn-sm" data-arch-open="${g.startedAt}">열기</button>
+                  <button type="button" class="btn-sm" data-arch-xlsx="${g.startedAt}">엑셀</button>
+                  <button type="button" class="btn-sm rec-arch-del" data-arch-del="${g.startedAt}">지우기</button>
+                </span>
+              </div>`).join("")}
+          </div>` : ""}
       </div>
     `;
 
@@ -222,7 +267,11 @@ export function mountRecord(container) {
       btn.textContent = btn.disabled ? "양 팀을 채워주세요" : `경기 시작 (${picked[0].length} vs ${picked[1].length})`;
     };
 
-    container.addEventListener("click", (e) => {
+    // 위임 핸들러는 container 가 아니라 방금 만든 .rec-setup 에 건다.
+    // container 는 화면을 다시 그려도 그대로라, 거기에 걸면 renderSetup 이 불릴 때마다
+    // 핸들러가 한 겹씩 쌓인다. 그러면 옛 핸들러가 옛 picked 배열을 새 화면에 써서
+    // 고른 사람이 되살아난다. 새로 만든 요소에 걸면 옛 것은 요소와 함께 사라진다.
+    container.querySelector(".rec-setup").addEventListener("click", (e) => {
       const chip = e.target.closest(".rec-rchip");
       if (chip) {
         const n = chip.dataset.name;
@@ -239,6 +288,33 @@ export function mountRecord(container) {
           if (i >= 0) t.splice(i, 1);
         }
         다시그리기();
+        return;
+      }
+
+      const 찾기 = (el, key) => 보관함.find((g) => String(g.startedAt) === el.dataset[key]);
+      const 열기 = e.target.closest("[data-arch-open]");
+      if (열기) {
+        // 보관함에서 꺼내 온 것도 기록 중인 경기와 같은 자리에 올린다.
+        // 그래야 '계속 기록하기' 로 이어서 적을 수 있다.
+        game = 찾기(열기, "archOpen");
+        if (!game) return;
+        save();
+        screen = "done";
+        render();
+        return;
+      }
+      const 엑셀 = e.target.closest("[data-arch-xlsx]");
+      if (엑셀) {
+        const g = 찾기(엑셀, "archXlsx");
+        if (g) 엑셀내려받기(g, 엑셀);
+        return;
+      }
+      const 지우기 = e.target.closest("[data-arch-del]");
+      if (지우기) {
+        const g = 찾기(지우기, "archDel");
+        if (!g || !confirm(`${한줄요약(g)}\n\n이 경기를 보관함에서 지울까요? 되돌릴 수 없어요.`)) return;
+        removeArchivedGame(g.startedAt);
+        render();
       }
     });
 
@@ -503,11 +579,16 @@ export function mountRecord(container) {
     }
 
     container.querySelector("#rec-finish").addEventListener("click", () => {
+      // 결과 화면에 들어오는 순간 보관함에 넣는다. 엑셀을 못 받고 화면을 닫거나
+      // '새 경기' 를 눌러도 기록이 남아 있어야 한다.
+      archiveRecordGame(game);
       screen = "done";
       render();
     });
     container.querySelector("#rec-scrap").addEventListener("click", () => {
       if (!confirm("이번 경기 기록을 전부 지울까요? 되돌릴 수 없어요.")) return;
+      // 버리기는 보관함에서도 뺀다. 지웠는데 목록에 남아 있으면 지운 게 아니다.
+      removeArchivedGame(game.startedAt);
       clearRecordGame();
       game = null;
       screen = "setup";
@@ -544,15 +625,23 @@ export function mountRecord(container) {
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}
+        <div class="rec-save">
+          <button type="button" class="btn btn-primary" id="rec-xlsx">엑셀 받기</button>
+          <p class="hint">시트 세 장이 들어 있어요 — <b>선수기록</b>(경기 합계) · <b>쿼터별</b> ·
+            <b>이벤트원본</b>(누른 순서 그대로, 슛 좌표까지). 원본이 있으면 나중에 무엇이든 다시 계산돼요.</p>
+          <p class="hint">이 경기는 보관함에 들어갔어요. 기록 화면 첫 장의 <b>지난 경기</b> 목록에서
+            다시 열거나 엑셀을 또 받을 수 있어요.</p>
+        </div>
         <div class="rec-bottom">
           <button type="button" class="btn" id="rec-back">계속 기록하기</button>
           <button type="button" class="btn btn-danger" id="rec-new">새 경기</button>
         </div>
       </div>
     `;
+    container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-back").addEventListener("click", () => { screen = "live"; render(); });
     container.querySelector("#rec-new").addEventListener("click", () => {
-      if (!confirm("이번 경기를 닫고 새로 시작할까요?")) return;
+      if (!confirm("이번 경기를 닫고 새로 시작할까요?\n기록은 보관함에 남아서 나중에 다시 열 수 있어요.")) return;
       clearRecordGame();
       game = null;
       screen = "setup";
