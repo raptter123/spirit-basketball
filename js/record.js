@@ -56,6 +56,20 @@ const EVENT_LABEL = {
   to: "턴오버", pf: "파울", ftm: "자유투 ✓", fta: "자유투 ✗",
 };
 
+// 선수 기록이 아니라 경기 진행을 적어 둔 줄. 합계에는 안 들어간다.
+// 이벤트로 남기는 이유는 되돌리기로 취소할 수 있게 하기 위해서다.
+const FLOW_TYPES = ["quarter", "sub"];
+
+/** 쿼터 이름. 정규 쿼터를 넘어가면 연장으로 이어 센다. */
+export function qLabel(q, quarters = 4) {
+  return q > quarters ? `연장${q - quarters}` : `${q}쿼터`;
+}
+
+/** 선수 기록으로 센 이벤트 수. 쿼터 넘김·교체는 빼야 "몇 개를 적었나"가 맞는다. */
+export function playCount(events) {
+  return events.filter((e) => !FLOW_TYPES.includes(e.type)).length;
+}
+
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -278,8 +292,14 @@ export function mountRecord(container) {
     const last = game.events.slice(-2).reverse();
     if (!last.length) return `<span class="rec-none">아직 기록이 없어요</span>`;
     return last.map((e, i) => {
+      const 머리 = i ? "그 앞 " : "방금 ";
+      // 쿼터 넘김·교체는 선수 기록이 아니라 진행이라 문장이 다르다.
+      if (e.type === "quarter") return `${머리}<b>${qLabel(e.to, game.quarters)} 시작</b>`;
+      if (e.type === "sub") {
+        return `${머리}<b>${esc(e.player)} 들어감${e.out ? ` · ${esc(e.out)} 나감` : ""}</b>`;
+      }
       const 말 = e.type === "shot" ? `${e.pts}점 ${e.made ? "✓" : "✗"}` : EVENT_LABEL[e.type];
-      return `${i ? "그 앞 " : "방금 "}<b>${esc(e.player)} ${말}</b>`;
+      return `${머리}<b>${esc(e.player)} ${말}</b>`;
     }).join("<br />");
   }
 
@@ -299,7 +319,10 @@ export function mountRecord(container) {
             <b style="color:${TEAM_COLOR[1]}">${sb}</b>
             <span style="color:${TEAM_COLOR[1]}">${esc(game.teams[1].name)}</span>
           </span>
-          <button type="button" class="rec-qbtn" id="rec-q">${game.q}쿼터 ▸</button>
+          <button type="button" class="rec-qbtn" id="rec-q">
+            <b>${qLabel(game.q, game.quarters)}</b>
+            <span>▸ ${qLabel(game.q + 1, game.quarters)}로</span>
+          </button>
           <a class="rec-exit" href="#/" title="홈으로">✕</a>
         </div>
 
@@ -356,11 +379,11 @@ export function mountRecord(container) {
         <div class="rec-log">
           <button type="button" class="rec-undo" id="rec-undo" ${game.events.length ? "" : "disabled"}>↩ 되돌리기</button>
           <div class="rec-last">${최근글()}</div>
-          <div class="rec-n">이번 경기<br /><b>${game.events.length}</b>번</div>
+          <div class="rec-n">이번 경기<br /><b>${playCount(game.events)}</b>번</div>
         </div>
 
         <div class="rec-bottom">
-          <button type="button" class="btn" id="rec-finish">경기 끝내기</button>
+          <button type="button" class="btn" id="rec-finish">결과 보기</button>
           <button type="button" class="btn btn-danger" id="rec-scrap">기록 버리기</button>
         </div>
       </div>
@@ -434,14 +457,28 @@ export function mountRecord(container) {
     container.querySelector("#rec-miss").addEventListener("click", () => 슛기록(false));
 
     container.querySelector("#rec-undo").addEventListener("click", () => {
-      game.events.pop();
+      const 지운것 = game.events.pop();
+      // 진행 이벤트는 화면 상태까지 같이 되돌려야 한다. 줄만 지우면
+      // 쿼터와 코트 위 명단이 취소한 뒤의 값으로 남는다.
+      if (지운것?.type === "quarter") {
+        game.q = 지운것.from;
+      } else if (지운것?.type === "sub") {
+        const t = game.teams[지운것.team];
+        if (지운것.out) t.onCourt = t.onCourt.map((n) => (n === 지운것.player ? 지운것.out : n));
+        else t.onCourt = t.onCourt.filter((n) => n !== 지운것.player);
+      }
       pending = null; armed = null; spot = null; subIn = null;
       save();
       renderLive();
     });
 
     container.querySelector("#rec-q").addEventListener("click", () => {
-      game.q = game.q >= game.quarters ? 1 : game.q + 1;
+      // 4쿼터에서 1쿼터로 되돌아가면, 그 뒤에 찍는 기록이 1쿼터에 섞여 들어가
+      // 쿼터별 집계가 조용히 망가진다. 그래서 되돌아가지 않고 연장으로 이어 센다.
+      // 잘못 눌렀으면 되돌리기로 취소한다.
+      이벤트추가({ type: "quarter", from: game.q, to: game.q + 1 });
+      game.q += 1;
+      pending = null; armed = null; spot = null; subIn = null;
       save();
       renderLive();
     });
@@ -479,6 +516,11 @@ export function mountRecord(container) {
   }
 
   // ── 결과 화면 ────────────────────────────────────────────
+  /** 실제로 기록이 찍힌 마지막 쿼터. 4쿼터를 다 안 했는데 "4쿼터" 라고 쓰면 거짓말이 된다. */
+  function 마지막쿼터() {
+    return game.events.reduce((m, e) => Math.max(m, e.q || 1), game.q);
+  }
+
   function renderDone() {
     const rows = boxScore(game);
     const [sa, sb] = scoreOf(game.events);
@@ -492,7 +534,7 @@ export function mountRecord(container) {
     container.innerHTML = `
       <div class="rec-done">
         <h2 class="rec-final">${esc(game.teams[0].name)} <b>${sa}</b> : <b>${sb}</b> ${esc(game.teams[1].name)}</h2>
-        <p class="hint">${game.date} · 이벤트 ${game.events.length}개 · ${game.quarters}쿼터</p>
+        <p class="hint">${game.date} · 기록 ${playCount(game.events)}개 · ${qLabel(마지막쿼터(), game.quarters)}까지</p>
         ${game.teams.map((t, ti) => `
           <h3 class="rec-bs-team" style="--c:${TEAM_COLOR[ti]}">${esc(t.name)}</h3>
           <div class="table-scroll">

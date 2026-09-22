@@ -3949,11 +3949,19 @@ body {
 .rec-score { font-weight: 800; font-size: var(--fs-sm); }
 .rec-score b { font-size: var(--fs-xl); font-weight: 900; }
 .rec-colon { color: var(--text-muted); margin: 0 5px; }
+/* 지금 쿼터와 "누르면 어디로 가는지" 를 같이 보여 준다. 예전에는 "1쿼터 ▸" 하나뿐이라
+   지금 쿼터를 알려 주는 표시인지 넘기는 버튼인지 구별이 안 됐다. 좁은 윗줄에 두 정보를
+   넣으려고 두 줄로 쌓는다 — 가로로 이으면 390px 에서 점수를 밀어낸다. */
 .rec-qbtn {
-  margin-left: auto; min-height: 44px; padding: 0 12px;
+  margin-left: auto; min-height: 44px; padding: 2px 10px;
   border-radius: 9px; border: 1px solid var(--accent-line);
   background: transparent; color: var(--text);
   font-size: var(--fs-sm); font-weight: 800; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; line-height: 1.1; flex: none;
+}
+.rec-qbtn span {
+  font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap;
 }
 
 .rec-court {
