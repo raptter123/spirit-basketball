@@ -423,3 +423,13 @@ export function removeArchivedGame(startedAt) {
     // no-op
   }
 }
+
+/** 보관함을 통째로 비운다. 시험 삼아 찍어 본 경기를 실전 전에 치울 때 쓴다.
+ *  기록 중인 경기는 다른 칸에 있으므로 여기서 건드리지 않는다. */
+export function clearRecordArchive() {
+  try {
+    localStorage.removeItem(RECORD_ARCHIVE_KEY);
+  } catch {
+    // no-op
+  }
+}

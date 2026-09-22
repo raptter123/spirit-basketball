@@ -23,7 +23,7 @@ import { ROSTER } from "./roster.js";
 import { hasNumber } from "./jersey.js";
 import {
   getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
-  getRecordArchive, archiveRecordGame, removeArchivedGame,
+  getRecordArchive, archiveRecordGame, removeArchivedGame, clearRecordArchive,
 } from "./storage.js";
 import { 효율, plusMinus, 팀지표, 경기요약, pct1, num1, 부호, MIN_POSS } from "./record-stats.js";
 
@@ -293,7 +293,10 @@ export function mountRecord(container) {
         </div>
         ${보관함.length ? `
           <div class="rec-archive">
-            <h3>지난 경기 ${보관함.length}개</h3>
+            <div class="rec-arch-head">
+              <h3>지난 경기 ${보관함.length}개</h3>
+              <button type="button" class="btn-sm rec-arch-del" id="rec-arch-clear">전부 지우기</button>
+            </div>
             <p class="hint">기록 ${보관함.reduce((a, g) => a + playCount(g.events), 0)}개가 쌓였어요.
               이 기기에만 남아 있고, 최근 20경기까지 보관해요 — 오래된 것부터 지워지니
               남길 경기는 엑셀로 받아 두세요.</p>
@@ -358,6 +361,15 @@ export function mountRecord(container) {
       if (엑셀) {
         const g = 찾기(엑셀, "archXlsx");
         if (g) 엑셀내려받기(g, 엑셀);
+        return;
+      }
+      if (e.target.closest("#rec-arch-clear")) {
+        // 되돌릴 수 없으므로 몇 개가 사라지는지 숫자로 못박아 묻는다.
+        const 말 = `지난 경기 ${보관함.length}개를 전부 지울까요?\n되돌릴 수 없어요.\n\n`
+          + `남길 경기가 있으면 먼저 엑셀로 받아 두세요.`;
+        if (!confirm(말)) return;
+        clearRecordArchive();
+        render();
         return;
       }
       const 지우기 = e.target.closest("[data-arch-del]");
