@@ -48,6 +48,11 @@ jobs:
           # 파일명에 하이픈이 들어간 모듈(team-shuffle.js, xlsx-lite.js …)도 잡아야 한다.
           # [a-zA-Z]+ 로는 안 잡혀서 그 파일들만 캐시가 안 비워지고 있었다.
           find js -name "*.js" -exec sed -i -E "s#from \"(\./[a-zA-Z0-9_-]+\.js)\"#from \"\1?v=${SHA_SHORT}\"#g" {} \;
+          # 필요할 때만 불러오는 모듈(await import("./xlsx-lite.js"))도 같이 잡는다.
+          # 위 규칙은 from "…" 만 보므로, 동적 import 는 ?v= 가 안 붙어 옛 파일이
+          # 그대로 쓰일 수 있다. 주소가 다르면 브라우저는 다른 파일로 친다.
+          find js -name "*.js" -exec sed -i -E "s#import\(\"(\./[a-zA-Z0-9_-]+\.js)\"#import(\"\1?v=${SHA_SHORT}\"#g" {} \;
+          grep -n 'import("' js/record.js js/record-export.js
       - uses: actions/configure-pages@v5
         with:
           enablement: true

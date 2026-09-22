@@ -373,3 +373,53 @@ export function clearRecordGame() {
     // no-op
   }
 }
+
+const RECORD_ARCHIVE_KEY = "spirit-record-games";
+// 경기 하나에 이벤트 200개면 대략 16KB 다. 20경기면 320KB 로, 브라우저가 주는
+// 5MB 안에 넉넉히 들어간다. 그래도 넘치면 오래된 것부터 버리고 다시 시도한다.
+const ARCHIVE_MAX = 20;
+
+/** 끝낸 경기 보관함. 최근 것이 앞에 온다.
+ *
+ *  '새 경기'를 누르면 기록 중이던 경기가 통째로 사라지던 것을 막으려고 둔다.
+ *  결과 화면에 들어가는 순간 여기에 들어오므로, 엑셀을 못 받고 화면을 닫아도
+ *  나중에 다시 받을 수 있다. */
+export function getRecordArchive() {
+  try {
+    const raw = localStorage.getItem(RECORD_ARCHIVE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list.filter((g) => g && Array.isArray(g.events) && Array.isArray(g.teams));
+  } catch {
+    return [];
+  }
+}
+
+/** 보관함에 넣는다. 같은 경기(startedAt)면 덮어쓴다 —
+ *  결과 화면을 여러 번 드나들어도 같은 경기가 여러 개 쌓이면 안 된다. */
+export function archiveRecordGame(game) {
+  if (!game || !Array.isArray(game.events)) return;
+  let list = getRecordArchive().filter((g) => g.startedAt !== game.startedAt);
+  list.unshift(game);
+  list = list.slice(0, ARCHIVE_MAX);
+  while (list.length) {
+    try {
+      localStorage.setItem(RECORD_ARCHIVE_KEY, JSON.stringify(list));
+      return;
+    } catch {
+      // 자리가 모자라면 가장 오래된 경기를 버리고 다시 시도한다.
+      // 방금 끝낸 경기를 못 넣는 것이 제일 나쁘다.
+      if (list.length === 1) return;
+      list.pop();
+    }
+  }
+}
+
+export function removeArchivedGame(startedAt) {
+  try {
+    const list = getRecordArchive().filter((g) => g.startedAt !== startedAt);
+    localStorage.setItem(RECORD_ARCHIVE_KEY, JSON.stringify(list));
+  } catch {
+    // no-op
+  }
+}
