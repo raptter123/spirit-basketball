@@ -10,7 +10,7 @@
 //   슛을 한 번도 안 쏜 선수의 야투율은 0% 가 아니라 "없음" 이다. 0 으로 적으면
 //   평균을 낼 때 못 쏜 사람이 못 넣은 사람으로 섞인다. 그래서 null 을 돌려주고,
 //   화면에서는 "–" 로 적는다.
-import { boxScore, pointsOf, scoreOf } from "./record.js";
+import { boxScore, pointsOf, scoreOf, playCount, qLabel } from "./record.js";
 
 /** 자유투 시도를 포제션으로 환산하는 계수.
  *
@@ -171,4 +171,36 @@ export function 승패(game, ti) {
   const [a, b] = scoreOf(game.events);
   if (a === b) return "무";
   return (a > b ? 0 : 1) === ti ? "승" : "패";
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+/** "2026-09-22" → "9/22 (화)". 목록에서는 연도보다 요일이 쓸모 있다 —
+ *  수요일 자체전인지 주말 대회인지가 한눈에 갈린다. */
+export function 짧은날짜(s) {
+  const d = new Date(`${s}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return s;
+  return `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
+}
+
+/** 지난 경기 목록 한 줄에 필요한 것만 추린다.
+ *  목록은 경기가 스무 개까지 쌓이므로, 줄마다 boxScore 를 두 번 돌리지 않도록
+ *  여기서 한 번에 뽑는다. */
+export function 경기요약(game) {
+  const [a, b] = scoreOf(game.events);
+  const rows = boxScore(game);
+  // 최다 득점자. 동점이면 리바운드·어시스트가 많은 쪽을 앞에 둔다.
+  const 최다 = rows
+    .filter((r) => r.pts > 0)
+    .sort((x, y) => y.pts - x.pts || (y.reb + y.ast) - (x.reb + x.ast))[0] || null;
+  const 마지막쿼터 = game.events.reduce((m, e) => Math.max(m, e.q || 1), game.q || 1);
+  return {
+    날짜: 짧은날짜(game.date),
+    점수: [a, b],
+    이긴팀: a === b ? -1 : a > b ? 0 : 1,
+    이름: game.teams.map((t) => t.name),
+    마지막쿼터,
+    기록수: playCount(game.events),
+    최다,
+  };
 }
