@@ -19,7 +19,7 @@
 // 왜 테마를 안 따르는가
 //   이 그림은 내 화면이 아니라 남이 볼 곳으로 간다. 어두운 테마에서 뽑아 올리면
 //   밴드에서 배경이 검은 그림이 되므로, 색을 고정해 둔다.
-import { boxScore, scoreOf, playCount, qLabel } from "./record.js";
+import { boxScore, scoreOf, playCount, qLabel, 팀색자리 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 대진표시, pct1, num1,
 } from "./record-stats.js";
@@ -34,7 +34,9 @@ const C = {
   ink: "#161b28", ink2: "#6a7288", line: "#d7dbe6",
   zebra: "#f5f7fb", total: "#eaeef7", win: "#e8590c", draw: "#7c7f8a",
   made: "#12833f", miss: "#c02626",
-  team: ["#c2410c", "#15803d"],
+  // A팀 · B팀 · C팀. 자리(0/1)가 아니라 팀 이름으로 고른다 — 3파전은 같은 팀이
+  // 경기마다 앞자리·뒷자리를 오가므로, 자리로 색을 주면 B팀 색이 경기마다 바뀐다.
+  team: ["#c2410c", "#15803d", "#7e22ce"],
 };
 // 코트 그림에 쓸 색 — 흰 바탕에 얹으므로 바닥을 옅게 둔다.
 const COURT = {
@@ -82,10 +84,10 @@ const COLS = [
 ];
 const ROW_H = 34;
 
-function 박스스코어(rows, pm, ti, 팀이름, y) {
+function 박스스코어(rows, pm, ti, 팀이름, y, 색) {
   const 줄 = rows.filter((r) => r.team === ti);
   const out = [];
-  out.push(사각(PAD, y, INNER, 30, C.team[ti], 6));
+  out.push(사각(PAD, y, INNER, 30, C.team[색], 6));
   out.push(T(PAD + 12, y + 21, 팀이름, { size: 16, weight: 800, fill: "#ffffff" }));
   let cy = y + 30;
 
@@ -157,14 +159,58 @@ function 차트칸(x, y, w, shots, 제목, 오른쪽, 팀 = null) {
   };
 }
 
-/** 차트칸 하나를 그대로 독립된 그림 한 장으로. 엑셀에 박아 넣을 때 쓴다.
+/** 샷 차트 묶음 — 제목줄 + 팀 둘 나란히 + 슛 쏜 선수 전원(세 칸씩).
  *
- *  엑셀 시트 안의 그림은 셀 서식도 테마도 못 따른다. 그래서 화면용 var(--…) 가
- *  아니라 여기 고정 팔레트로 그리고, 제목과 자리별 요약까지 그림 안에 넣는다 —
- *  그림만 떼어 봐도 누구 것인지 알 수 있어야 한다. */
-export function 차트한장SVG(shots, 제목, 오른쪽, w = 460, 팀 = null) {
-  const c = 차트칸(0, 0, w, shots, 제목, 오른쪽, 팀);
-  const h = Math.ceil(c.높이);
+ *  밴드 이미지와 엑셀이 이 함수 하나를 같이 쓴다. 엑셀에 한 장씩 따로 박아 봤더니
+ *  선수가 열 명이면 시트가 150줄이 되어, 스크롤을 한참 내리지 않으면 한 명밖에
+ *  안 보였다. 묶어서 한 장으로 넣으면 밴드에 올리는 그림과 똑같이 한눈에 들어온다. */
+function 차트묶음(x0, y0, w, game, 경기들 = [game]) {
+  const 이름 = game.teams.map((t) => t.name);
+  const out = [];
+  let y = y0;
+  const 몫 = (s) => `${s.filter((x) => x.made).length}/${s.length}`;
+
+  const 누적 = 경기들.length > 1;
+  out.push(T(x0, y + 18, "샷 차트", { size: 20, weight: 900 }));
+  out.push(T(x0 + w, y + 18, `● 들어감   ✕ 빗나감${누적 ? `   ·   ${경기들.length}경기 누적` : ""}`,
+    { size: 13, weight: 700, fill: C.ink2, anchor: "end" }));
+  y += 34;
+
+  // 팀 샷차트 둘을 나란히
+  const 팀w = (w - 20) / 2;
+  let 팀높이 = 0;
+  [0, 1].forEach((ti) => {
+    const shots = 슛모음([game], null, ti);
+    const c = 차트칸(x0 + ti * (팀w + 20), y, 팀w, shots, 이름[ti], 몫(shots),
+      { ti: 팀색자리(game, ti), 이름: null });
+    out.push(c.svg);
+    팀높이 = c.높이;
+  });
+  y += 팀높이 + 16;
+
+  // 선수 샷차트 — 슛을 쏜 사람만, 팀 순서 · 많이 쏜 순
+  const 사람들 = 자리별선수(game)
+    .filter((r) => r.총.a > 0)
+    .sort((a, b) => a.team - b.team || b.총.a - a.총.a);
+  const 열 = 3;
+  const 칸w = (w - 16 * (열 - 1)) / 열;
+  const 칸h = 칸제목 + (칸w * CHART_VIEW.h) / CHART_VIEW.w + 칸밑 + 12;
+  사람들.forEach((r, i) => {
+    const shots = 슛모음(경기들, r.name);
+    const c = 차트칸(x0 + (i % 열) * (칸w + 16), y + Math.floor(i / 열) * 칸h,
+      칸w, shots, r.name, 몫(shots),
+      { ti: 팀색자리(game, r.team), 이름: 이름[r.team] });
+    out.push(c.svg);
+  });
+  y += Math.ceil(사람들.length / 열) * 칸h;
+  return { svg: out.join(""), 높이: y - y0 };
+}
+
+/** 샷 차트 묶음만 독립된 그림 한 장으로. 엑셀 '샷차트' 시트가 이걸 박는다. */
+export function 샷차트한장SVG(game, 경기들 = [game], w = 1000) {
+  const pad = 16;
+  const c = 차트묶음(pad, pad, w - pad * 2, game, 경기들);
+  const h = Math.ceil(c.높이 + pad * 2);
   return {
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`
       + 사각(0, 0, w, h, C.bg) + c.svg + `</svg>`,
@@ -199,7 +245,7 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
     [0, 1].forEach((ti) => {
       const 점 = 쿼터들.map((q) => scoreOf(game.events.filter((e) => (e.q || 1) === q))[ti]);
       out.push(T(PAD + 74, y + 14 + ti * 22, `${이름[ti]}   ${점.join("  /  ")}`,
-        { size: 14, weight: 700, fill: C.team[ti] }));
+        { size: 14, weight: 700, fill: C.team[팀색자리(game, ti)] }));
     });
     y += 22 * 2 + 10;
   }
@@ -209,7 +255,7 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
       const t = T2[ti];
       const x = PAD + ti * (칸w + 16);
       out.push(사각(x, y, 칸w, 84, C.total, 8));
-      out.push(T(x + 14, y + 26, 이름[ti], { size: 15, weight: 900, fill: C.team[ti] }));
+      out.push(T(x + 14, y + 26, 이름[ti], { size: 15, weight: 900, fill: C.team[팀색자리(game, ti)] }));
       out.push(T(x + 칸w - 14, y + 26,
         `공격 ${num1(t.ortg)} · 수비 ${num1(t.drtg)} · Net ${t.net > 0 ? "+" : ""}${num1(t.net)}`,
         { size: 14, weight: 800, anchor: "end" }));
@@ -222,48 +268,16 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
 
   // ── 박스스코어 ────────────────────────────────────────
   for (const ti of [0, 1]) {
-    const b = 박스스코어(rows, pm, ti, 이름[ti], y);
+    const b = 박스스코어(rows, pm, ti, 이름[ti], y, 팀색자리(game, ti));
     out.push(b.svg);
     y += b.높이 + 10;
   }
   y += 10;
 
   // ── 샷 차트 ──────────────────────────────────────────
-  const 누적 = 경기들.length > 1;
-  out.push(T(PAD, y + 18, "샷 차트", { size: 20, weight: 900 }));
-  out.push(T(W - PAD, y + 18, `● 들어감   ✕ 빗나감${누적 ? `   ·   ${경기들.length}경기 누적` : ""}`,
-    { size: 13, weight: 700, fill: C.ink2, anchor: "end" }));
-  y += 34;
-
-  // 팀 샷차트 둘을 나란히
-  const 팀w = (INNER - 20) / 2;
-  let 팀높이 = 0;
-  [0, 1].forEach((ti) => {
-    const shots = 슛모음([game], null, ti);
-    const c = 차트칸(PAD + ti * (팀w + 20), y, 팀w, shots,
-      이름[ti], `${shots.filter((s) => s.made).length}/${shots.length}`, { ti, 이름: null });
-    out.push(c.svg);
-    팀높이 = c.높이;
-  });
-  y += 팀높이 + 16;
-
-  // 선수 샷차트 — 슛을 쏜 사람만, 팀 순서 · 많이 쏜 순
-  const 사람들 = 자리별선수(game)
-    .filter((r) => r.총.a > 0)
-    .sort((x2, y2) => x2.team - y2.team || y2.총.a - x2.총.a);
-  const 열 = 3;
-  const 칸w = (INNER - 16 * (열 - 1)) / 열;
-  사람들.forEach((r, i) => {
-    const 줄 = Math.floor(i / 열);
-    const x = PAD + (i % 열) * (칸w + 16);
-    const shots = 슛모음(경기들, r.name);
-    const c = 차트칸(x, y + 줄 * (칸제목 + (칸w * CHART_VIEW.h) / CHART_VIEW.w + 칸밑 + 12),
-      칸w, shots, r.name, `${shots.filter((s) => s.made).length}/${shots.length}`,
-      { ti: r.team, 이름: 이름[r.team] });
-    out.push(c.svg);
-  });
-  const 줄수 = Math.ceil(사람들.length / 열);
-  y += 줄수 * (칸제목 + (칸w * CHART_VIEW.h) / CHART_VIEW.w + 칸밑 + 12);
+  const 차트 = 차트묶음(PAD, y, INNER, game, 경기들);
+  out.push(차트.svg);
+  y += 차트.높이;
 
   // ── 꼬리 ─────────────────────────────────────────────
   y += 6;

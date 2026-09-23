@@ -22,11 +22,11 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, qLabel } from "./record.js";
+import { boxScore, pointsOf, qLabel, TEAM_NAME } from "./record.js";
 import {
-  효율, plusMinus, 팀지표, 승패, 자리별선수, 슛모음, 구역들, 구역이름, 좌우이름, 대진표시,
+  효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 대진표시,
 } from "./record-stats.js";
-import { 차트한장SVG } from "./record-image.js";
+import { 샷차트한장SVG } from "./record-image.js";
 import { PNG만들기 } from "./record-chart.js";
 
 const 종류이름 = {
@@ -180,61 +180,33 @@ export function 원본시트(game) {
 // 표는 "골밑 2/8" 까지만 말해 준다. 그 여덟 개가 왼쪽이었는지 오른쪽이었는지는
 // 좌표에만 있고, 좌표를 사람이 읽는 길은 그림뿐이다.
 //
-// 왜 따로 한 장인가
-//   처음에는 자리별 표 아래에 얹었는데, 표가 끝난 한참 밑이라 스크롤을 내리지 않으면
-//   있는지도 모른다. 시트로 빼면 아래쪽 탭에 이름이 보이므로 찾을 필요가 없다.
-//
-// 왜 한 줄로 세우나
-//   그림 닻(oneCellAnchor)은 "왼쪽 위 모서리가 이 셀" 이라 세로 자리는 줄 번호로
-//   정확히 잡히지만, 가로로 여러 장을 늘어놓으려면 열 하나가 몇 px 인지 알아야 한다.
-//   그 값은 프로그램과 글꼴에 따라 달라져서 휴대폰 엑셀에서는 그림이 겹칠 수 있다.
-//   그래서 전부 A열에 붙여 세로로만 세운다 — 어디서 열어도 안 겹친다.
-const 그림 = {
-  너비: 460,      // 차트 한 장 너비(px)
-  줄간격: 14,     // 그림 한 장이 차지할 줄 수 (311px ≒ 13줄 + 한 줄 띄기)
-};
+// 왜 한 장으로 묶나
+//   처음에는 선수마다 한 장씩 세로로 세웠는데, 열 명이면 시트가 150줄이 되어
+//   스크롤을 한참 내리지 않으면 한 명밖에 안 보였다. 밴드에 올리는 결과 이미지와
+//   같은 배치(팀 둘 나란히 + 선수 세 칸씩)로 묶어 한 장만 넣는다.
+//   record-image.js 의 샷차트한장SVG 하나를 같이 쓰므로 두 그림이 어긋날 수 없다.
+const 차트너비 = 1000;   // 그림 안 좌표계 너비(px). 밴드 이미지와 같다.
 
-/** 코트 그림의 세로:가로 비율에 제목줄과 요약줄을 더한 높이. record-image.js 와 같다. */
-const 칸높이 = (w) => Math.ceil(26 + (w * 285) / 500 + 22);
-
-async function PNG바이트(svg) {
-  // 2배로 뽑는다. 엑셀에서 보이는 크기는 닻(ext)이 정하므로, 원본이 촘촘할수록 선명하다.
-  const blob = await PNG만들기(svg, 2);
-  return new Uint8Array(await blob.arrayBuffer());
-}
-
-/** 샷차트 시트 — 머리글 두 줄과 그 아래로 세운 차트 그림들. */
+/** 샷차트 시트 — 머리글 두 줄과 그 아래 그림 한 장. */
 export async function 차트시트(game) {
-  const 이름 = game.teams.map((t) => t.name);
   const rows = [
     ["샷 차트"],
     ["● 들어감 · ✕ 빗나감 — 팀 차트 두 장 다음에, 슛을 쏜 선수 차트가 이어집니다"],
   ];
-  const 첫줄 = rows.length + 1;        // 머리글 아래 한 줄 띄고 시작한다
-  const h = 칸높이(그림.너비);
-  const 몫 = (shots) => `${shots.filter((s) => s.made).length}/${shots.length}`;
-  const pics = [];
-
-  const 넣기 = async (shots, 제목, 팀) => {
-    const { svg } = 차트한장SVG(shots, 제목, 몫(shots), 그림.너비, 팀);
-    pics.push({
-      bytes: await PNG바이트(svg),
+  const { svg, width, height } = 샷차트한장SVG(game, [game], 차트너비);
+  // 2배로 뽑는다. 엑셀에서 보이는 크기는 닻(ext)이 정하므로 원본이 촘촘할수록 선명하다.
+  const blob = await PNG만들기(svg, 2);
+  return {
+    name: "샷차트",
+    rows,
+    필터: false,
+    pics: [{
+      bytes: new Uint8Array(await blob.arrayBuffer()),
       col: 0,
-      row: 첫줄 + pics.length * 그림.줄간격,
-      w: 그림.너비, h,
-    });
+      row: rows.length + 1,   // 머리글 아래 한 줄 띄고
+      w: width, h: height,
+    }],
   };
-
-  for (const ti of [0, 1]) await 넣기(슛모음([game], null, ti), 이름[ti], { ti, 이름: null });
-
-  // 슛을 쏜 사람만, 팀 순서 · 많이 쏜 순
-  const 사람들 = 자리별선수(game)
-    .filter((r) => r.총.a > 0)
-    .sort((a, b) => a.team - b.team || b.총.a - a.총.a);
-  for (const r of 사람들) {
-    await 넣기(슛모음([game], r.name), r.name, { ti: r.team, 이름: 이름[r.team] });
-  }
-  return { name: "샷차트", rows, 필터: false, pics };
 }
 
 /** 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로 버리고 확장자 없는
@@ -264,10 +236,13 @@ export async function 엑셀만들기(game) {
 
   // 팀 이름 칸은 팀 색으로 쓴다. 시트마다 그 칸이 몇 번째인지 머리글에서 찾는다 —
   // 숫자로 박아 두면 칸이 하나 늘 때마다 엉뚱한 열이 물든다.
-  const 이름 = game.teams.map((t) => t.name);
+  //
+  // 색은 경기 안 자리(앞팀/뒷팀)가 아니라 팀 이름으로 고른다. 3파전은 AB · BC · CA
+  // 를 도는데 자리로 주면 B팀이 경기마다 다른 색이 된다. TEAM_NAME 을 통째로
+  // 넘겨 A팀 → 0, B팀 → 1, C팀 → 2 로 맞춘다.
   const 팀열 = (머리) => {
     const col = 머리.indexOf("팀");
-    return col < 0 ? undefined : { col, 이름 };
+    return col < 0 ? undefined : { col, 이름: TEAM_NAME };
   };
   const 원본 = 원본시트(game);
 

@@ -36,15 +36,19 @@
      다크: 초록 8.26:1 · 빨강 5.21:1 · 서로 ΔE 112.5 */
   --good: #4ade80;
   --bad: #f87171;
-  /* 기록 화면의 A팀·B팀 색. 여기도 선·도형용과 글씨용이 다르다.
+  /* 기록 화면의 A팀·B팀·C팀 색. 여기도 선·도형용과 글씨용이 다르다.
      --team-a(#f97316) 를 밝은 테마의 흰 바탕 작은 글씨에 그대로 쓰면 2.80:1,
      --team-b(#22c55e) 는 2.28:1 로 기준(4.5)에 한참 못 미친다. 색상 계열은 그대로
-     두고 밝기만 옮긴 짝을 테마마다 따로 둔다. 다크에서 잰 값:
-     #fdba74 9.88:1 · #86efac 11.87:1 (--surface 위) */
+     두고 밝기만 옮긴 짝을 테마마다 따로 둔다. 다크에서 잰 값(--surface 위):
+     #fdba74 9.88:1 · #86efac 11.87:1 · #d8b4fe 9.43:1
+     C팀은 3파전에서 생긴다. 도형용 #a855f7 은 다크 4.21 · 라이트 3.96 으로 도형
+     기준(3.0) 위에 있고, A·B 와 ΔE 136.9 · 165.8 이라 색으로 확실히 갈린다. */
   --team-a: #f97316;
   --team-b: #22c55e;
+  --team-c: #a855f7;
   --team-a-text: #fdba74;
   --team-b-text: #86efac;
+  --team-c-text: #d8b4fe;
   /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
   --accent-btn: #7857fa;
 
@@ -107,11 +111,13 @@
   --good: #166534;
   --bad: #991b1b;
   /* 팀 색은 선·도형용 그대로 두고, 글씨용만 흰 바탕에서 읽히는 어두운 짝으로 바꾼다.
-     잰 값(--surface 위): #9a3412 7.31:1 · #166534 7.13:1 */
+     잰 값(--surface 위): #9a3412 7.31:1 · #166534 7.13:1 · #6b21a8 8.72:1 */
   --team-a: #f97316;
   --team-b: #22c55e;
+  --team-c: #a855f7;
   --team-a-text: #9a3412;
   --team-b-text: #166534;
+  --team-c-text: #6b21a8;
   --accent-btn: #d80204;
 
   --offense: #2563eb;
@@ -3972,6 +3978,7 @@ body {
      --c  선·테두리·도형용   --ct 글씨용 */
 [data-t="0"] { --c: var(--team-a); --ct: var(--team-a-text); }
 [data-t="1"] { --c: var(--team-b); --ct: var(--team-b-text); }
+[data-t="2"] { --c: var(--team-c); --ct: var(--team-c-text); }
 /* 스코어보드의 팀 이름과 점수 */
 .rec-score [data-t] { color: var(--ct); }
 
@@ -4063,6 +4070,10 @@ body {
 }
 .rec-rbtn.made { background: #16a34a; }
 .rec-rbtn.miss { background: #b91c1c; }
+/* 리바를 누르면 공수를 묻느라 성공/실패 자리를 잠깐 빌려 쓴다.
+   성공(초록)·실패(빨강)과 헷갈리면 안 되므로 색을 아예 다른 계열로 둔다. */
+.rec-rbtn.reb-o { background: #7c3aed; }
+.rec-rbtn.reb-d { background: #0369a1; }
 .rec-rbtn:disabled { opacity: .32; cursor: default; }
 
 /* 경기 갈아타는 줄. 3파전은 코트에서 AB → BC → CA 순으로 도니까 맨 위에 둔다 —
@@ -4087,14 +4098,13 @@ body {
 .rec-nbtn.is-on { border-color: var(--accent); background: var(--surface-2); }
 .rec-nteam .hint { margin: 0; }
 
-/* 아홉 개를 다섯 열 두 줄로 놓는다. 네 열이면 세 줄이 되는데, 기록 화면은
-   390×844 에 꽉 차 있어 한 줄을 더 얹을 자리가 없다. 다섯 열이면 한 칸이
-   좁아지지만 높이는 그대로다 — 좁아진 만큼은 글씨를 한 단 줄여 받는다. */
-.rec-events { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 6px; }
+/* 여덟 개를 네 열 두 줄로. 리바가 하나로 돌아오면서 다섯 열로 좁혔던 것을
+   되돌린다 — 기록 화면은 390×844 에 꽉 차 있어 줄을 더 얹을 자리는 없다. */
+.rec-events { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
 .rec-ebtn {
-  min-height: 46px; border-radius: 9px; padding: 2px;
+  min-height: 46px; border-radius: 9px;
   border: 1px solid var(--accent-line); background: var(--surface);
-  color: var(--text); font-size: var(--fs-xs); font-weight: 700; cursor: pointer;
+  color: var(--text); font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
 }
 .rec-ebtn.is-armed { border-color: #facc15; background: rgba(250, 204, 21, .16); }
 
