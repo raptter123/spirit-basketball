@@ -20,7 +20,9 @@
 //   이 그림은 내 화면이 아니라 남이 볼 곳으로 간다. 어두운 테마에서 뽑아 올리면
 //   밴드에서 배경이 검은 그림이 되므로, 색을 고정해 둔다.
 import { boxScore, scoreOf, playCount, qLabel } from "./record.js";
-import { 효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, pct1, num1 } from "./record-stats.js";
+import {
+  효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 대진표시, pct1, num1,
+} from "./record-stats.js";
 import { 차트속, CHART_VIEW, PNG만들기 } from "./record-chart.js";
 
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
@@ -285,7 +287,7 @@ export async function 결과이미지받기(game, 경기들 = [game]) {
   const a = document.createElement("a");
   a.href = url;
   // 크로미움은 파일명에 한글이 섞이면 이름을 통째로 버린다. 아스키만 쓴다.
-  a.download = `spirit-result-${game.date}.png`;
+  a.download = `spirit-result-${game.date}-${대진표시(game)}.png`;
   a.click();
   URL.revokeObjectURL(url);
   return blob;

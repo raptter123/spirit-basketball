@@ -24,7 +24,7 @@
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
 import { boxScore, pointsOf, qLabel } from "./record.js";
 import {
-  효율, plusMinus, 팀지표, 승패, 자리별선수, 슛모음, 구역들, 구역이름, 좌우이름,
+  효율, plusMinus, 팀지표, 승패, 자리별선수, 슛모음, 구역들, 구역이름, 좌우이름, 대진표시,
 } from "./record-stats.js";
 import { 차트한장SVG } from "./record-image.js";
 import { PNG만들기 } from "./record-chart.js";
@@ -238,11 +238,12 @@ export async function 차트시트(game) {
 }
 
 /** 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로 버리고 확장자 없는
- *  "download" 로 받는다 — 더블클릭해도 안 열린다. 그래서 파일명은 아스키만 쓴다. */
+ *  "download" 로 받는다 — 더블클릭해도 안 열린다. 그래서 파일명은 아스키만 쓴다.
+ *  대진 표시를 붙이는 이유는 record-stats.js 의 대진표시() 주석에 적어 두었다. */
 export function 파일이름(game) {
   const d = new Date(game.startedAt || Date.now());
   const 시각 = `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
-  return `spirit-game-${game.date}-${시각}.xlsx`;
+  return `spirit-game-${game.date}-${시각}-${대진표시(game)}.xlsx`;
 }
 
 /** 여섯 시트를 담은 xlsx 바이트. 샷차트 시트에는 차트 그림이 들어간다. */

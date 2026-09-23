@@ -22,7 +22,7 @@
 import { ROSTER } from "./roster.js";
 import { hasNumber } from "./jersey.js";
 import {
-  getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
+  getRecordSession, saveRecordSession, clearRecordSession, getTeamBuilderDraft,
   getRecordArchive, archiveRecordGame, removeArchivedGame, clearRecordArchive,
 } from "./storage.js";
 import {
@@ -175,35 +175,58 @@ async function 엑셀내려받기(game, btn) {
   }
 }
 
-/** 팀 편성 초안({assignments:{이름:팀번호}, gameDate})에서 두 팀을 꺼낸다.
- *  3팀으로 짰으면 앞의 두 팀만 쓴다 — 한 경기는 두 팀이 뛴다. */
+/** 팀 편성 초안({assignments:{이름:팀번호}, gameDate})에서 팀들을 꺼낸다.
+ *  3팀으로 짰으면 셋 다 가져온다 — 서로 한 경기씩, 세 경기가 된다. */
 export function teamsFromDraft(draft) {
   if (!draft?.assignments) return null;
-  const teams = [[], []];
+  const teams = [[], [], []];
   for (const [name, ti] of Object.entries(draft.assignments)) {
-    if (ti === 0 || ti === 1) teams[ti].push(name);
+    if (ti === 0 || ti === 1 || ti === 2) teams[ti].push(name);
   }
-  if (!teams[0].length || !teams[1].length) return null;
+  // 빈 팀은 없는 셈 친다. 두 팀은 있어야 경기가 된다.
+  while (teams.length && !teams[teams.length - 1].length) teams.pop();
+  if (teams.length < 2 || teams.some((t) => !t.length)) return null;
   return {
     gameDate: draft.gameDate,
     teams: teams.map((names, i) => ({
-      name: `${"AB"[i]}팀`,
+      name: TEAM_NAME[i],
       players: names.sort().map((n) => ROSTER.find((r) => r.name === n) || { name: n }),
     })),
   };
+}
+
+export const TEAM_NAME = ["A팀", "B팀", "C팀"];
+
+/** 팀 수에 맞는 대진. 세 팀이면 서로 한 경기씩 — 세 경기가 된다.
+ *  코트에서는 AB 1쿼터 → BC 1쿼터 → CA 1쿼터 → AB 2쿼터 순으로 돌지만,
+ *  그건 진행 순서일 뿐이고 경기는 어디까지나 셋이다. */
+export function 대진표(팀수) {
+  if (팀수 >= 3) return [[0, 1], [1, 2], [2, 0]];
+  return [[0, 1]];
 }
 
 function newGame(src) {
   const teams = [0, 1].map((i) => {
     const players = src?.teams?.[i]?.players || [];
     return {
-      name: src?.teams?.[i]?.name || `${"AB"[i]}팀`,
+      name: src?.teams?.[i]?.name || TEAM_NAME[i],
       players,
       // 교체가 드무니 앞 5명을 코트에 올려 두고 시작한다. 5명 미만이면 전원.
       onCourt: players.slice(0, 5).map((p) => p.name),
     };
   });
   return { date: src?.gameDate || todayStr(), quarters: 4, q: 1, teams, events: [], startedAt: Date.now() };
+}
+
+/** 등록한 팀들로 대진만큼 경기를 만든다.
+ *  startedAt 이 경기를 가리키는 열쇠라 서로 달라야 한다 — 같은 밀리초에 만들면
+ *  보관함에서 서로를 덮어쓴다. 그래서 한 칸씩 띄운다. */
+export function 경기들만들기(팀들, gameDate) {
+  const 기준 = Date.now();
+  return 대진표(팀들.length).map(([a, b], i) => ({
+    ...newGame({ gameDate, teams: [팀들[a], 팀들[b]] }),
+    startedAt: 기준 + i,
+  }));
 }
 
 // 경기 중에는 로고·메뉴·제목을 접는다.
@@ -217,7 +240,9 @@ function setFocus(on) {
 }
 
 export function mountRecord(container) {
-  let game = getRecordGame();
+  // 그날 치르는 경기들. 3파전이면 셋이 같이 들어 있고, 갈아타며 적는다.
+  let session = getRecordSession();
+  let game = session?.games[session.at] || null;
   // 고르는 중인 것 — 코트를 눌렀거나 선수를 눌렀거나. 둘 다 차면 결과를 묻는다.
   let pending = null;   // { x, y, pts } | null
   let armed = null;     // { team, player } | null  (선수를 먼저 눌렀을 때)
@@ -226,7 +251,27 @@ export function mountRecord(container) {
   let screen = game ? "live" : "setup";
 
   function save() {
-    if (game) saveRecordGame(game);
+    if (session) saveRecordSession(session);
+  }
+
+  /** 경기를 갈아탄다. 고르던 중이던 것은 버린다 — 다른 경기로 넘어가서 찍으면
+   *  엉뚱한 경기에 들어간다. */
+  function 경기로(i) {
+    if (!session || i < 0 || i >= session.games.length || i === session.at) return;
+    session.at = i;
+    game = session.games[i];
+    pending = null; armed = null; spot = null; subIn = null;
+    save();
+    render();
+  }
+
+  /** 세션을 새로 차린다. games 는 이미 만들어진 경기 배열. */
+  function 세션시작(games) {
+    session = { games, at: 0 };
+    game = games[0];
+    save();
+    screen = "live";
+    render();
   }
 
   // ── 설정 화면 ────────────────────────────────────────────
@@ -277,14 +322,13 @@ export function mountRecord(container) {
           : `<p class="hint rec-nodraft">팀 편성 화면에서 팀을 먼저 짜면 여기로 바로 넘어옵니다.</p>`}
         <div class="rec-manual">
           <h3>직접 고르기</h3>
-          <p class="hint">A팀과 B팀을 번갈아 채웁니다. 이름을 누르면 다음 팀으로 들어갑니다.</p>
-          <div class="rec-pick-teams">
-            ${[0, 1].map((i) => `
-              <div class="rec-pick-col" data-t="${i}">
-                <b>${i ? "B팀" : "A팀"}</b>
-                <div class="rec-pick-list" data-team="${i}"></div>
-              </div>`).join("")}
+          <div class="rec-nteam">
+            ${[2, 3].map((n) => `
+              <button type="button" class="rec-nbtn${n === 2 ? " is-on" : ""}" data-n="${n}">${n}팀</button>`).join("")}
+            <span class="hint" id="rec-nteam-say"></span>
           </div>
+          <p class="hint">이름을 누르면 팀이 차례로 채워집니다.</p>
+          <div class="rec-pick-teams" id="rec-pick-teams"></div>
           <div class="rec-roster">
             ${ROSTER.map((p) => `
               <button type="button" class="rec-rchip" data-name="${esc(p.name)}">
@@ -307,20 +351,32 @@ export function mountRecord(container) {
       </div>
     `;
 
-    const picked = [[], []];
+    let 팀수 = 2;
+    let picked = [[], []];
     let next = 0;
     const 다시그리기 = () => {
-      for (const i of [0, 1]) {
-        container.querySelector(`.rec-pick-list[data-team="${i}"]`).innerHTML =
-          picked[i].map((n) => `<button type="button" class="rec-picked" data-drop="${esc(n)}">${esc(n)} ✕</button>`).join("")
-          || `<span class="rec-empty">아직 없음</span>`;
-      }
+      container.querySelector("#rec-pick-teams").innerHTML = picked.map((list, i) => `
+        <div class="rec-pick-col" data-t="${i}">
+          <b>${TEAM_NAME[i]}</b>
+          <div class="rec-pick-list" data-team="${i}">${
+            list.map((n) => `<button type="button" class="rec-picked" data-drop="${esc(n)}">${esc(n)} ✕</button>`).join("")
+            || `<span class="rec-empty">아직 없음</span>`}</div>
+        </div>`).join("");
       for (const el of container.querySelectorAll(".rec-rchip")) {
         el.classList.toggle("is-used", picked.some((t) => t.includes(el.dataset.name)));
       }
+      for (const el of container.querySelectorAll(".rec-nbtn")) {
+        el.classList.toggle("is-on", Number(el.dataset.n) === 팀수);
+      }
+      const 대진 = 대진표(팀수);
+      container.querySelector("#rec-nteam-say").textContent =
+        팀수 === 2 ? "한 경기로 시작해요" : `${대진.map(([a, c]) => `${TEAM_NAME[a]}–${TEAM_NAME[c]}`).join(" · ")} 세 경기`;
       const btn = container.querySelector("#rec-start");
-      btn.disabled = picked[0].length < 1 || picked[1].length < 1;
-      btn.textContent = btn.disabled ? "양 팀을 채워주세요" : `경기 시작 (${picked[0].length} vs ${picked[1].length})`;
+      const 빈팀 = picked.filter((t) => !t.length).length;
+      btn.disabled = 빈팀 > 0;
+      btn.textContent = btn.disabled
+        ? `${빈팀}개 팀이 비어 있어요`
+        : `경기 시작 (${picked.map((t) => t.length).join(" vs ")})`;
     };
 
     // 위임 핸들러는 container 가 아니라 방금 만든 .rec-setup 에 건다.
@@ -328,12 +384,25 @@ export function mountRecord(container) {
     // 핸들러가 한 겹씩 쌓인다. 그러면 옛 핸들러가 옛 picked 배열을 새 화면에 써서
     // 고른 사람이 되살아난다. 새로 만든 요소에 걸면 옛 것은 요소와 함께 사라진다.
     container.querySelector(".rec-setup").addEventListener("click", (e) => {
+      const n팀 = e.target.closest(".rec-nbtn");
+      if (n팀) {
+        const v = Number(n팀.dataset.n);
+        if (v === 팀수) return;
+        // 줄이면 남는 팀의 사람들을 버리지 않고 앞 팀으로 되돌린다.
+        const 넘침 = picked.slice(v).flat();
+        picked = Array.from({ length: v }, (_, i) => picked[i] || []);
+        for (const name of 넘침) picked[picked.length - 1].push(name);
+        팀수 = v;
+        next = 0;
+        다시그리기();
+        return;
+      }
       const chip = e.target.closest(".rec-rchip");
       if (chip) {
         const n = chip.dataset.name;
         if (picked.some((t) => t.includes(n))) return;
         picked[next].push(n);
-        next = next ? 0 : 1;
+        next = (next + 1) % 팀수;
         다시그리기();
         return;
       }
@@ -350,10 +419,14 @@ export function mountRecord(container) {
       const 찾기 = (el, key) => 보관함.find((g) => String(g.startedAt) === el.dataset[key]);
       const 열기 = e.target.closest("[data-arch-open]");
       if (열기) {
-        // 보관함에서 꺼내 온 것도 기록 중인 경기와 같은 자리에 올린다.
-        // 그래야 '계속 기록하기' 로 이어서 적을 수 있다.
-        game = 찾기(열기, "archOpen");
-        if (!game) return;
+        // 보관함에서 꺼내 온 것도 기록 중인 경기들 틈에 끼워 넣는다.
+        // 그래야 '계속 기록하기' 로 이어서 적히고, 저장도 한 자리에서 된다.
+        const g = 찾기(열기, "archOpen");
+        if (!g) return;
+        if (!session) session = { games: [], at: 0 };
+        const 이미 = session.games.findIndex((x) => x.startedAt === g.startedAt);
+        session.at = 이미 >= 0 ? 이미 : session.games.push(g) - 1;
+        game = session.games[session.at];
         save();
         screen = "done";
         render();
@@ -384,21 +457,15 @@ export function mountRecord(container) {
     });
 
     container.querySelector("#rec-start").addEventListener("click", () => {
-      game = newGame({ teams: picked.map((names, i) => ({
-        name: i ? "B팀" : "A팀",
+      세션시작(경기들만들기(picked.map((names, i) => ({
+        name: TEAM_NAME[i],
         players: names.map((n) => ROSTER.find((r) => r.name === n) || { name: n }),
-      })) });
-      save();
-      screen = "live";
-      render();
+      }))));
     });
 
     const use = container.querySelector("#rec-use-draft");
     if (use) use.addEventListener("click", () => {
-      game = newGame(fromDraft);
-      save();
-      screen = "live";
-      render();
+      세션시작(경기들만들기(fromDraft.teams, fromDraft.gameDate));
     });
 
     다시그리기();
@@ -450,6 +517,23 @@ export function mountRecord(container) {
     }).join("<br />");
   }
 
+  /** 경기가 둘 이상이면 맨 위에 갈아타는 줄을 둔다.
+   *  3파전은 코트에서 AB → BC → CA → AB 순으로 도는데, 그때마다 여기를 눌러
+   *  옮긴다. 각 경기는 제 쿼터와 점수를 그대로 들고 있으므로 이어서 적힌다. */
+  function 경기전환줄() {
+    if (!session || session.games.length < 2) return "";
+    return `
+      <div class="rec-gswitch">
+        ${session.games.map((g, i) => {
+          const [x, y] = scoreOf(g.events);
+          return `<button type="button" class="rec-gbtn${i === session.at ? " is-on" : ""}" data-game="${i}">
+            <b>${esc(g.teams[0].name)} ${x} : ${y} ${esc(g.teams[1].name)}</b>
+            <span>${qLabel(g.q, g.quarters)} · 기록 ${playCount(g.events)}개</span>
+          </button>`;
+        }).join("")}
+      </div>`;
+  }
+
   function renderLive() {
     const [sa, sb] = scoreOf(game.events);
     const onCourt = game.teams.map((t) =>
@@ -459,6 +543,7 @@ export function mountRecord(container) {
 
     container.innerHTML = `
       <div class="rec-live">
+        ${경기전환줄()}
         <div class="rec-top">
           <span class="rec-score">
             <span data-t="0">${esc(game.teams[0].name)}</span>
@@ -585,6 +670,10 @@ export function mountRecord(container) {
       });
     }
 
+    for (const el of container.querySelectorAll("[data-game]")) {
+      el.addEventListener("click", () => 경기로(Number(el.dataset.game)));
+    }
+
     for (const el of container.querySelectorAll("[data-spot]")) {
       el.addEventListener("click", () => {
         spot = spot === el.dataset.spot ? null : el.dataset.spot;
@@ -660,12 +749,27 @@ export function mountRecord(container) {
       render();
     });
     container.querySelector("#rec-scrap").addEventListener("click", () => {
-      if (!confirm("이번 경기 기록을 전부 지울까요? 되돌릴 수 없어요.")) return;
+      // 세션에 경기가 여럿이면 이 경기만 버린다. 나머지 경기는 그대로 굴러가야 한다.
+      const 여럿 = session.games.length > 1;
+      const 말 = 여럿
+        ? `${game.teams[0].name} : ${game.teams[1].name} 경기 기록만 지울까요?\n`
+          + `나머지 ${session.games.length - 1}경기는 그대로 남아요. 되돌릴 수 없어요.`
+        : "이번 경기 기록을 전부 지울까요? 되돌릴 수 없어요.";
+      if (!confirm(말)) return;
       // 버리기는 보관함에서도 뺀다. 지웠는데 목록에 남아 있으면 지운 게 아니다.
       removeArchivedGame(game.startedAt);
-      clearRecordGame();
-      game = null;
-      screen = "setup";
+      session.games.splice(session.at, 1);
+      if (session.games.length) {
+        session.at = Math.min(session.at, session.games.length - 1);
+        game = session.games[session.at];
+        pending = null; armed = null; spot = null; subIn = null;
+        save();
+      } else {
+        clearRecordSession();
+        session = null;
+        game = null;
+        screen = "setup";
+      }
       render();
     });
   }
@@ -909,8 +1013,14 @@ export function mountRecord(container) {
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-back").addEventListener("click", () => { screen = "live"; render(); });
     container.querySelector("#rec-new").addEventListener("click", () => {
-      if (!confirm("이번 경기를 닫고 새로 시작할까요?\n기록은 보관함에 남아서 나중에 다시 열 수 있어요.")) return;
-      clearRecordGame();
+      const 여럿 = session && session.games.length > 1;
+      const 말 = 여럿
+        ? `오늘 ${session.games.length}경기를 전부 닫고 새로 시작할까요?\n`
+          + `기록은 보관함에 남아서 나중에 다시 열 수 있어요.`
+        : "이번 경기를 닫고 새로 시작할까요?\n기록은 보관함에 남아서 나중에 다시 열 수 있어요.";
+      if (!confirm(말)) return;
+      clearRecordSession();
+      session = null;
       game = null;
       screen = "setup";
       render();

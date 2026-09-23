@@ -283,6 +283,24 @@ export function 짧은날짜(s) {
   return `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
 }
 
+/** 내려받는 파일 이름에 붙일 대진 표시.
+ *
+ *  3파전은 같은 날 세 경기를 받는다. 이름이 날짜와 시각뿐이면 세 파일이 같은 이름으로
+ *  떨어져서 받는 족족 앞의 것을 덮어쓴다(실제로 세 개가 다 `spirit-game-2026-09-23-0434`
+ *  로 나왔다). 그래서 팀 이름에서 아스키 글자를 따 붙인다 — "A팀" → "A", 곧 "AB".
+ *
+ *  딸 글자가 없으면(이름이 전부 한글이면) 시작 시각의 밀리초를 쓴다. 한 세션의
+ *  경기들은 startedAt 을 한 칸씩 띄워 만들므로 여기서 갈린다.
+ *
+ *  아스키만 쓰는 이유: 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로
+ *  버리고 확장자 없는 "download" 로 받는다. */
+export function 대진표시(game) {
+  const 딴것 = (game.teams || []).map((t) => (String(t?.name || "").match(/[A-Za-z0-9]+/) || [""])[0]);
+  return 딴것.length && 딴것.every(Boolean)
+    ? 딴것.join("")
+    : String((game.startedAt || 0) % 1000).padStart(3, "0");
+}
+
 /** 지난 경기 목록 한 줄에 필요한 것만 추린다.
  *  목록은 경기가 스무 개까지 쌓이므로, 줄마다 boxScore 를 두 번 돌리지 않도록
  *  여기서 한 번에 뽑는다. */
