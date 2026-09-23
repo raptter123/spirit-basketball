@@ -17,8 +17,10 @@
 //   두 그림이 어긋날 수 없다.
 import { 구역이름 } from "./record-stats.js";
 
-// 기록 화면과 같은 잘라내기. 탭 좌표가 여기에 맞춰 잘려 들어오므로 바꾸면 안 된다.
-export const CHART_VIEW = { x: 0, y: 185, w: 500, h: 285 };
+// 기록 화면과 같은 잘라내기(js/record.js 의 COURT_VIEW). 탭 좌표가 저기에 맞춰
+// 잘려 들어오므로 둘이 어긋나면 안 된다 — 여기가 더 좁으면 위쪽에서 쏜 3점이
+// 그림에서 잘려 사라진다.
+export const CHART_VIEW = { x: 0, y: 135, w: 500, h: 325 };
 
 /** 화면용 — 색을 CSS 변수로 두어 테마를 따라간다. */
 export const 화면색 = {
@@ -37,7 +39,7 @@ function 점크기(n) {
 
 function 코트선(c) {
   return `
-    <rect x="10" y="185" width="480" height="275" rx="14" fill="${c.floor}" stroke="${c.line}" stroke-width="2" opacity="0.9" />
+    <rect x="10" y="10" width="480" height="450" rx="18" fill="${c.floor}" stroke="${c.line}" stroke-width="2" opacity="0.9" />
     <rect x="170" y="270" width="160" height="190" fill="${c.paint}" />
     <rect x="170" y="270" width="160" height="190" fill="none" stroke="${c.line}" stroke-width="2" opacity="0.5" />
     <circle cx="250" cy="270" r="60" fill="none" stroke="${c.line}" stroke-width="2" opacity="0.5" />

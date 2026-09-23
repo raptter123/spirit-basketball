@@ -1512,7 +1512,48 @@ function showAppRev() {
   slot.textContent = !rev || rev === "dev" ? "개발판" : `rev ${rev}`;
 }
 
+// 폰이 옛 판을 들고 있으면 알려 준다.
+//
+// 왜 필요한가
+//   배포가 js/css 에는 ?v=<커밋> 을 붙여 캐시를 무효화하지만, index.html 자체에는
+//   못 붙인다(그걸 읽는 주소가 곧 index.html 이라서). 그래서 폰이 옛 index.html 을
+//   들고 있으면 거기 적힌 옛 ?v= 를 따라 옛 js 를 계속 받는다. 고친 것이 올라가도
+//   화면은 그대로여서, 고쳐 놓고 "안 고쳐졌다" 고 세 번 오갔다.
+//
+//   새 파일을 만들지 않고 index.html 을 캐시 없이 한 번 더 받아 rev 만 비교한다.
+//   다르면 지금 돌고 있는 판이 낡은 것이다.
+//
+// 새로고침을 그냥 하면 안 되는 이유
+//   location.reload() 는 캐시에 든 index.html 을 다시 쓸 수 있다. 주소에 시각을
+//   붙여 다른 주소로 만들어야 확실히 새로 받는다. 해시(#/record)는 그대로 들고 간다.
+async function checkStaleVersion() {
+  const 지금 = document.querySelector('meta[name="app-rev"]')?.content?.trim();
+  if (!지금 || 지금 === "dev") return;   // 로컬에서 연 것은 견줄 대상이 없다
+  let 최신;
+  try {
+    const res = await fetch(`index.html?_=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    최신 = (await res.text()).match(/<meta name="app-rev" content="([^"]*)"/)?.[1]?.trim();
+  } catch {
+    return;   // 오프라인이면 조용히 넘어간다 — 여기서 뜨는 경고는 도움이 안 된다
+  }
+  if (!최신 || 최신 === 지금) return;
+
+  const bar = document.createElement("button");
+  bar.type = "button";
+  bar.className = "app-stale";
+  bar.innerHTML = `새 판이 올라왔어요 <b>rev ${escapeHtml(최신.split(" ")[0])}</b>`
+    + `<span>지금 쓰는 건 rev ${escapeHtml(지금.split(" ")[0])} — 눌러서 새로고침</span>`;
+  bar.addEventListener("click", () => {
+    const url = new URL(location.href);
+    url.searchParams.set("v", Date.now().toString(36));
+    location.replace(url.toString());
+  });
+  document.body.appendChild(bar);
+}
+
 initTheme();
 showAppRev();
+checkStaleVersion();
 window.addEventListener("hashchange", router);
 window.addEventListener("DOMContentLoaded", router);
