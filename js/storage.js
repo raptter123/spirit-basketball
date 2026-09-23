@@ -340,37 +340,70 @@ export function allSheetRosters() {
   }
 }
 
-const RECORD_GAME_KEY = "spirit-record-game";
+const RECORD_GAME_KEY = "spirit-record-game";       // 옛 키 — 경기 하나만 담았다
+const RECORD_SESSION_KEY = "spirit-record-session"; // 지금 키 — 그날 경기 여러 개
 
-// 기록 중인 경기. 이벤트 원본을 통째로 담는다.
+// 기록 중인 경기들. 이벤트 원본을 통째로 담는다.
 //
 // 화면을 나가도, 폰이 잠겨도 남아 있어야 한다 — 경기 도중에 전화가 오거나 사파리가
 // 탭을 재우는 일이 실제로 생긴다. 지우는 건 사람이 '기록 버리기'나 '새 경기'를
 // 눌렀을 때뿐이다.
+//
+// 왜 하나가 아니라 여럿인가
+//   3파전은 세 팀이 서로 한 경기씩, 곧 네 쿼터짜리 경기 세 개를 치른다. 그런데
+//   코트에서는 AB 1쿼터 → BC 1쿼터 → CA 1쿼터 → AB 2쿼터 순으로 번갈아 돈다.
+//   경기를 하나만 들고 있으면 쿼터가 넘어갈 때마다 끝내고 새로 차려야 하는데,
+//   그러면 같은 경기의 1쿼터와 2쿼터가 서로 다른 경기로 쪼개진다. 셋을 같이
+//   들고 있다가 갈아타면 각 경기가 제 쿼터를 그대로 이어 간다.
+const 성한경기 = (g) => !!g && Array.isArray(g.events) && Array.isArray(g.teams);
+
+/** { games: [...], at: 번호 } 또는 null. 옛 키에 남은 경기 하나도 여기로 끌어온다. */
+export function getRecordSession() {
+  try {
+    const raw = localStorage.getItem(RECORD_SESSION_KEY);
+    const s = raw ? JSON.parse(raw) : null;
+    if (s && Array.isArray(s.games)) {
+      const games = s.games.filter(성한경기);
+      if (games.length) {
+        return { games, at: Math.min(Math.max(0, s.at | 0), games.length - 1) };
+      }
+    }
+  } catch {
+    // 아래에서 옛 키를 본다
+  }
+  // 옛 판에서 기록하다 만 경기가 있으면 잃지 않고 이어 받는다.
+  const old = getRecordGame();
+  return old ? { games: [old], at: 0 } : null;
+}
+
+export function saveRecordSession(session) {
+  try {
+    localStorage.setItem(RECORD_SESSION_KEY, JSON.stringify(session));
+    // 옛 키를 남겨 두면 다음에 열 때 둘 중 어느 것이 최신인지 알 수 없다.
+    localStorage.removeItem(RECORD_GAME_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+export function clearRecordSession() {
+  try {
+    localStorage.removeItem(RECORD_SESSION_KEY);
+    localStorage.removeItem(RECORD_GAME_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+/** 옛 키에 든 경기 하나. getRecordSession 이 이어받을 때만 쓴다. */
 export function getRecordGame() {
   try {
     const raw = localStorage.getItem(RECORD_GAME_KEY);
     const g = raw ? JSON.parse(raw) : null;
     // 모양이 깨진 것은 없는 셈 친다 — 반쯤 읽힌 경기로 화면이 죽는 것보다 낫다.
-    return g && Array.isArray(g.events) && Array.isArray(g.teams) ? g : null;
+    return 성한경기(g) ? g : null;
   } catch {
     return null;
-  }
-}
-
-export function saveRecordGame(game) {
-  try {
-    localStorage.setItem(RECORD_GAME_KEY, JSON.stringify(game));
-  } catch {
-    // no-op
-  }
-}
-
-export function clearRecordGame() {
-  try {
-    localStorage.removeItem(RECORD_GAME_KEY);
-  } catch {
-    // no-op
   }
 }
 

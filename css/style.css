@@ -3934,7 +3934,9 @@ body {
 }
 .rec-nodraft { margin-bottom: 18px; }
 
-.rec-pick-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+/* 팀이 둘이면 두 칸, 셋이면 세 칸. auto-fit 이 아니라 갯수를 그대로 따라가야
+   3팀일 때 한 칸이 아래로 떨어지지 않는다. */
+.rec-pick-teams { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; margin-bottom: 12px; }
 .rec-pick-col {
   border-top: 3px solid var(--c);
   background: var(--surface);
@@ -4062,6 +4064,28 @@ body {
 .rec-rbtn.made { background: #16a34a; }
 .rec-rbtn.miss { background: #b91c1c; }
 .rec-rbtn:disabled { opacity: .32; cursor: default; }
+
+/* 경기 갈아타는 줄. 3파전은 코트에서 AB → BC → CA 순으로 도니까 맨 위에 둔다 —
+   쿼터가 끝날 때마다 누르는 것이라 손이 제일 먼저 닿는 자리여야 한다. */
+.rec-gswitch { display: flex; gap: 6px; margin-bottom: 6px; overflow-x: auto; }
+.rec-gbtn {
+  flex: 1 0 auto; min-height: 46px; padding: 5px 10px; border-radius: 10px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); cursor: pointer; text-align: left; line-height: 1.25;
+}
+.rec-gbtn b { display: block; font-size: var(--fs-sm); font-weight: 800; white-space: nowrap; }
+.rec-gbtn span { display: block; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.rec-gbtn.is-on { border-color: #facc15; background: rgba(250, 204, 21, .16); }
+
+/* 팀 수 고르기. 2팀이면 한 경기, 3팀이면 서로 한 경기씩 세 경기가 만들어진다. */
+.rec-nteam { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; flex-wrap: wrap; }
+.rec-nbtn {
+  min-height: 44px; padding: 0 18px; border-radius: 10px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); font-size: var(--fs-sm); font-weight: 800; cursor: pointer;
+}
+.rec-nbtn.is-on { border-color: var(--accent); background: var(--surface-2); }
+.rec-nteam .hint { margin: 0; }
 
 /* 아홉 개를 다섯 열 두 줄로 놓는다. 네 열이면 세 줄이 되는데, 기록 화면은
    390×844 에 꽉 차 있어 한 줄을 더 얹을 자리가 없다. 다섯 열이면 한 칸이
