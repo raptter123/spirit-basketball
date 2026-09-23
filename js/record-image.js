@@ -122,13 +122,31 @@ function 박스스코어(rows, pm, ti, 팀이름, y) {
 const 칸제목 = 26;
 const 칸밑 = 22;
 
-function 차트칸(x, y, w, shots, 제목, 오른쪽) {
+/** 팀 딱지 너비. SVG 안에서는 글자 너비를 잴 수 없어 글자 수로 어림잡는다.
+ *  12px 굵은 한글 한 자가 12px 안쪽이므로 한 자 12 + 좌우 여백 14 로 둔다. */
+const 딱지폭 = (이름) => 이름.length * 12 + 14;
+
+/** 팀 딱지. 이름만 있으면 차트 열 장이 늘어섰을 때 누가 어느 팀인지 알 수 없다.
+ *  색만으로 가르지 않고 팀 이름을 글자로 같이 적는다 — 색을 잘 못 가리는 사람에게
+ *  색칠한 이름은 그냥 검은 이름이다. (코트 안의 ● / ✕ 를 모양으로도 가른 것과 같다.) */
+function 팀딱지(x, 글줄y, ti, 이름) {
+  const w = 딱지폭(이름);
+  return 사각(x, 글줄y - 14, w, 20, C.team[ti], 4)
+    + T(x + w / 2, 글줄y, 이름, { size: 12, weight: 800, fill: "#ffffff", anchor: "middle" });
+}
+
+/** 팀을 주면 제목을 팀 색으로 쓴다. 팀 = { ti, 이름 } | null.
+ *  이름까지 주면(선수 차트) 제목 앞에 팀 딱지도 단다. 팀 차트는 제목이 곧 팀 이름이라
+ *  딱지를 달면 "A팀 A팀" 이 되므로 이름을 안 준다. */
+function 차트칸(x, y, w, shots, 제목, 오른쪽, 팀 = null) {
   const 코트높이 = (w * CHART_VIEW.h) / CHART_VIEW.w;
   const z = 구역집계(shots);
   const 요약 = 구역들.filter((k) => z[k].a > 0)
     .map((k) => `${k} ${z[k].m}/${z[k].a}`).join("  ") || "슛 없음";
+  const 딱지 = 팀?.이름 ? 딱지폭(팀.이름) + 6 : 0;
   return {
-    svg: T(x, y + 18, 제목, { size: 16, weight: 800 })
+    svg: (팀?.이름 ? 팀딱지(x, y + 18, 팀.ti, 팀.이름) : "")
+      + T(x + 딱지, y + 18, 제목, { size: 16, weight: 800, fill: 팀 ? C.team[팀.ti] : C.ink })
       + (오른쪽 ? T(x + w, y + 18, 오른쪽, { size: 14, weight: 700, fill: C.ink2, anchor: "end" }) : "")
       + `<g transform="translate(${x} ${y + 칸제목 - (CHART_VIEW.y * w) / CHART_VIEW.w}) scale(${w / CHART_VIEW.w})">`
       + 차트속(shots, COURT) + `</g>`
@@ -142,8 +160,8 @@ function 차트칸(x, y, w, shots, 제목, 오른쪽) {
  *  엑셀 시트 안의 그림은 셀 서식도 테마도 못 따른다. 그래서 화면용 var(--…) 가
  *  아니라 여기 고정 팔레트로 그리고, 제목과 자리별 요약까지 그림 안에 넣는다 —
  *  그림만 떼어 봐도 누구 것인지 알 수 있어야 한다. */
-export function 차트한장SVG(shots, 제목, 오른쪽, w = 460) {
-  const c = 차트칸(0, 0, w, shots, 제목, 오른쪽);
+export function 차트한장SVG(shots, 제목, 오른쪽, w = 460, 팀 = null) {
+  const c = 차트칸(0, 0, w, shots, 제목, 오른쪽, 팀);
   const h = Math.ceil(c.높이);
   return {
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`
@@ -221,7 +239,7 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
   [0, 1].forEach((ti) => {
     const shots = 슛모음([game], null, ti);
     const c = 차트칸(PAD + ti * (팀w + 20), y, 팀w, shots,
-      이름[ti], `${shots.filter((s) => s.made).length}/${shots.length}`);
+      이름[ti], `${shots.filter((s) => s.made).length}/${shots.length}`, { ti, 이름: null });
     out.push(c.svg);
     팀높이 = c.높이;
   });
@@ -238,7 +256,8 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
     const x = PAD + (i % 열) * (칸w + 16);
     const shots = 슛모음(경기들, r.name);
     const c = 차트칸(x, y + 줄 * (칸제목 + (칸w * CHART_VIEW.h) / CHART_VIEW.w + 칸밑 + 12),
-      칸w, shots, r.name, `${shots.filter((s) => s.made).length}/${shots.length}`);
+      칸w, shots, r.name, `${shots.filter((s) => s.made).length}/${shots.length}`,
+      { ti: r.team, 이름: 이름[r.team] });
     out.push(c.svg);
   });
   const 줄수 = Math.ceil(사람들.length / 열);

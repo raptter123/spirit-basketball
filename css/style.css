@@ -4061,17 +4061,16 @@ body {
 }
 .rec-rbtn.made { background: #16a34a; }
 .rec-rbtn.miss { background: #b91c1c; }
-/* 공수를 자동으로 못 가른 리바운드를 물을 때만 성공/실패 자리를 빌려 쓴다.
-   성공(초록)·실패(빨강)과 헷갈리면 안 되므로 색을 아예 다른 계열로 둔다. */
-.rec-rbtn.reb-o { background: #7c3aed; }
-.rec-rbtn.reb-d { background: #0369a1; }
 .rec-rbtn:disabled { opacity: .32; cursor: default; }
 
-.rec-events { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 6px; }
+/* 아홉 개를 다섯 열 두 줄로 놓는다. 네 열이면 세 줄이 되는데, 기록 화면은
+   390×844 에 꽉 차 있어 한 줄을 더 얹을 자리가 없다. 다섯 열이면 한 칸이
+   좁아지지만 높이는 그대로다 — 좁아진 만큼은 글씨를 한 단 줄여 받는다. */
+.rec-events { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 6px; }
 .rec-ebtn {
-  min-height: 46px; border-radius: 9px;
+  min-height: 46px; border-radius: 9px; padding: 2px;
   border: 1px solid var(--accent-line); background: var(--surface);
-  color: var(--text); font-size: var(--fs-sm); font-weight: 700; cursor: pointer;
+  color: var(--text); font-size: var(--fs-xs); font-weight: 700; cursor: pointer;
 }
 .rec-ebtn.is-armed { border-color: #facc15; background: rgba(250, 204, 21, .16); }
 
