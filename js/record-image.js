@@ -139,11 +139,22 @@ function 팀딱지(x, 글줄y, ti, 이름) {
     + T(x + w / 2, 글줄y, 이름, { size: 12, weight: 800, fill: "#ffffff", anchor: "middle" });
 }
 
+/** 잘라내기 이름표. 한 그림 안에서 겹치면 안 되므로 번호를 올려 가며 붙인다. */
+let 칸번호 = 0;
+
 /** 팀을 주면 제목을 팀 색으로 쓴다. 팀 = { ti, 이름 } | null.
  *  이름까지 주면(선수 차트) 제목 앞에 팀 딱지도 단다. 팀 차트는 제목이 곧 팀 이름이라
- *  딱지를 달면 "A팀 A팀" 이 되므로 이름을 안 준다. */
+ *  딱지를 달면 "A팀 A팀" 이 되므로 이름을 안 준다.
+ *
+ *  코트는 반드시 <clipPath> 로 잘라 얹는다. 코트선() 은 진짜 반코트(y=10~460)를
+ *  그리는데 우리가 쓰는 자리는 y=135 부터라, 자르지 않으면 위로 125단위가 그대로
+ *  삐져나와 윗줄을 덮는다. 화면(js/record.js)은 <svg viewBox> 가 알아서 잘라
+ *  주지만 여기는 큰 그림 하나 안의 <g> 라 자르는 것이 없다. */
 function 차트칸(x, y, w, shots, 제목, 오른쪽, 팀 = null) {
-  const 코트높이 = (w * CHART_VIEW.h) / CHART_VIEW.w;
+  const 배율 = w / CHART_VIEW.w;
+  const 코트높이 = CHART_VIEW.h * 배율;
+  const 코트y = y + 칸제목;
+  const 이름표 = `court-cut-${++칸번호}`;
   const z = 구역집계(shots);
   const 요약 = 구역들.filter((k) => z[k].a > 0)
     .map((k) => `${k} ${z[k].m}/${z[k].a}`).join("  ") || "슛 없음";
@@ -152,9 +163,13 @@ function 차트칸(x, y, w, shots, 제목, 오른쪽, 팀 = null) {
     svg: (팀?.이름 ? 팀딱지(x, y + 18, 팀.ti, 팀.이름) : "")
       + T(x + 딱지, y + 18, 제목, { size: 16, weight: 800, fill: 팀 ? C.team[팀.ti] : C.ink })
       + (오른쪽 ? T(x + w, y + 18, 오른쪽, { size: 14, weight: 700, fill: C.ink2, anchor: "end" }) : "")
-      + `<g transform="translate(${x} ${y + 칸제목 - (CHART_VIEW.y * w) / CHART_VIEW.w}) scale(${w / CHART_VIEW.w})">`
-      + 차트속(shots, COURT) + `</g>`
-      + T(x, y + 칸제목 + 코트높이 + 16, 요약, { size: 13, weight: 700, fill: C.ink2 }),
+      + `<clipPath id="${이름표}">`
+      + `<rect x="${x}" y="${코트y}" width="${w}" height="${코트높이}" />`
+      + `</clipPath>`
+      + `<g clip-path="url(#${이름표})">`
+      + `<g transform="translate(${x - CHART_VIEW.x * 배율} ${코트y - CHART_VIEW.y * 배율}) scale(${배율})">`
+      + 차트속(shots, COURT) + `</g></g>`
+      + T(x, 코트y + 코트높이 + 16, 요약, { size: 13, weight: 700, fill: C.ink2 }),
     높이: 칸제목 + 코트높이 + 칸밑,
   };
 }
