@@ -32,7 +32,15 @@ import {
 import { CHART_VIEW, 차트속, 구역말 } from "./record-chart.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
-const COURT_VIEW = "0 185 500 285";
+//
+// 위를 y=185 에서 135 로 올렸다. 3점 아크 꼭대기가 y=185.8(골대 442.8 − 반지름 257)
+// 이라 전에는 아크 밖이 화면에 한 줄도 없었다 — 탑에서 쏜 3점을 찍을 자리가 아예
+// 없어서 가운데 슛은 전부 2점으로 들어갔다. 지금은 아크 위로 50.8 단위(약 1.3m)가
+// 남아 뒤로 물러선 3점도 찍힌다.
+//
+// 아래 CHART_VIEW(js/record-chart.js)와 같은 값이어야 한다. 차트가 더 좁으면
+// 여기서 찍은 위쪽 슛이 그림에서 잘려 나간다.
+const COURT_VIEW = "0 135 500 325";
 // 골대와 3점 라인. courtMarkingsSVG 의 좌표와 같은 값이다 —
 // 아크 "M 30 310 A 257 257" 의 중심을 풀면 (250, 442.8) 로 골대와 같은 자리다.
 const RIM = { x: 250, y: 442 };
@@ -578,7 +586,9 @@ export function mountRecord(container) {
 
         <div class="rec-court">
           <svg viewBox="${COURT_VIEW}" id="rec-court-svg">
-            <rect class="court-boundary" x="10" y="185" width="480" height="275" rx="14" />
+            <!-- 외곽선은 전술 탭과 같은 진짜 반코트(10,10 ~ 490,460). 위쪽은 viewBox 가
+                 잘라 내므로, 잘린 자리에 가짜 선을 긋지 않는다. -->
+            <rect class="court-boundary" x="10" y="10" width="480" height="450" rx="18" />
             <rect class="paint-fill" x="170" y="270" width="160" height="190" />
             <rect class="court-line" x="170" y="270" width="160" height="190" fill="none" />
             <circle class="court-line" cx="250" cy="270" r="60" />
@@ -590,7 +600,10 @@ export function mountRecord(container) {
             <circle class="rim" cx="250" cy="442" r="9" />
             ${shotsSVG()}
             ${pending ? `<circle class="rec-shot-live" cx="${pending.x}" cy="${pending.y}" r="11" />
-              <text class="rec-zone" x="${Math.min(Math.max(pending.x, 60), 440)}" y="${pending.y - 24}">${pending.pts}점</text>` : ""}
+              <text class="rec-zone" x="${Math.min(Math.max(pending.x, 60), 440)}" y="${
+                // 점 위에 적되, 코트 위쪽 끝(y=135)에 가까우면 아래로 내려 적는다.
+                // 탑 3점을 찍으면 위로 24 올라간 글씨가 화면 밖으로 잘려 나갔다.
+                pending.y - 24 < 160 ? pending.y + 36 : pending.y - 24}">${pending.pts}점</text>` : ""}
           </svg>
           <div class="rec-tip">${안내글()}</div>
         </div>
@@ -652,7 +665,9 @@ export function mountRecord(container) {
     const [vx, vy, vw, vh] = COURT_VIEW.split(" ").map(Number);
     const x = vx + ((ev.clientX - r.left) / r.width) * vw;
     const y = vy + ((ev.clientY - r.top) / r.height) * vh;
-    return { x: Math.round(Math.min(Math.max(x, 14), 486)), y: Math.round(Math.min(Math.max(y, 190), 456)) };
+    // 가장자리에 살짝 걸친 탭도 코트 안으로 당겨 준다. 위쪽 한계는 COURT_VIEW 를
+    // 따라간다 — 보이는데 못 찍는 자리가 있으면 그게 곧 사라지는 기록이다.
+    return { x: Math.round(Math.min(Math.max(x, 14), 486)), y: Math.round(Math.min(Math.max(y, 138), 456)) };
   }
 
   function 이벤트추가(ev) {
@@ -706,10 +721,15 @@ export function mountRecord(container) {
         const key = el.dataset.spot;
         rebAsk = false;   // 다른 걸 찍으려는 것이니 묻던 것은 접는다
 
+        // 코트를 눌러 둔 자리는 버린다. 슛이 아니라 다른 것을 적으려는 것이므로,
+        // 들고 있어 봐야 코트에 표시만 남고 다음 누름을 막는다.
+        // (여기를 안 지우면 "코트를 눌러 둔 채 선수 → 어시" 가 아무 일도 안 한다.
+        //  자리만 지우는 것이라 사라지는 기록은 없다 — 아직 아무것도 안 들어갔다.)
+        pending = null;
+
         // 선수를 먼저 누른 뒤 이벤트를 누르는 순서도 받는다. 전에는 이쪽 순서면
         // 기록이 안 되고 선수를 또 누르라고 떴다 — 손이 가는 대로 눌러도 되어야 한다.
-        // 코트를 눌러 둔 상태(pending)는 슛을 기다리는 중이므로 건드리지 않는다.
-        if (armed && !pending) {
+        if (armed) {
           if (key === "reb") { rebAsk = true; spot = null; renderLive(); return; }
           이벤트추가({ type: key, team: armed.team, player: armed.player });
           armed = null;
@@ -735,8 +755,9 @@ export function mountRecord(container) {
       if (!el) continue;
       el.addEventListener("click", () => {
         rebAsk = false;
+        pending = null;
         // 선수를 이미 골라 뒀으면 한 번에 끝난다.
-        if (armed && !pending) {
+        if (armed) {
           이벤트추가({ type: kind, team: armed.team, player: armed.player });
           armed = null;
           spot = null;

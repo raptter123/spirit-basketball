@@ -4007,9 +4007,13 @@ body {
   font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap;
 }
 
+/* 코트는 화면 끝까지 쓴다. main 의 좌우 여백 24px 을 음수 여백으로 되받아
+   342px 이던 것을 382px 로 넓힌다 — 찍을 자리가 넓어야 잘못 찍는 일이 준다.
+   여백보다 4px 덜 당겨서 화면에 딱 붙지는 않게 남겨 둔다. */
 .rec-court {
   position: relative; background: var(--surface);
   border-radius: 10px; padding: 4px; margin-bottom: 6px;
+  margin-inline: -20px;
 }
 .rec-court svg { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: crosshair; }
 /* 코트 선 위에 글씨만 얹으면 읽히지 않는다. 바탕을 깐 칩으로 띄운다. */
@@ -4360,3 +4364,16 @@ body.rec-focus main { padding-top: 8px; padding-bottom: 8px; }
   font-size: var(--fs-sm); font-weight: 800; color: var(--text-muted); cursor: pointer;
 }
 .rec-band-more > .btn { width: 100%; margin-top: 4px; }
+
+/* 옛 판을 들고 있을 때 뜨는 띠. index.html 은 캐시 무효화를 못 걸어서
+   폰이 옛 판을 계속 쓸 수 있다(js/app.js 의 checkStaleVersion 주석 참고).
+   화면 맨 아래에 붙여 둔다 — 기록 중이면 위쪽은 코트와 버튼이 다 차지한다. */
+.app-stale {
+  position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 60;
+  display: grid; gap: 2px; min-height: 52px; padding: 8px 14px;
+  border: none; border-radius: 12px; cursor: pointer; text-align: left;
+  background: var(--accent-btn); color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  font-size: var(--fs-sm); font-weight: 800;
+}
+.app-stale span { font-size: var(--fs-xs); font-weight: 700; opacity: .85; }
