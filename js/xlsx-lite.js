@@ -560,14 +560,17 @@ export async function saveWorkbook(wb) {
 //
 // 그림은 왜 넣을 수 있나
 //   xlsx 는 결국 zip 이고, 그림은 그 안의 xl/media/imageN.png 한 칸이다. 시트가
-//   그림을 가리키려면 그리기 부품(xl/drawings/…)이 한 겹 끼어야 한다. 셀에 매다는
-//   대신 absoluteAnchor 로 시트 왼쪽 위에서 몇 EMU 떨어진 자리인지 직접 적는다 —
-//   열 너비가 달라져도 그림이 안 밀린다. 대신 줄 높이는 ROW_PT 로 못박아, 부르는
-//   쪽이 "표 아래" 가 몇 px 인지 셀 수 있게 한다.
+//   그림을 가리키려면 그리기 부품(xl/drawings/…)이 한 겹 끼어야 한다.
+//
+//   닻은 oneCellAnchor 를 쓴다 — "왼쪽 위 모서리는 이 셀, 크기는 고정" 이라는 뜻이다.
+//   처음에는 absoluteAnchor(시트 왼쪽 위에서 몇 EMU)로 넣었다가 되돌렸다.
+//   그쪽은 규격에는 있지만 실제로 쓰는 곳이 거의 없어서, 데스크톱 엑셀 말고
+//   휴대폰 엑셀 같은 데서는 그림이 아예 안 그려질 수 있다. oneCellAnchor 는
+//   openpyxl 이 기본으로 내보내는 방식이라 어디서나 열린다.
+//   덕분에 자리를 셀 번호로만 적으면 되고, 줄 높이 계산에 기대지 않는다.
 
 const PCT_NUMFMT = 164;                       // "0.0%" — 아래 styles.xml 에서 정의한다
-export const ROW_PT = 18;                     // 모든 줄 높이(pt)
-export const ROW_PX = (ROW_PT * 96) / 72;     // = 24px. 그림 자리를 잴 때 쓴다
+export const ROW_PT = 18;                     // 모든 줄 높이(pt). 보기 좋으라고 맞춘 값이다
 const EMU_PER_PX = 9525;                      // 1px = 9525 EMU (96dpi 기준)
 
 // styles.xml 의 cellXfs 번호. 아래 STYLES 문자열에 적은 순서와 같아야 한다.
@@ -722,23 +725,25 @@ function sheetXml(sheet, drawingRel) {
     `<sheetFormatPr defaultRowHeight="${ROW_PT}"/>` +
     (cols ? `<cols>${cols}</cols>` : "") +
     `<sheetData>${body.join("")}</sheetData>` +
-    (rows.length > 1 ? `<autoFilter ref="A1:${lastCol}${rows.length}"/>` : "") +
+    (sheet.필터 !== false && rows.length > 1 ? `<autoFilter ref="A1:${lastCol}${rows.length}"/>` : "") +
     (drawingRel ? `<drawing r:id="${drawingRel}"/>` : "") +
     `</worksheet>`;
 }
 
-/** 그림 한 장을 시트 왼쪽 위에서 (x, y) px 자리에 w × h px 로 놓는 닻.
- *  absoluteAnchor 라서 열 너비·줄 높이가 달라져도 자리가 안 움직인다. */
-function 그림닻(i, relId, { x, y, w, h }) {
+/** 그림 한 장의 닻. 왼쪽 위 모서리를 (col, row) 셀에 붙이고, 크기는 px 로 고정한다.
+ *  크기가 고정이라 열 너비가 달라져도 그림이 찌그러지지 않는다. */
+function 그림닻(i, relId, { col = 0, row = 0, w, h }) {
   const emu = (px) => Math.round(px * EMU_PER_PX);
-  return `<xdr:absoluteAnchor>` +
-    `<xdr:pos x="${emu(x)}" y="${emu(y)}"/><xdr:ext cx="${emu(w)}" cy="${emu(h)}"/>` +
+  return `<xdr:oneCellAnchor>` +
+    `<xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff>` +
+    `<xdr:row>${row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>` +
+    `<xdr:ext cx="${emu(w)}" cy="${emu(h)}"/>` +
     `<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 2}" name="Chart ${i + 1}"/>` +
     `<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>` +
     `<xdr:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
     `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm>` +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>` +
-    `<xdr:clientData/></xdr:absoluteAnchor>`;
+    `<xdr:clientData/></xdr:oneCellAnchor>`;
 }
 
 /** 시트 하나짜리 통합 문서. 시트를 여럿 넣으려면 createWorkbookSheets 를 쓴다. */
@@ -749,12 +754,13 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
 /** 시트 여러 장짜리 통합 문서.
  *  합계와 원본을 한 파일에 담으려고 나눠 두었다 — 파일이 여러 개면 짝이 흩어진다.
  *
- *  sheets 는 [{ name, rows, percentCols, 강조행, 팀열, 꼬리말, pics }, …]
+ *  sheets 는 [{ name, rows, percentCols, 강조행, 팀열, 꼬리말, 필터, pics }, …]
  *    percentCols  0.0% 서식을 입힐 열 번호. 값은 분수로 넣어야 한다
  *    강조행       굵게·바탕색으로 띄울 줄 번호(0 = 머리글이므로 1부터)
  *    팀열         { col, 이름: [앞팀, 뒤팀] } — 그 칸을 팀 색으로 쓴다
  *    꼬리말       표 아래 한 칸 띄고 붙일 안내 문구들
- *    pics         [{ bytes, x, y, w, h }] — png 바이트와 px 자리 */
+ *    필터         false 면 자동 필터를 안 건다(표가 아닌 시트)
+ *    pics         [{ bytes, col, row, w, h }] — png 바이트, 왼쪽 위 셀, 보일 크기(px) */
 export async function createWorkbookSheets(sheets) {
   if (!zipSupported()) {
     throw new Error("이 브라우저는 엑셀 파일 만들기를 지원하지 않습니다. 크롬이나 최신 사파리에서 열어주세요.");

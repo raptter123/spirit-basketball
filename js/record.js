@@ -50,7 +50,11 @@ export function zoneOf(x, y) {
 // 선수에게 붙는 이벤트. 코트를 안 눌러도 바로 찍을 수 있는 것들이다.
 const SPOT_EVENTS = [
   { key: "ast", label: "어시" },
-  { key: "reb", label: "리바" },
+  // 공격·수비를 따로 둔다. 한 번은 규칙으로 자동으로 갈라 봤지만(직전 빗나간 슛이
+  // 누구 것인지로), 기록자가 슛을 놓치면 물음이 뜨고 그동안 다른 걸 못 찍어서
+  // 오히려 느려졌다. 두 번 누르던 것이 세 번이 되기도 했다. 버튼 둘이 제일 빠르다.
+  { key: "rebO", label: "공격리바" },
+  { key: "rebD", label: "수비리바" },
   { key: "stl", label: "스틸" },
   { key: "blk", label: "블락" },
   { key: "to", label: "턴오버" },
@@ -65,22 +69,17 @@ const EVENT_LABEL = {
   rebO: "공격 리바운드", rebD: "수비 리바운드",
 };
 
-/** 공격 리바운드는 "슛을 쏜 팀이 잡은 것", 수비 리바운드는 "상대가 잡은 것"이다.
- *  어느 쪽인지는 사람이 판단할 일이 아니라 규칙상 정해져 있다 — 직전에 빗나간 슛이
- *  누구 것인지만 알면 갈린다. 그래서 버튼을 둘로 늘리지 않고 여기서 자동으로 가른다.
- *  (버튼을 늘리면 4열 두 줄이 세 줄이 되는데, 기록 화면은 390×844 에 꽉 차 있어
- *  늘릴 자리가 없다.)
+/** 직전에 빗나간 슛을 쏜 팀. 그 팀이 잡으면 공격 리바운드, 상대가 잡으면 수비다.
+ *  고르는 것은 사람이 하고, 이 값은 안내줄에 곁들여 보여 주기만 한다 — 버튼을
+ *  잘못 눌렀을 때 바로 알아채라고 두는 것이지 대신 정해 주는 것이 아니다.
  *
- *  돌아오는 값
- *    "rebO" | "rebD"  — 직전 빗나간 슛으로 갈렸다
- *    null             — 가를 수 없다. 기록자가 슛을 놓쳤거나, 직전 슛이 들어갔다.
- *                       이때는 화면이 공격/수비를 묻는다. */
-export function 리바구분(events, team) {
+ *  null 이면 알 수 없다 — 직전 슛이 들어갔거나, 기록자가 슛을 놓쳤다. */
+export function 직전슛팀(events) {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
-    if (e.type === "shot") return e.made ? null : (e.team === team ? "rebO" : "rebD");
+    if (e.type === "shot") return e.made ? null : e.team;
     if (e.type === "ftm") return null;
-    if (e.type === "fta") return e.team === team ? "rebO" : "rebD";
+    if (e.type === "fta") return e.team;
   }
   return null;
 }
@@ -224,7 +223,6 @@ export function mountRecord(container) {
   let armed = null;     // { team, player } | null  (선수를 먼저 눌렀을 때)
   let spot = null;      // SPOT_EVENTS 의 key — 다음에 누르는 선수에게 붙는다
   let subIn = null;     // { team, name } | null   — 교체로 들어올 사람
-  let rebAsk = null;    // { team, player } | null — 공수를 자동으로 못 가른 리바운드
   let screen = game ? "live" : "setup";
 
   function save() {
@@ -424,16 +422,11 @@ export function mountRecord(container) {
 
   function 안내글() {
     if (subIn) return `${subIn.name} 넣기 — 누가 나가?`;
-    if (rebAsk) return `${rebAsk.player} 리바운드 — 공격이야 수비야?`;
-    if (spot === "reb") {
-      // 직전에 빗나간 슛이 누구 것인지에 따라 같은 자리에서 공수가 갈린다.
-      // 누르기 전에 미리 알려 주면, 잘못 눌렀을 때 바로 알아챌 수 있다.
-      const 미리 = [0, 1].map((t) => 리바구분(game.events, t));
-      if (미리[0] && 미리[0] !== 미리[1]) {
-        const 공격팀 = 미리[0] === "rebO" ? 0 : 1;
-        return `리바운드 — 누구? (${game.teams[공격팀].name}이면 공격)`;
-      }
-      return "리바운드 — 누구?";
+    if (spot === "rebO" || spot === "rebD") {
+      // 직전에 빗나간 슛이 누구 것인지 곁들여 준다. 버튼을 잘못 골랐으면 여기서 보인다.
+      const 쏜팀 = 직전슛팀(game.events);
+      const 곁 = 쏜팀 == null ? "" : ` (직전 슛은 ${game.teams[쏜팀].name})`;
+      return `${EVENT_LABEL[spot]} — 누구?${곁}`;
     }
     if (spot) return `${EVENT_LABEL[spot]} — 누구?`;
     if (pending && armed) return "들어갔어?";
@@ -520,13 +513,8 @@ export function mountRecord(container) {
             </details>` : ""}
 
           <div class="rec-act">
-            ${rebAsk
-              // 자동으로 못 가른 리바운드만 여기서 묻는다. 자리를 새로 만들지 않고
-              // 성공/실패 줄을 잠깐 빌려 쓴다 — 그때는 슛을 기다리는 중이 아니다.
-              ? `<button type="button" class="rec-rbtn reb-o" id="rec-reb-o">↑ 공격 리바</button>
-                 <button type="button" class="rec-rbtn reb-d" id="rec-reb-d">↓ 수비 리바</button>`
-              : `<button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
-                 <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>`}
+            <button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
+            <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>
           </div>
 
           <div class="rec-events">
@@ -569,9 +557,6 @@ export function mountRecord(container) {
       const { x, y } = 코트좌표(svg, e);
       pending = { x, y, pts: zoneOf(x, y) };
       spot = null;
-      // 공수를 묻는 중에 코트를 누르면 그 물음은 접는다. 경기는 계속 굴러가는데
-      // 대답하기 전까지 아무것도 못 찍으면, 묻는 창이 곧 놓친 기록이 된다.
-      rebAsk = null;
       renderLive();
     });
 
@@ -585,20 +570,6 @@ export function mountRecord(container) {
           t.onCourt = t.onCourt.map((n) => (n === player ? subIn.name : n));
           이벤트추가({ type: "sub", team, player: subIn.name, out: player });
           subIn = null;
-          renderLive();
-          return;
-        }
-        if (rebAsk) return;   // 공격/수비를 고르는 중에는 선수를 바꾸지 않는다
-        if (spot === "reb") {
-          const 구분 = 리바구분(game.events, team);
-          if (구분) {
-            이벤트추가({ type: 구분, team, player });
-          } else {
-            // 가를 근거가 없으면 지어내지 않고 사람에게 묻는다.
-            rebAsk = { team, player };
-          }
-          spot = null;
-          armed = null;
           renderLive();
           return;
         }
@@ -617,7 +588,6 @@ export function mountRecord(container) {
     for (const el of container.querySelectorAll("[data-spot]")) {
       el.addEventListener("click", () => {
         spot = spot === el.dataset.spot ? null : el.dataset.spot;
-        rebAsk = null;   // 다른 걸 찍으려는 것이니 묻던 것은 접는다
         renderLive();
       });
     }
@@ -630,23 +600,13 @@ export function mountRecord(container) {
       armed = null;
       renderLive();
     };
-    const 리바기록 = (type) => {
-      if (!rebAsk) return;
-      이벤트추가({ type, team: rebAsk.team, player: rebAsk.player });
-      rebAsk = null;
-      renderLive();
-    };
-    const 짝 = [["#rec-made", () => 슛기록(true)], ["#rec-miss", () => 슛기록(false)],
-      ["#rec-reb-o", () => 리바기록("rebO")], ["#rec-reb-d", () => 리바기록("rebD")]];
+    const 짝 = [["#rec-made", () => 슛기록(true)], ["#rec-miss", () => 슛기록(false)]];
     for (const [sel, fn] of 짝) {
       const el = container.querySelector(sel);
       if (el) el.addEventListener("click", fn);
     }
 
     container.querySelector("#rec-undo").addEventListener("click", () => {
-      // 공수를 묻는 중이면 아직 아무것도 안 들어갔다. 묻던 것만 접는다 —
-      // 여기서 이벤트를 지우면 엉뚱하게 그 앞 기록이 날아간다.
-      if (rebAsk) { rebAsk = null; renderLive(); return; }
       const 지운것 = game.events.pop();
       // 진행 이벤트는 화면 상태까지 같이 되돌려야 한다. 줄만 지우면
       // 쿼터와 코트 위 명단이 취소한 뒤의 값으로 남는다.
@@ -657,7 +617,7 @@ export function mountRecord(container) {
         if (지운것.out) t.onCourt = t.onCourt.map((n) => (n === 지운것.player ? 지운것.out : n));
         else t.onCourt = t.onCourt.filter((n) => n !== 지운것.player);
       }
-      pending = null; armed = null; spot = null; subIn = null; rebAsk = null;
+      pending = null; armed = null; spot = null; subIn = null;
       save();
       renderLive();
     });
@@ -668,7 +628,7 @@ export function mountRecord(container) {
       // 잘못 눌렀으면 되돌리기로 취소한다.
       이벤트추가({ type: "quarter", from: game.q, to: game.q + 1 });
       game.q += 1;
-      pending = null; armed = null; spot = null; subIn = null; rebAsk = null;
+      pending = null; armed = null; spot = null; subIn = null;
       save();
       renderLive();
     });
