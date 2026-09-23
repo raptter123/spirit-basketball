@@ -39,7 +39,24 @@ const RIM = { x: 250, y: 442 };
 const THREE_R = 257;
 const CORNER_X = 30;
 
-export const TEAM_COLOR = ["#f97316", "#22c55e"];
+export const TEAM_COLOR = ["#f97316", "#22c55e", "#a855f7"];
+
+/** 팀 이름에서 색 번호를 뽑는다. A팀 → 0, B팀 → 1, C팀 → 2.
+ *
+ *  자리(경기 안에서 앞팀이냐 뒷팀이냐)로 색을 주면 안 된다. 3파전은 AB · BC · CA
+ *  세 경기를 도는데, B팀이 AB 경기에서는 뒷자리라 초록, BC 경기에서는 앞자리라
+ *  주황이 되어 같은 팀이 경기마다 색이 바뀐다.
+ *
+ *  이름에서 못 찾으면 자리를 그대로 쓴다 — 게스트 팀처럼 이름이 다를 수 있다. */
+export function 팀색번호(이름, 자리 = 0) {
+  const i = TEAM_NAME.indexOf(String(이름 || ""));
+  return i >= 0 ? i : 자리;
+}
+
+/** 경기 안 자리(0/1) → 색 번호. 부르는 쪽이 이름을 꺼내지 않아도 되게 감싼다. */
+export function 팀색자리(game, 자리) {
+  return 팀색번호(game?.teams?.[자리]?.name, 자리);
+}
 
 /** 탭한 자리가 2점인가 3점인가. 코너는 아크가 아니라 직선이라 따로 본다. */
 export function zoneOf(x, y) {
@@ -50,11 +67,11 @@ export function zoneOf(x, y) {
 // 선수에게 붙는 이벤트. 코트를 안 눌러도 바로 찍을 수 있는 것들이다.
 const SPOT_EVENTS = [
   { key: "ast", label: "어시" },
-  // 공격·수비를 따로 둔다. 한 번은 규칙으로 자동으로 갈라 봤지만(직전 빗나간 슛이
-  // 누구 것인지로), 기록자가 슛을 놓치면 물음이 뜨고 그동안 다른 걸 못 찍어서
-  // 오히려 느려졌다. 두 번 누르던 것이 세 번이 되기도 했다. 버튼 둘이 제일 빠르다.
-  { key: "rebO", label: "공격리바" },
-  { key: "rebD", label: "수비리바" },
+  // 리바는 누르면 공격이냐 수비냐를 먼저 묻는다(아래 rebAsk). 규칙으로 자동으로
+  // 가르는 방식도, 공격리바·수비리바 버튼을 따로 두는 방식도 써 봤지만 둘 다
+  // 물렀다 — 자동은 틀려도 고칠 길이 없었고, 버튼 둘은 기타 이벤트 줄이 다섯 열로
+  // 좁아졌다. 언제나 사람이 고르고, 칸은 하나만 쓴다.
+  { key: "reb", label: "리바" },
   { key: "stl", label: "스틸" },
   { key: "blk", label: "블락" },
   { key: "to", label: "턴오버" },
@@ -248,6 +265,8 @@ export function mountRecord(container) {
   let armed = null;     // { team, player } | null  (선수를 먼저 눌렀을 때)
   let spot = null;      // SPOT_EVENTS 의 key — 다음에 누르는 선수에게 붙는다
   let subIn = null;     // { team, name } | null   — 교체로 들어올 사람
+  // 리바를 누른 뒤 공격/수비를 고르기 전까지 true. 고르면 spot 이 rebO/rebD 가 된다.
+  let rebAsk = false;
   let screen = game ? "live" : "setup";
 
   function save() {
@@ -260,7 +279,7 @@ export function mountRecord(container) {
     if (!session || i < 0 || i >= session.games.length || i === session.at) return;
     session.at = i;
     game = session.games[i];
-    pending = null; armed = null; spot = null; subIn = null;
+    pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
     save();
     render();
   }
@@ -287,7 +306,7 @@ export function mountRecord(container) {
         <div class="rec-arch-mid">
           <div class="rec-arch-score">
             ${[0, 1].map((i) => `
-              <span class="rec-arch-side${s.이긴팀 === i ? " win" : ""}" data-t="${i}">
+              <span class="rec-arch-side${s.이긴팀 === i ? " win" : ""}" data-t="${팀색번호(s.이름[i], i)}">
                 <span class="nm">${esc(s.이름[i])}</span><b>${s.점수[i]}</b>
               </span>`).join(`<span class="rec-arch-colon">:</span>`)}
           </div>
@@ -316,7 +335,7 @@ export function mountRecord(container) {
           ? `<div class="rec-from-draft">
                <b>방금 짠 팀이 있어요</b>
                <div class="rec-draft-teams">${fromDraft.teams.map((t, i) =>
-                 `<span class="rec-draft-team" data-t="${i}">${esc(t.name)} ${t.players.length}명</span>`).join("")}</div>
+                 `<span class="rec-draft-team" data-t="${팀색번호(t.name, i)}">${esc(t.name)} ${t.players.length}명</span>`).join("")}</div>
                <button type="button" class="btn btn-primary" id="rec-use-draft">이 팀으로 시작</button>
              </div>`
           : `<p class="hint rec-nodraft">팀 편성 화면에서 팀을 먼저 짜면 여기로 바로 넘어옵니다.</p>`}
@@ -356,7 +375,7 @@ export function mountRecord(container) {
     let next = 0;
     const 다시그리기 = () => {
       container.querySelector("#rec-pick-teams").innerHTML = picked.map((list, i) => `
-        <div class="rec-pick-col" data-t="${i}">
+        <div class="rec-pick-col" data-t="${팀색번호(TEAM_NAME[i], i)}">
           <b>${TEAM_NAME[i]}</b>
           <div class="rec-pick-list" data-team="${i}">${
             list.map((n) => `<button type="button" class="rec-picked" data-drop="${esc(n)}">${esc(n)} ✕</button>`).join("")
@@ -482,19 +501,18 @@ export function mountRecord(container) {
   function shotsSVG() {
     return game.events.filter((e) => e.type === "shot").map((e) =>
       e.made
-        ? `<circle class="rec-shot-made" cx="${e.x}" cy="${e.y}" r="7" data-t="${e.team}" />`
-        : `<path class="rec-shot-miss" d="M ${e.x - 6} ${e.y - 6} L ${e.x + 6} ${e.y + 6} M ${e.x + 6} ${e.y - 6} L ${e.x - 6} ${e.y + 6}" data-t="${e.team}" />`
+        ? `<circle class="rec-shot-made" cx="${e.x}" cy="${e.y}" r="7" data-t="${팀색자리(game, e.team)}" />`
+        : `<path class="rec-shot-miss" d="M ${e.x - 6} ${e.y - 6} L ${e.x + 6} ${e.y + 6} M ${e.x + 6} ${e.y - 6} L ${e.x - 6} ${e.y + 6}" data-t="${팀색자리(game, e.team)}" />`
     ).join("");
   }
 
   function 안내글() {
     if (subIn) return `${subIn.name} 넣기 — 누가 나가?`;
-    if (spot === "rebO" || spot === "rebD") {
-      // 직전에 빗나간 슛이 누구 것인지 곁들여 준다. 버튼을 잘못 골랐으면 여기서 보인다.
-      const 쏜팀 = 직전슛팀(game.events);
-      const 곁 = 쏜팀 == null ? "" : ` (직전 슛은 ${game.teams[쏜팀].name})`;
-      return `${EVENT_LABEL[spot]} — 누구?${곁}`;
-    }
+    // 직전에 빗나간 슛이 누구 것인지 곁들여 준다. 잘못 골랐으면 여기서 보인다.
+    const 쏜팀 = 직전슛팀(game.events);
+    const 곁 = 쏜팀 == null ? "" : ` (직전 슛은 ${game.teams[쏜팀].name})`;
+    if (rebAsk) return `리바운드 — 공격이야 수비야?${곁}`;
+    if (spot === "rebO" || spot === "rebD") return `${EVENT_LABEL[spot]} — 누구?${곁}`;
     if (spot) return `${EVENT_LABEL[spot]} — 누구?`;
     if (pending && armed) return "들어갔어?";
     if (pending) return `${pending.pts}점 자리 — 누가 쐈어?`;
@@ -546,10 +564,10 @@ export function mountRecord(container) {
         ${경기전환줄()}
         <div class="rec-top">
           <span class="rec-score">
-            <span data-t="0">${esc(game.teams[0].name)}</span>
-            <b data-t="0">${sa}</b><span class="rec-colon">:</span>
-            <b data-t="1">${sb}</b>
-            <span data-t="1">${esc(game.teams[1].name)}</span>
+            <span data-t="${팀색자리(game, 0)}">${esc(game.teams[0].name)}</span>
+            <b data-t="${팀색자리(game, 0)}">${sa}</b><span class="rec-colon">:</span>
+            <b data-t="${팀색자리(game, 1)}">${sb}</b>
+            <span data-t="${팀색자리(game, 1)}">${esc(game.teams[1].name)}</span>
           </span>
           <button type="button" class="rec-qbtn" id="rec-q">
             <b>${qLabel(game.q, game.quarters)}</b>
@@ -579,7 +597,7 @@ export function mountRecord(container) {
 
         <div class="rec-side">
           ${game.teams.map((t, ti) => `
-            <div class="rec-team-row" data-t="${ti}">
+            <div class="rec-team-row" data-t="${팀색자리(game, ti)}">
               <span class="rec-team-tag">${esc(t.name)}</span>
               ${onCourt[ti].map((p) => playerChip(ti, p)).join("")}
             </div>`).join("")}
@@ -589,7 +607,7 @@ export function mountRecord(container) {
               <summary>벤치 ${bench.flat().length}명 · 교체</summary>
               <div class="rec-bench-body">
                 ${game.teams.map((t, ti) => bench[ti].length ? `
-                  <div class="rec-bench-team" data-t="${ti}">
+                  <div class="rec-bench-team" data-t="${팀색자리(game, ti)}">
                     <b>${esc(t.name)}</b>
                     ${bench[ti].map((p) => `<button type="button" class="rec-sub" data-team="${ti}" data-in="${esc(p.name)}">${esc(p.name)} 넣기</button>`).join("")}
                   </div>` : "").join("")}
@@ -598,8 +616,14 @@ export function mountRecord(container) {
             </details>` : ""}
 
           <div class="rec-act">
-            <button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
-            <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>
+            ${rebAsk
+              // 자리를 새로 만들지 않고 성공/실패 줄을 잠깐 빌린다 — 공수를 고르는
+              // 동안은 슛을 기다리는 중이 아니라 그 줄이 어차피 비어 있다.
+              // 성공(초록)·실패(빨강)과 헷갈리지 않게 색을 아예 다른 계열로 둔다.
+              ? `<button type="button" class="rec-rbtn reb-o" id="rec-reb-o">↑ 공격 리바</button>
+                 <button type="button" class="rec-rbtn reb-d" id="rec-reb-d">↓ 수비 리바</button>`
+              : `<button type="button" class="rec-rbtn made" id="rec-made" ${pending && armed ? "" : "disabled"}>✓ 성공</button>
+                 <button type="button" class="rec-rbtn miss" id="rec-miss" ${pending && armed ? "" : "disabled"}>✗ 실패</button>`}
           </div>
 
           <div class="rec-events">
@@ -642,6 +666,9 @@ export function mountRecord(container) {
       const { x, y } = 코트좌표(svg, e);
       pending = { x, y, pts: zoneOf(x, y) };
       spot = null;
+      // 코트를 눌렀으면 슛을 적으려는 것이다. 공수를 묻던 것은 접는다 —
+      // 대답하기 전까지 아무것도 못 찍으면 그 물음이 곧 놓친 기록이 된다.
+      rebAsk = false;
       renderLive();
     });
 
@@ -676,7 +703,46 @@ export function mountRecord(container) {
 
     for (const el of container.querySelectorAll("[data-spot]")) {
       el.addEventListener("click", () => {
-        spot = spot === el.dataset.spot ? null : el.dataset.spot;
+        const key = el.dataset.spot;
+        rebAsk = false;   // 다른 걸 찍으려는 것이니 묻던 것은 접는다
+
+        // 선수를 먼저 누른 뒤 이벤트를 누르는 순서도 받는다. 전에는 이쪽 순서면
+        // 기록이 안 되고 선수를 또 누르라고 떴다 — 손이 가는 대로 눌러도 되어야 한다.
+        // 코트를 눌러 둔 상태(pending)는 슛을 기다리는 중이므로 건드리지 않는다.
+        if (armed && !pending) {
+          if (key === "reb") { rebAsk = true; spot = null; renderLive(); return; }
+          이벤트추가({ type: key, team: armed.team, player: armed.player });
+          armed = null;
+          spot = null;
+          renderLive();
+          return;
+        }
+        if (key === "reb") {
+          // 리바는 공수를 먼저 고른다. 다시 누르면 접는다.
+          rebAsk = !(spot === "rebO" || spot === "rebD");
+          spot = null;
+          renderLive();
+          return;
+        }
+        spot = spot === key ? null : key;
+        renderLive();
+      });
+    }
+
+    // 공격/수비를 고르면 그때부터 선수를 기다린다.
+    for (const [sel, kind] of [["#rec-reb-o", "rebO"], ["#rec-reb-d", "rebD"]]) {
+      const el = container.querySelector(sel);
+      if (!el) continue;
+      el.addEventListener("click", () => {
+        rebAsk = false;
+        // 선수를 이미 골라 뒀으면 한 번에 끝난다.
+        if (armed && !pending) {
+          이벤트추가({ type: kind, team: armed.team, player: armed.player });
+          armed = null;
+          spot = null;
+        } else {
+          spot = kind;
+        }
         renderLive();
       });
     }
@@ -706,7 +772,7 @@ export function mountRecord(container) {
         if (지운것.out) t.onCourt = t.onCourt.map((n) => (n === 지운것.player ? 지운것.out : n));
         else t.onCourt = t.onCourt.filter((n) => n !== 지운것.player);
       }
-      pending = null; armed = null; spot = null; subIn = null;
+      pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
       save();
       renderLive();
     });
@@ -717,7 +783,7 @@ export function mountRecord(container) {
       // 잘못 눌렀으면 되돌리기로 취소한다.
       이벤트추가({ type: "quarter", from: game.q, to: game.q + 1 });
       game.q += 1;
-      pending = null; armed = null; spot = null; subIn = null;
+      pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
       save();
       renderLive();
     });
@@ -762,7 +828,7 @@ export function mountRecord(container) {
       if (session.games.length) {
         session.at = Math.min(session.at, session.games.length - 1);
         game = session.games[session.at];
-        pending = null; armed = null; spot = null; subIn = null;
+        pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
         save();
       } else {
         clearRecordSession();
@@ -917,7 +983,7 @@ export function mountRecord(container) {
     const 팀카드 = (ti) => {
       const t = 팀[ti];
       return `
-        <div class="rec-adv-card" data-t="${ti}">
+        <div class="rec-adv-card" data-t="${팀색자리(game, ti)}">
           <div class="rec-adv-head">
             <span class="rec-adv-team">${esc(game.teams[ti].name)}</span>
             <span class="rec-adv-score">${[sa, sb][ti]}점 · ${t.poss.toFixed(1)}포제션</span>
@@ -958,7 +1024,7 @@ export function mountRecord(container) {
         <div id="rec-chart"></div>
 
         ${game.teams.map((t, ti) => `
-          <h3 class="rec-bs-team" data-t="${ti}">${esc(t.name)}</h3>
+          <h3 class="rec-bs-team" data-t="${팀색자리(game, ti)}">${esc(t.name)}</h3>
           <div class="table-scroll">
             <table class="rec-bs">
               <thead><tr><th>선수</th><th>득점</th><th>2점</th><th>3점</th><th>자유투</th>

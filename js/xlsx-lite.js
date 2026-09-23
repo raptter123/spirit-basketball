@@ -582,9 +582,11 @@ const XF = {
 };
 const XF_NOTE = 11;
 // 팀 이름 칸에만 쓰는 색. 줄이 많아지면 어느 팀 줄인지 눈으로 못 따라가서 넣었다.
+// 3파전이면 팀이 셋이므로 세 벌을 둔다.
 const XF_TEAM = [
   { plain: 12, zebra: 13, total: 14, head: 12 },
   { plain: 15, zebra: 16, total: 17, head: 15 },
+  { plain: 18, zebra: 19, total: 20, head: 18 },
 ];
 
 const STYLES =
@@ -596,13 +598,14 @@ const STYLES =
   // 4.46 · 4.32 로 기준(4.5)에 못 미쳤다. 지금은 가장 나쁜 자리에서도 4.81 · 4.85 고,
   // 원래 색과의 색차는 ΔE 3.4 · 4.5 라 같은 팀 색으로 읽힌다.
   // (css/style.css 가 --accent 와 --accent-text 를 나눠 쓰는 것과 같은 이유다.)
-  `<fonts count="6">` +
+  `<fonts count="7">` +
   `<font><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FFDFE4F5"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="12"/><color rgb="FF2C3557"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FFB93E0B"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FF147739"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FF6B21A8"/><name val="맑은 고딕"/></font>` +
   `</fonts>` +
   `<fills count="5">` +
   `<fill><patternFill patternType="none"/></fill>` +
@@ -616,7 +619,7 @@ const STYLES =
   `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD7DBE6"/></bottom><diagonal/></border>` +
   `</borders>` +
   `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-  `<cellXfs count="18">` +
+  `<cellXfs count="21">` +
   // 0~2 보통 줄
   `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
@@ -634,13 +637,17 @@ const STYLES =
   `<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>` +
   // 11 표 아래 안내 줄
   `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-  // 12~17 팀 이름 칸 (앞 팀 · 뒤 팀 × 보통 · 얼룩 · 합계)
+  // 12~17 A팀 · B팀 (각각 보통 · 얼룩 · 합계)
   `<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="5" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="5" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  // 18~20 C팀 (3파전)
+  `<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="6" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `</cellXfs>` +
   `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
   `</styleSheet>`;
