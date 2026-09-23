@@ -4092,6 +4092,63 @@ body {
 
 .rec-bottom { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* ── 샷 차트 ── */
+.rec-chart { background: var(--surface); border-radius: 12px; padding: 10px; }
+.rec-chart-scope { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+/* 선수는 열 명이 넘는다. 줄바꿈으로 두면 칩이 네 줄이 되어 코트보다 커진다 —
+   한 줄로 두고 옆으로 밀어 고른다. 오른쪽 끝을 흐리게 해서 더 있다는 걸 알린다. */
+.rec-chart-who {
+  display: flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 8px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.rec-chart-who .rec-chip { flex: none; }
+/* 밀 수 있는 줄이라는 것을 스크롤바로도 알린다 (닿는 기기에서는 안 보인다). */
+.rec-chart-who::-webkit-scrollbar { height: 3px; }
+.rec-chart-who::-webkit-scrollbar-thumb { background: var(--accent-line); border-radius: 3px; }
+/* 고르는 칩. 줄바꿈되며 위아래로 늘어서므로 ::after 로 넓히면 서로 겹친다 —
+   높이 자체를 44px 로 둔다. */
+.rec-chip {
+  min-height: 44px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--accent-line); background: transparent;
+  color: var(--text); font-size: var(--fs-xs); font-weight: 800; cursor: pointer;
+}
+.rec-chip span { color: var(--text-muted); font-weight: 700; margin-left: 3px; }
+.rec-chip.on { background: var(--accent-btn); border-color: var(--accent-btn); color: var(--accent-ink); }
+.rec-chip.on span { color: var(--accent-ink); opacity: .8; }
+
+.rec-chart-court { position: relative; }
+.rec-chart-court svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.rec-chart-none {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted);
+}
+
+/* 자리별 성공률. 막대는 "시도가 어디에 몰렸나" 를 나타낸다 —
+   성공률만 보면 두 번 쏴서 한 번 넣은 자리가 50% 로 크게 보인다. */
+.rec-chart-zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.rec-chart-zone {
+  position: relative; background: var(--surface-2); border-radius: 8px;
+  padding: 8px 8px 12px; text-align: center; overflow: hidden;
+}
+.rec-chart-zone b { display: block; font-size: var(--fs-lg); font-weight: 900; }
+.rec-chart-zone .nm { display: block; font-size: var(--fs-xs); font-weight: 800; }
+.rec-chart-zone .sub { display: block; font-size: 11px; color: var(--text-muted); font-weight: 700; }
+.rec-chart-zone .share {
+  display: block; font-size: 11px; color: var(--text-muted); font-weight: 700;
+  opacity: .8; white-space: nowrap;
+}
+/* 막대는 "시도가 어디에 몰렸나" 라는 양이지 잘하고 못하고가 아니다.
+   --accent 는 밝은 테마에서 빨강이라 실패처럼 읽혀서 중립색으로 둔다. */
+.rec-chart-zone i {
+  position: absolute; left: 0; bottom: 0; height: 4px;
+  background: var(--text-muted); opacity: .55; border-radius: 0 4px 0 0;
+}
+.rec-chart .hint { margin: 8px 0; }
+.rec-chart .btn { width: 100%; }
+
 /* ── 지난 경기 보관함 ── */
 .rec-archive { margin-top: 22px; border-top: 1px solid var(--surface-2); padding-top: 14px; }
 .rec-archive h3 { margin: 0; }
