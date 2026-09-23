@@ -110,21 +110,41 @@ export function 쿼터시트(game) {
  *  샷 차트 그림은 한 사람씩 받아야 하고 기록한 기기에만 남는다. 좌표에서 나온 값이
  *  다른 사람에게 닿는 길은 이 표뿐이므로, 선수기록 시트와 같은 줄 순서로 싣는다. */
 export function 자리시트(game) {
-  const 머리 = ["날짜", "팀", "등번호", "선수"];
+  const 머리 = ["날짜", "구분", "팀", "등번호", "선수"];
   for (const z of 구역들) 머리.push(`${z}성공`, `${z}시도`, `${z}성공률`);
   머리.push("총성공", "총시도", "총성공률");
-  const rows = [머리];
-  for (const r of 자리별선수(game)) {
-    const 줄 = [game.date, game.teams[r.team].name,
-      typeof r.number === "number" ? r.number : "", r.name];
+
+  // 안 쏜 자리의 성공률은 0% 가 아니라 "없음" 이다 — 빈 칸으로 둔다.
+  const 칸들 = (칸, 총) => {
+    const 줄 = [];
     for (const z of 구역들) {
-      const c = r.칸[z];
-      // 안 쏜 자리의 성공률은 0% 가 아니라 "없음" 이다 — 빈 칸으로 둔다.
+      const c = 칸[z];
       줄.push(c.m, c.a, c.a ? c.m / c.a : "");
     }
-    줄.push(r.총.m, r.총.a, r.총.a ? r.총.m / r.총.a : "");
-    rows.push(줄);
+    줄.push(총.m, 총.a, 총.a ? 총.m / 총.a : "");
+    return 줄;
+  };
+
+  const 사람들 = 자리별선수(game);
+  const rows = [머리];
+  for (const r of 사람들) {
+    rows.push([game.date, "선수", game.teams[r.team].name,
+      typeof r.number === "number" ? r.number : "", r.name, ...칸들(r.칸, r.총)]);
   }
+  // 팀 줄은 선수 줄을 더한 것이다. 엑셀에서 따로 합치지 않아도 되게 여기서 낸다.
+  // 구분 칸으로 갈라 두어 걸러 보거나 피벗할 때 섞이지 않는다.
+  [0, 1].forEach((ti) => {
+    const 내사람 = 사람들.filter((r) => r.team === ti);
+    const 칸 = Object.fromEntries(구역들.map((z) => [z, {
+      m: 내사람.reduce((a, r) => a + r.칸[z].m, 0),
+      a: 내사람.reduce((a, r) => a + r.칸[z].a, 0),
+    }]));
+    const 총 = {
+      m: 내사람.reduce((a, r) => a + r.총.m, 0),
+      a: 내사람.reduce((a, r) => a + r.총.a, 0),
+    };
+    rows.push([game.date, "팀", game.teams[ti].name, "", `${game.teams[ti].name} 합계`, ...칸들(칸, 총)]);
+  });
   return rows;
 }
 

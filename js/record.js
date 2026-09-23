@@ -29,7 +29,7 @@ import {
   효율, plusMinus, 팀지표, 경기요약, 밴드글, pct1, num1, 부호, MIN_POSS,
   슛모음, 슛쏜사람, 구역집계, 구역들,
 } from "./record-stats.js";
-import { CHART_VIEW, 차트속, 차트SVG, PNG만들기, 구역말 } from "./record-chart.js";
+import { CHART_VIEW, 차트속, 구역말 } from "./record-chart.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -710,6 +710,25 @@ export function mountRecord(container) {
     });
   }
 
+  /** 밴드용 결과 이미지. 표를 그림으로 그리는 코드라 무거우므로 누를 때만 불러온다. */
+  async function 결과이미지받기버튼(btn) {
+    const 원래 = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "만드는 중…";
+    try {
+      const { 결과이미지받기 } = await import("./record-image.js");
+      // 샷 차트는 화면에서 고른 범위를 그대로 따른다 — 누적으로 보고 있었으면 누적으로 뽑힌다.
+      await 결과이미지받기(game, 차트경기들());
+      btn.textContent = "받았어요 ✓";
+    } catch (err) {
+      alert(`이미지를 만들지 못했어요.\n${err?.message || err}`);
+      btn.textContent = 원래;
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 원래; }, 2500);
+    }
+  }
+
   // ── 결과 화면 ────────────────────────────────────────────
   /** 실제로 기록이 찍힌 마지막 쿼터. 4쿼터를 다 안 했는데 "4쿼터" 라고 쓰면 거짓말이 된다. */
   function 마지막쿼터() {
@@ -798,7 +817,6 @@ export function mountRecord(container) {
 
         <p class="hint">${안내문(들어간것, 총시도, 경기들.length)}</p>
 
-        <button type="button" class="btn" id="rec-chart-png">이 차트 그림으로 받기</button>
       </div>`;
 
     for (const el of 칸.querySelectorAll("[data-scope]")) {
@@ -806,32 +824,6 @@ export function mountRecord(container) {
     }
     for (const el of 칸.querySelectorAll("[data-who]")) {
       el.addEventListener("click", () => { 차트대상 = el.dataset.who || null; renderChart(); });
-    }
-    칸.querySelector("#rec-chart-png").addEventListener("click", (e) => 차트받기(e.currentTarget, shots, 들어간것, 총시도));
-  }
-
-  async function 차트받기(btn, shots, 들어간것, 총시도) {
-    const 원래 = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "만드는 중…";
-    try {
-      const 제목 = `${차트대상 || `${game.teams[0].name} · ${game.teams[1].name}`} 샷 차트`;
-      const 밑줄 = `${차트누적 ? `${차트경기들().length}경기 누적` : game.date} · 슛 ${들어간것}/${총시도}`;
-      const blob = await PNG만들기(차트SVG(shots, 제목, 밑줄));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      // 크로미움은 파일명에 한글이 섞이면 이름을 통째로 버린다. 아스키만 쓴다.
-      a.download = `spirit-shotchart-${game.date}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      btn.textContent = "받았어요 ✓";
-    } catch (err) {
-      alert(`그림을 만들지 못했어요.\n${err?.message || err}`);
-      btn.textContent = 원래;
-    } finally {
-      btn.disabled = false;
-      setTimeout(() => { btn.textContent = 원래; }, 2500);
     }
   }
 
@@ -914,10 +906,15 @@ export function mountRecord(container) {
             </table>
           </div>`).join("")}
         <div class="rec-save">
-          <button type="button" class="btn btn-primary" id="rec-band">밴드용 글 복사</button>
-          <p class="hint">경기 결과와 분석을 글로 정리했어요. 눌러서 복사한 뒤 밴드에 그대로 붙이면 돼요.
-            (복사가 안 되면 아래 칸에서 직접 골라도 돼요)</p>
-          <textarea class="rec-band-text" id="rec-band-text" readonly rows="10">${esc(밴드글(game))}</textarea>
+          <button type="button" class="btn btn-primary" id="rec-band-img">밴드용 결과 이미지 받기</button>
+          <p class="hint">결과 · 팀 효율 · 선수 기록 · <b>팀과 선수 전원의 샷 차트</b>를 한 장에 담아요.
+            표는 글로 올리면 칸이 어긋나서 읽기 힘든데, 그림은 어느 기기에서나 같은 모양으로 보여요.</p>
+          <details class="rec-band-more">
+            <summary>글로도 복사하기</summary>
+            <button type="button" class="btn" id="rec-band">밴드용 글 복사</button>
+            <p class="hint">검색되는 글이 필요할 때 쓰세요. (복사가 안 되면 아래 칸에서 직접 골라도 돼요)</p>
+            <textarea class="rec-band-text" id="rec-band-text" readonly rows="8">${esc(밴드글(game))}</textarea>
+          </details>
         </div>
 
         <div class="rec-save">
@@ -934,6 +931,7 @@ export function mountRecord(container) {
       </div>
     `;
     renderChart();
+    container.querySelector("#rec-band-img").addEventListener("click", (e) => 결과이미지받기버튼(e.currentTarget));
     container.querySelector("#rec-band").addEventListener("click", async (e) => {
       const btn = e.currentTarget;
       const 칸 = container.querySelector("#rec-band-text");

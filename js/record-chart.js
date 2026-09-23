@@ -10,11 +10,11 @@
 //   "여기서 잘 들어간다" 를 말할 수 없다. 그래서 보관함에 쌓인 경기를 통째로 걸어
 //   볼 수 있게 한다 — 스무 경기면 한 사람이 이삼백 개가 되어 비로소 말이 된다.
 //
-// 그림 한 벌로 화면과 내려받기를 같이 한다
-//   내려받을 PNG 는 테마와 무관해야 하고(어두운 화면에서 뽑은 그림을 밴드에 올리면
-//   배경이 검다), 화면은 테마를 따라야 한다. 그래서 색을 인자로 받는다 —
-//   화면은 var(--…) 를 그대로 쓰고, 내려받기는 실제 색을 박아 넣는다.
-//   기하는 한 곳에서만 계산하므로 둘이 어긋날 수 없다.
+// 그림 한 벌로 화면과 내보내기를 같이 한다
+//   차트속() 은 색을 인자로 받는다. 화면은 var(--…) 를 그대로 써서 테마를 따르고,
+//   밴드에 올릴 결과 이미지(record-image.js)는 고정 색을 박아 넣는다 — 남이 볼
+//   그림이 내 테마를 따라가면 안 되기 때문이다. 기하는 여기 한 곳에서만 계산하므로
+//   두 그림이 어긋날 수 없다.
 import { 구역이름 } from "./record-stats.js";
 
 // 기록 화면과 같은 잘라내기. 탭 좌표가 여기에 맞춰 잘려 들어오므로 바꾸면 안 된다.
@@ -25,18 +25,6 @@ export const 화면색 = {
   line: "var(--court-line)", paint: "var(--court-paint)", floor: "var(--court-grad-2)",
   rim: "var(--rim)", made: "var(--good)", miss: "var(--bad)", ink: "var(--text)",
 };
-
-/** 내려받기용 — 지금 테마에서 실제로 쓰이는 색을 읽어 박는다.
- *  standalone SVG 안에서는 var(--…) 가 풀리지 않아 아무것도 안 그려진다. */
-export function 박은색(root = document.documentElement) {
-  const cs = getComputedStyle(root);
-  const v = (n, 기본) => (cs.getPropertyValue(n).trim() || 기본);
-  return {
-    line: v("--court-line", "#8b8a8f"), paint: v("--court-paint", "#2a2255"),
-    floor: v("--court-grad-2", "#1e1840"), rim: v("--rim", "#f97316"),
-    made: v("--good", "#4ade80"), miss: v("--bad", "#f87171"), ink: v("--text", "#ffffff"),
-  };
-}
 
 /** 슛이 많아지면 점을 줄이고 옅게 한다. 누적으로 보면 수백 개가 겹치는데,
  *  그대로 두면 코트가 한 덩어리로 칠해져서 어디가 빽빽한지 오히려 안 보인다. */
@@ -78,35 +66,18 @@ export function 차트속(shots, c = 화면색) {
   return 코트선(c) + 점들(shots, c);
 }
 
-/** 내려받기용 독립 SVG 문자열. 제목 줄을 위에 붙여 그림만 봐도 누구 것인지 알게 한다. */
-export function 차트SVG(shots, 제목, 밑줄, c = 박은색()) {
-  const 머리 = 74;
-  const W = CHART_VIEW.w, H = CHART_VIEW.h + 머리;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W * 2}" height="${H * 2}" viewBox="0 0 ${W} ${H}">`
-    + `<rect width="${W}" height="${H}" fill="${c.floor}" />`
-    + `<text x="${W / 2}" y="30" fill="${c.ink}" font-size="24" font-weight="700"`
-    + ` text-anchor="middle" font-family="sans-serif">${esc(제목)}</text>`
-    + `<text x="${W / 2}" y="56" fill="${c.ink}" font-size="16" opacity="0.72"`
-    + ` text-anchor="middle" font-family="sans-serif">${esc(밑줄)}</text>`
-    + `<g transform="translate(0 ${머리 - CHART_VIEW.y})">${차트속(shots, c)}</g>`
-    + `</svg>`;
-}
-
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-/** SVG 문자열 → PNG Blob. 글꼴이나 바깥 그림을 안 쓰므로 그대로 그려진다.
- *  (색이 var(--…) 로 남아 있으면 아무것도 안 그려지니 박은색을 쓸 것) */
+/** SVG 문자열 → PNG Blob. 배율은 곱이다 — 1000 폭 SVG 에 2를 주면 2000px 로 나온다.
+ *
+ *  색을 var(--…) 로 남겨 두면 독립 SVG 안에서 안 풀려 아무것도 안 그려진다.
+ *  내보내는 그림은 테마를 안 따라야 하므로 부르는 쪽에서 실제 색을 박아 넣는다. */
 export function PNG만들기(svg, 배율 = 2) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
     img.onload = () => {
       const cv = document.createElement("canvas");
-      cv.width = img.width * (배율 / 2);
-      cv.height = img.height * (배율 / 2);
+      cv.width = Math.round(img.width * 배율);
+      cv.height = Math.round(img.height * 배율);
       const ctx = cv.getContext("2d");
       ctx.drawImage(img, 0, 0, cv.width, cv.height);
       URL.revokeObjectURL(url);
