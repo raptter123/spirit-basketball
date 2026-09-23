@@ -27,7 +27,9 @@ import {
 } from "./storage.js";
 import {
   효율, plusMinus, 팀지표, 경기요약, 밴드글, pct1, num1, 부호, MIN_POSS,
+  슛모음, 슛쏜사람, 구역집계, 구역들,
 } from "./record-stats.js";
+import { CHART_VIEW, 차트속, 차트SVG, PNG만들기, 구역말 } from "./record-chart.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -714,6 +716,125 @@ export function mountRecord(container) {
     return game.events.reduce((m, e) => Math.max(m, e.q || 1), game.q);
   }
 
+  // ── 샷 차트 ──────────────────────────────────────────────
+  // 화면 전체를 다시 그리지 않고 이 칸만 갈아 끼운다. 선수를 바꿀 때마다 결과 표까지
+  // 다시 그리면 보던 자리에서 화면이 튄다.
+  let 차트대상 = null;   // null = 전체, 아니면 선수 이름
+  let 차트누적 = false;  // 보관함에 쌓인 경기를 같이 볼 것인가
+
+  /** 차트가 볼 경기 목록. 누적이면 보관함을 얹되, 지금 경기가 이미 보관함에
+   *  들어가 있으면(결과 화면에 들어오는 순간 들어간다) 두 번 세지 않는다. */
+  function 차트경기들() {
+    if (!차트누적) return [game];
+    const 보관 = getRecordArchive().filter((g) => g.startedAt !== game.startedAt);
+    return [game, ...보관];
+  }
+
+  /** 차트 밑에 붙는 한 문장. 조각을 템플릿 안에서 이으면 빈 조각 자리에 줄바꿈이
+   *  남아 "슛 13/22 ." 처럼 마침표가 떠 버리므로 여기서 미리 이어 둔다. */
+  function 안내문(들어간것, 총시도, 경기수) {
+    const 누구 = 차트대상 ? `<b>${esc(차트대상)}</b>` : "양 팀 전부";
+    const 범위 = 차트누적 ? ` · ${경기수}경기 누적` : "";
+    const 적음 = 총시도 && 총시도 < 20
+      ? ` 슛이 ${총시도}개뿐이라 "여기서 잘 들어간다" 를 말하기엔 일러요 — 경기가 쌓이면 뚜렷해져요.`
+      : "";
+    return `● 들어간 슛 · ✕ 빗나간 슛. ${누구} — 슛 ${들어간것}/${총시도}${범위}.${적음}`;
+  }
+
+  function renderChart() {
+    const 칸 = container.querySelector("#rec-chart");
+    if (!칸) return;
+    const 경기들 = 차트경기들();
+    const 사람들 = 슛쏜사람(경기들);
+    // 고르고 있던 사람이 이 범위에 슛이 없으면 전체로 되돌린다.
+    if (차트대상 && !사람들.some((p) => p.name === 차트대상)) 차트대상 = null;
+
+    const shots = 슛모음(경기들, 차트대상);
+    const z = 구역집계(shots);
+    const 총시도 = 구역들.reduce((a, k) => a + z[k].a, 0);
+    const 들어간것 = shots.filter((s) => s.made).length;
+    const 누적가능 = getRecordArchive().some((g) => g.startedAt !== game.startedAt);
+
+    칸.innerHTML = `
+      <div class="rec-chart">
+        ${누적가능 ? `
+          <div class="rec-chart-scope">
+            <button type="button" class="rec-chip${차트누적 ? "" : " on"}" data-scope="one">이 경기</button>
+            <button type="button" class="rec-chip${차트누적 ? " on" : ""}" data-scope="all">지난 경기까지 전부 (${경기들.length}경기)</button>
+          </div>` : ""}
+
+        <div class="rec-chart-who">
+          <button type="button" class="rec-chip${차트대상 ? "" : " on"}" data-who="">전체</button>
+          ${사람들.map((p) => `
+            <button type="button" class="rec-chip${차트대상 === p.name ? " on" : ""}" data-who="${esc(p.name)}">
+              ${esc(p.name)} <span>${p.m}/${p.a}</span>
+            </button>`).join("")}
+        </div>
+
+        <div class="rec-chart-court">
+          <svg viewBox="${CHART_VIEW.x} ${CHART_VIEW.y} ${CHART_VIEW.w} ${CHART_VIEW.h}"
+               id="rec-chart-svg" role="img"
+               aria-label="${esc(차트대상 || "전체")} 슛 ${들어간것}/${총시도}">
+            ${차트속(shots)}
+          </svg>
+          ${총시도 ? "" : `<p class="rec-chart-none">아직 슛 기록이 없어요</p>`}
+        </div>
+
+        <div class="rec-chart-zones">
+          ${구역들.map((k) => {
+            const m = 구역말(z[k]);
+            const 몫 = 총시도 ? Math.round((z[k].a / 총시도) * 100) : 0;
+            // 몫을 같은 줄에 붙이면 390px 에서 "시도의 45%" 가 접혀 칸 높이가 들쭉날쭉해진다.
+            return `
+              <div class="rec-chart-zone">
+                <b>${m.율}</b>
+                <span class="nm">${k}</span>
+                <span class="sub">${m.몫}</span>
+                <span class="share">${z[k].a ? `시도 ${몫}%` : "&nbsp;"}</span>
+                <i style="width:${몫}%"></i>
+              </div>`;
+          }).join("")}
+        </div>
+
+        <p class="hint">${안내문(들어간것, 총시도, 경기들.length)}</p>
+
+        <button type="button" class="btn" id="rec-chart-png">이 차트 그림으로 받기</button>
+      </div>`;
+
+    for (const el of 칸.querySelectorAll("[data-scope]")) {
+      el.addEventListener("click", () => { 차트누적 = el.dataset.scope === "all"; renderChart(); });
+    }
+    for (const el of 칸.querySelectorAll("[data-who]")) {
+      el.addEventListener("click", () => { 차트대상 = el.dataset.who || null; renderChart(); });
+    }
+    칸.querySelector("#rec-chart-png").addEventListener("click", (e) => 차트받기(e.currentTarget, shots, 들어간것, 총시도));
+  }
+
+  async function 차트받기(btn, shots, 들어간것, 총시도) {
+    const 원래 = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "만드는 중…";
+    try {
+      const 제목 = `${차트대상 || `${game.teams[0].name} · ${game.teams[1].name}`} 샷 차트`;
+      const 밑줄 = `${차트누적 ? `${차트경기들().length}경기 누적` : game.date} · 슛 ${들어간것}/${총시도}`;
+      const blob = await PNG만들기(차트SVG(shots, 제목, 밑줄));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // 크로미움은 파일명에 한글이 섞이면 이름을 통째로 버린다. 아스키만 쓴다.
+      a.download = `spirit-shotchart-${game.date}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = "받았어요 ✓";
+    } catch (err) {
+      alert(`그림을 만들지 못했어요.\n${err?.message || err}`);
+      btn.textContent = 원래;
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 원래; }, 2500);
+    }
+  }
+
   function renderDone() {
     const rows = boxScore(game);
     const [sa, sb] = scoreOf(game.events);
@@ -777,6 +898,9 @@ export function mountRecord(container) {
              한 번의 공격에서 2점이 나면 계산상 200이 되는데, 그건 잘했다는 뜻이 아니라
              잴 거리가 없다는 뜻이거든요. 한 쿼터쯤 쌓이면 나와요.`}</p>
 
+        <h3 class="rec-adv-title">샷 차트</h3>
+        <div id="rec-chart"></div>
+
         ${game.teams.map((t, ti) => `
           <h3 class="rec-bs-team" data-t="${ti}">${esc(t.name)}</h3>
           <div class="table-scroll">
@@ -809,6 +933,7 @@ export function mountRecord(container) {
         </div>
       </div>
     `;
+    renderChart();
     container.querySelector("#rec-band").addEventListener("click", async (e) => {
       const btn = e.currentTarget;
       const 칸 = container.querySelector("#rec-band-text");

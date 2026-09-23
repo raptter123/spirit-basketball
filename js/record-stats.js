@@ -56,18 +56,53 @@ export function 좌우이름(e) {
 
 export const 구역들 = ["골밑", "미들", "3점"];
 
-/** 팀 하나의 자리별 슛. 좌표를 그림 대신 말로 옮긴 것이다 —
+/** 슛 목록 → 자리별 성공/시도. 좌표를 그림 대신 말로 옮긴 것이다 —
  *  샷 차트가 알려 주는 것의 대부분은 "어디서 쐈고 거기서 얼마나 들어갔나" 다. */
-export function 구역별(game, ti, events = game.events) {
+export function 구역집계(shots) {
   const 칸 = Object.fromEntries(구역들.map((z) => [z, { m: 0, a: 0 }]));
-  for (const e of events) {
-    if (e.type !== "shot" || e.team !== ti) continue;
+  for (const e of shots) {
     const z = 칸[구역이름(e)];
     if (!z) continue;
     z.a++;
     if (e.made) z.m++;
   }
   return 칸;
+}
+
+/** 팀 하나의 자리별 슛. */
+export function 구역별(game, ti, events = game.events) {
+  return 구역집계(events.filter((e) => e.type === "shot" && e.team === ti));
+}
+
+/** 여러 경기에서 슛만 모은다. 한 경기의 열다섯 개로는 "어디서 잘 들어가나" 를
+ *  말할 수 없다 — 보관함을 통째로 걸어야 비로소 자리마다 표본이 쌓인다.
+ *  경기마다 팀이 바뀌므로(오늘 A팀, 다음엔 B팀) 사람은 **이름으로** 맞춘다. */
+export function 슛모음(games, 이름 = null, 팀 = null) {
+  const out = [];
+  for (const g of games) {
+    for (const e of g.events) {
+      if (e.type !== "shot") continue;
+      if (이름 && e.player !== 이름) continue;
+      if (팀 != null && e.team !== 팀) continue;
+      out.push(e);
+    }
+  }
+  return out;
+}
+
+/** 샷 차트에 이름을 올릴 사람들. 슛을 한 번이라도 쏜 사람만, 많이 쏜 순으로. */
+export function 슛쏜사람(games) {
+  const 셈 = new Map();
+  for (const g of games) {
+    for (const e of g.events) {
+      if (e.type !== "shot") continue;
+      const v = 셈.get(e.player) || { name: e.player, a: 0, m: 0 };
+      v.a++;
+      if (e.made) v.m++;
+      셈.set(e.player, v);
+    }
+  }
+  return [...셈.values()].sort((x, y) => y.a - x.a || x.name.localeCompare(y.name, "ko"));
 }
 
 /** 선수 한 줄(boxScore 의 결과)에서 효율 지표를 낸다. */
