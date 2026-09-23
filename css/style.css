@@ -4318,3 +4318,12 @@ body.rec-focus main { padding-top: 8px; padding-bottom: 8px; }
   color: var(--text-muted); text-decoration: none;
   font-size: var(--fs-md); font-weight: 800;
 }
+
+/* 밴드용 글은 이미지보다 뒤로 물린다. 표는 글로 올리면 칸이 어긋나서
+   읽기 힘들고, 검색되는 글이 필요할 때만 펴 보면 된다. */
+.rec-band-more { margin-top: 10px; }
+.rec-band-more > summary {
+  min-height: 44px; display: flex; align-items: center;
+  font-size: var(--fs-sm); font-weight: 800; color: var(--text-muted); cursor: pointer;
+}
+.rec-band-more > .btn { width: 100%; margin-top: 4px; }
