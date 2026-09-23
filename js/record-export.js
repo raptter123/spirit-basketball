@@ -1,9 +1,12 @@
 // 기록한 경기를 엑셀 파일로 내보낸다.
 //
-// 왜 시트를 셋으로 나누나
+// 왜 시트를 여럿으로 나누나
 //   합계만 저장하면 "3쿼터만" "골밑만" 같은 질문을 나중에 영원히 못 한다. 그래서
-//   사람이 바로 읽을 합계(선수기록) · 쿼터별 · 그리고 **이벤트 원본**을 같이 넣는다.
-//   원본 한 장이 있으면 나머지 두 장은 언제든 다시 만들 수 있다. 반대는 안 된다.
+//   사람이 바로 읽을 합계(선수기록 · 팀효율 · 자리별 · 쿼터별)와 **이벤트 원본**을
+//   같이 넣는다. 원본 한 장이 있으면 나머지는 언제든 다시 만들 수 있다. 반대는 안 된다.
+//
+//   자리별 시트가 샷 차트를 대신한다. 그림은 한 사람씩 받아야 하고 기록한 기기에만
+//   남아서, 다른 사람에게 닿는 길은 이 표와 밴드 글뿐이다.
 //
 // 왜 필요할 때만 불러오나
 //   기록 화면(record.js)은 app.js 가 처음부터 들고 간다. 여기를 정적으로 import
@@ -18,8 +21,10 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, zoneOf, qLabel } from "./record.js";
-import { 효율, plusMinus, 팀지표, 승패 } from "./record-stats.js";
+import { boxScore, pointsOf, qLabel } from "./record.js";
+import {
+  효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름,
+} from "./record-stats.js";
 
 const 종류이름 = {
   shot: "슛", ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
@@ -27,23 +32,6 @@ const 종류이름 = {
   rebO: "공격리바", rebD: "수비리바",
   sub: "교체", quarter: "쿼터",
 };
-
-const RIM = { x: 250, y: 442 };
-
-/** 골밑 · 미들 · 3점. 골밑은 골대에서 100 안쪽으로, 자유투 라인(y=428) 언저리까지다. */
-function 구역이름(e) {
-  if (e.type !== "shot") return "";
-  if (zoneOf(e.x, e.y) === 3) return "3점";
-  return Math.hypot(e.x - RIM.x, e.y - RIM.y) <= 100 ? "골밑" : "미들";
-}
-
-/** 화면에서 본 좌우. 페인트존 양 끝(170 / 330)을 경계로 삼는다. */
-function 좌우이름(e) {
-  if (e.type !== "shot") return "";
-  if (e.x < 170) return "왼쪽";
-  if (e.x > 330) return "오른쪽";
-  return "가운데";
-}
 
 /** 경기 시작부터 흐른 시간. 절대 시각보다 "언제쯤 일어난 일인가"를 보기 쉽다. */
 function 경과(e, startedAt) {
@@ -117,6 +105,29 @@ export function 쿼터시트(game) {
   return rows;
 }
 
+/** 자리별 시트 — 한 줄이 한 선수, 칸이 골밑·미들·3점이다.
+ *
+ *  샷 차트 그림은 한 사람씩 받아야 하고 기록한 기기에만 남는다. 좌표에서 나온 값이
+ *  다른 사람에게 닿는 길은 이 표뿐이므로, 선수기록 시트와 같은 줄 순서로 싣는다. */
+export function 자리시트(game) {
+  const 머리 = ["날짜", "팀", "등번호", "선수"];
+  for (const z of 구역들) 머리.push(`${z}성공`, `${z}시도`, `${z}성공률`);
+  머리.push("총성공", "총시도", "총성공률");
+  const rows = [머리];
+  for (const r of 자리별선수(game)) {
+    const 줄 = [game.date, game.teams[r.team].name,
+      typeof r.number === "number" ? r.number : "", r.name];
+    for (const z of 구역들) {
+      const c = r.칸[z];
+      // 안 쏜 자리의 성공률은 0% 가 아니라 "없음" 이다 — 빈 칸으로 둔다.
+      줄.push(c.m, c.a, c.a ? c.m / c.a : "");
+    }
+    줄.push(r.총.m, r.총.a, r.총.a ? r.총.m / r.총.a : "");
+    rows.push(줄);
+  }
+  return rows;
+}
+
 /** 이벤트원본 시트 — 누른 순서 그대로. 이 한 장이 있으면 나머지는 다시 만들 수 있다. */
 export function 원본시트(game) {
   const rows = [["번호", "경과", "쿼터", "팀", "선수", "종류", "결과", "점수", "구역", "좌우", "X", "Y"]];
@@ -150,18 +161,20 @@ export function 파일이름(game) {
   return `spirit-game-${game.date}-${시각}.xlsx`;
 }
 
-/** 세 시트를 담은 xlsx 바이트. */
+/** 다섯 시트를 담은 xlsx 바이트. */
 export async function 엑셀만들기(game) {
   const { createWorkbookSheets } = await import("./xlsx-lite.js");
   // 비율 칸은 0.562 같은 분수로 넣고 엑셀에서 0.00% 서식으로 보이게 한다.
   // 56.2 로 넣으면 나중에 평균을 낼 때 100배 틀린 값이 나온다 (js/gamestats.js:236 과 같은 이유).
   const 합계 = 합계시트(game);
   const 팀 = 팀시트(game);
+  const 자리 = 자리시트(game);
   const 쿼터 = 쿼터시트(game);
   const 비율 = (머리, 이름들) => 이름들.map((n) => 머리.indexOf(n)).filter((i) => i >= 0);
   return createWorkbookSheets([
     { name: "선수기록", rows: 합계, percentCols: 비율(합계[0], ["eFG%", "TS%"]) },
     { name: "팀효율", rows: 팀, percentCols: 비율(팀[0], ["eFG%", "TS%", "공격리바%", "수비리바%"]) },
+    { name: "자리별", rows: 자리, percentCols: 비율(자리[0], 자리[0].filter((h) => h.endsWith("성공률"))) },
     { name: "쿼터별", rows: 쿼터 },
     { name: "이벤트원본", rows: 원본시트(game) },
   ]);

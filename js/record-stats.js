@@ -74,6 +74,36 @@ export function 구역별(game, ti, events = game.events) {
   return 구역집계(events.filter((e) => e.type === "shot" && e.team === ti));
 }
 
+/** 선수마다 자리별 슛을 모은 표.
+ *
+ *  샷 차트 그림은 한 사람씩 받아야 하고, 무엇보다 기록한 기기에만 남아 다른 사람은
+ *  못 본다. 좌표에서 나온 값이 바깥으로 나가는 길은 엑셀과 밴드 글뿐이므로,
+ *  거기에 선수별 표로 실어 보낸다.
+ *
+ *  슛을 안 쏜 선수도 0 으로 넣는다 — 선수기록 시트와 줄 순서가 같아야
+ *  기록원이 두 시트를 나란히 놓고 볼 수 있다. */
+export function 자리별선수(game, events = game.events) {
+  const 빈칸 = () => Object.fromEntries(구역들.map((z) => [z, { m: 0, a: 0 }]));
+  const 표 = [];
+  game.teams.forEach((team, ti) => {
+    for (const p of team.players) {
+      const mine = events.filter((e) => e.type === "shot" && e.team === ti && e.player === p.name);
+      const 칸 = 빈칸();
+      for (const e of mine) {
+        const z = 칸[구역이름(e)];
+        if (!z) continue;
+        z.a++;
+        if (e.made) z.m++;
+      }
+      표.push({
+        team: ti, name: p.name, number: p.number, 칸,
+        총: { m: mine.filter((e) => e.made).length, a: mine.length },
+      });
+    }
+  });
+  return 표;
+}
+
 /** 여러 경기에서 슛만 모은다. 한 경기의 열다섯 개로는 "어디서 잘 들어가나" 를
  *  말할 수 없다 — 보관함을 통째로 걸어야 비로소 자리마다 표본이 쌓인다.
  *  경기마다 팀이 바뀌므로(오늘 A팀, 다음엔 B팀) 사람은 **이름으로** 맞춘다. */
@@ -395,6 +425,23 @@ export function 밴드글(game) {
       .filter((r) => r.pts || r.p2a || r.p3a || r.fta || r.reb || r.ast || r.stl || r.blk || r.to || r.pf)
       .sort((x, y) => y.pts - x.pts || (y.reb + y.ast) - (x.reb + x.ast));
     for (const r of 뛴사람) L.push(선수줄(r));
+  }
+
+  // 자리별 — 샷 차트를 글로 옮긴 것. 그림은 한 사람씩 받아야 하고 기록한 기기에만
+  // 남으므로, 다른 사람이 보는 길은 이 줄과 엑셀의 자리별 시트뿐이다.
+  const 쏜사람 = 자리별선수(game)
+    .filter((r) => r.총.a > 0)
+    .sort((x, y) => x.team - y.team || y.총.a - x.총.a);
+  if (쏜사람.length) {
+    L.push("", "■ 자리별 슛 (골밑 / 미들 / 3점)");
+    let 앞팀 = -1;
+    for (const r of 쏜사람) {
+      if (r.team !== 앞팀) { L.push(`[${이름[r.team]}]`); 앞팀 = r.team; }
+      const 칸 = 구역들
+        .filter((z) => r.칸[z].a > 0)
+        .map((z) => `${z} ${r.칸[z].m}/${r.칸[z].a}${퍼센트(r.칸[z].m, r.칸[z].a)}`);
+      L.push(`  ${r.name} ${r.총.m}/${r.총.a} — ${칸.join(" · ")}`);
+    }
   }
 
   const 말 = 짚어볼점(game, T);
