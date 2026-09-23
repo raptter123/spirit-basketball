@@ -4150,6 +4150,17 @@ body {
 }
 .rec-save .btn { width: 100%; }
 .rec-save .hint { margin: 8px 0 0; }
+/* 밴드에 붙일 글. 클립보드가 막힌 브라우저에서도 손으로 고를 수 있게 보여 준다.
+   줄맞춤이 있는 글이라 고정폭 글꼴로 두고, 긴 줄은 접지 않고 옆으로 민다 —
+   접으면 "자리 골밑 14/20" 같은 줄이 두 줄로 갈라져 읽기 나빠진다. */
+.rec-band-text {
+  width: 100%; margin-top: 8px; padding: 8px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--accent-line); border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-xs); line-height: 1.5;
+  white-space: pre; overflow: auto; resize: vertical;
+}
 .rec-final { margin: 0 0 4px; }
 .rec-final b { font-size: var(--fs-2xl); }
 .rec-bs-team { border-left: 4px solid var(--c); padding-left: 8px; margin: 18px 0 8px; }

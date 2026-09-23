@@ -10,7 +10,7 @@
 //   슛을 한 번도 안 쏜 선수의 야투율은 0% 가 아니라 "없음" 이다. 0 으로 적으면
 //   평균을 낼 때 못 쏜 사람이 못 넣은 사람으로 섞인다. 그래서 null 을 돌려주고,
 //   화면에서는 "–" 로 적는다.
-import { boxScore, pointsOf, scoreOf, playCount, qLabel } from "./record.js";
+import { boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf } from "./record.js";
 
 /** 자유투 시도를 포제션으로 환산하는 계수.
  *
@@ -34,6 +34,41 @@ export const FT_POSS = 0.44;
 export const MIN_POSS = 10;
 
 const 나누기 = (a, b) => (b > 0 ? a / b : null);
+
+const RIM = { x: 250, y: 442 };
+
+/** 슛 하나가 어느 자리에서 나왔나. 골밑은 골대에서 100 안쪽이다.
+ *  코트 그림은 실제 치수대로 그린 것이 아니라 "몇 m" 로는 못 바꾼다(record-export.js
+ *  머리말 참고). 그림 좌표에서 확실하게 나오는 구역만 적는다. */
+export function 구역이름(e) {
+  if (e.type !== "shot") return "";
+  if (zoneOf(e.x, e.y) === 3) return "3점";
+  return Math.hypot(e.x - RIM.x, e.y - RIM.y) <= 100 ? "골밑" : "미들";
+}
+
+/** 화면에서 본 좌우. 페인트존 양 끝(170 / 330)을 경계로 삼는다. */
+export function 좌우이름(e) {
+  if (e.type !== "shot") return "";
+  if (e.x < 170) return "왼쪽";
+  if (e.x > 330) return "오른쪽";
+  return "가운데";
+}
+
+export const 구역들 = ["골밑", "미들", "3점"];
+
+/** 팀 하나의 자리별 슛. 좌표를 그림 대신 말로 옮긴 것이다 —
+ *  샷 차트가 알려 주는 것의 대부분은 "어디서 쐈고 거기서 얼마나 들어갔나" 다. */
+export function 구역별(game, ti, events = game.events) {
+  const 칸 = Object.fromEntries(구역들.map((z) => [z, { m: 0, a: 0 }]));
+  for (const e of events) {
+    if (e.type !== "shot" || e.team !== ti) continue;
+    const z = 칸[구역이름(e)];
+    if (!z) continue;
+    z.a++;
+    if (e.made) z.m++;
+  }
+  return 칸;
+}
 
 /** 선수 한 줄(boxScore 의 결과)에서 효율 지표를 낸다. */
 export function 효율(r) {
@@ -203,4 +238,131 @@ export function 경기요약(game) {
     기록수: playCount(game.events),
     최다,
   };
+}
+
+// ── 밴드에 붙일 글 ───────────────────────────────────────
+// 엑셀은 기록원이 누적용으로 챙기는 것이고, 경기 당일 밴드에 올리는 건 글이다.
+// 그래서 숫자를 표가 아니라 문장으로 늘어놓는다. 밴드는 서식을 못 살리므로
+// 고정폭 글꼴에 기대는 줄맞춤은 쓰지 않는다 — 어디서 봐도 같게 읽혀야 한다.
+
+const 퍼센트 = (m, a) => (a > 0 ? ` (${Math.round((m / a) * 100)}%)` : "");
+const 몇개 = (v, 단위 = "") => `${v}${단위}`;
+
+/** 자리별 슛 한 줄. 좌표가 남긴 것 중 사람이 실제로 읽는 부분이다. */
+function 구역줄(game, ti) {
+  const z = 구역별(game, ti);
+  const 쓸것 = 구역들.filter((k) => z[k].a > 0);
+  if (!쓸것.length) return null;
+  return `자리 — ${쓸것.map((k) => `${k} ${z[k].m}/${z[k].a}${퍼센트(z[k].m, z[k].a)}`).join(" · ")}`;
+}
+
+/** 선수 한 줄. 0 인 항목은 빼서 눈이 숫자에 걸리지 않게 한다. */
+function 선수줄(r) {
+  const 조각 = [`${r.pts}점`];
+  // 야투(2점+3점 합)로 적으면 옆의 "3점 0/1" 과 겹쳐 보여 헷갈린다. 나눠 적는다.
+  if (r.p2a) 조각.push(`2점 ${r.p2m}/${r.p2a}`);
+  if (r.p3a) 조각.push(`3점 ${r.p3m}/${r.p3a}`);
+  if (r.fta) 조각.push(`자유투 ${r.ftm}/${r.fta}`);
+  if (r.reb) 조각.push(`리바 ${r.reb}`);
+  if (r.ast) 조각.push(`어시 ${r.ast}`);
+  if (r.stl) 조각.push(`스틸 ${r.stl}`);
+  if (r.blk) 조각.push(`블락 ${r.blk}`);
+  if (r.to) 조각.push(`턴오버 ${r.to}`);
+  if (r.pf) 조각.push(`파울 ${r.pf}`);
+  return `  ${r.name} ${조각.join(" · ")}`;
+}
+
+/** 숫자를 다시 늘어놓지 않고, 눈에 띄는 것만 몇 줄 짚는다.
+ *  값이 없거나 표본이 모자라면 아예 말하지 않는다 — 없는 이야기를 지어내지 않는다. */
+function 짚어볼점(game, T) {
+  const 말 = [];
+  const 이름 = game.teams.map((t) => t.name);
+  const [sa, sb] = scoreOf(game.events);
+  const 차 = Math.abs(sa - sb);
+
+  for (const ti of [0, 1]) {
+    const t = T[ti];
+    const fga = t.p2a + t.p3a;
+    if (fga >= 10 && t.efg != null) {
+      if (t.efg >= 0.55) 말.push(`${이름[ti]} eFG ${pct1(t.efg)} 로 슛이 잘 들어간 경기`);
+      else if (t.efg <= 0.35) 말.push(`${이름[ti]} eFG ${pct1(t.efg)} 로 슛이 안 들어간 경기`);
+    }
+    if (t.p3a >= 8 && t.p3m / t.p3a >= 0.4) {
+      말.push(`${이름[ti]} 3점 ${t.p3m}/${t.p3a} 로 외곽이 터짐`);
+    }
+    if (t.넉넉 && t.tov != null && t.tov >= 20) {
+      // "다섯 번에 한 번" 처럼 고정해 두면 31.6% 에도 같은 말이 나가 틀린 글이 된다.
+      말.push(`${이름[ti]} 턴오버율 ${t.tov.toFixed(1)}% — 공격 ${Math.round(100 / t.tov)}번에 한 번꼴로 그냥 내줌`);
+    }
+    if (t.orbPct != null && t.rebO + t.rebD >= 10 && t.orbPct >= 0.4) {
+      말.push(`${이름[ti]} 공격 리바운드 ${pct1(t.orbPct)} 로 두 번째 기회를 많이 만듦`);
+    }
+    // 어디서 쐈나가 한쪽으로 쏠렸을 때만 짚는다
+    const z = 구역별(game, ti);
+    const 총 = 구역들.reduce((a, k) => a + z[k].a, 0);
+    if (총 >= 12) {
+      for (const k of 구역들) {
+        if (z[k].a / 총 >= 0.6) 말.push(`${이름[ti]} 슛의 ${Math.round((z[k].a / 총) * 100)}% 가 ${k} 에서 나옴 — ${z[k].m}/${z[k].a}`);
+      }
+    }
+  }
+
+  const 리바차 = Math.abs(T[0].reb - T[1].reb);
+  if (리바차 >= 8) 말.push(`리바운드 ${리바차}개 차로 ${이름[T[0].reb > T[1].reb ? 0 : 1]} 우세`);
+  if (차 && 차 <= 3) 말.push(`${차}점 차 접전`);
+  else if (차 >= 20) 말.push(`${차}점 차`);
+  return 말;
+}
+
+/** 밴드에 그대로 붙여 넣을 경기 요약. */
+export function 밴드글(game) {
+  const [sa, sb] = scoreOf(game.events);
+  const T = 팀지표(game);
+  const rows = boxScore(game);
+  const 이름 = game.teams.map((t) => t.name);
+  const 이긴팀 = sa === sb ? -1 : sa > sb ? 0 : 1;
+  const 쿼터들 = [...new Set(game.events.map((e) => e.q || 1))].sort((a, b) => a - b);
+  const L = [];
+
+  L.push(`[${game.date}] ${이름[0]} ${sa} : ${sb} ${이름[1]}`
+    + (이긴팀 === -1 ? " — 무승부" : ` — ${이름[이긴팀]} 승`));
+  L.push(`${qLabel(쿼터들[쿼터들.length - 1] || 1, game.quarters)}까지 · 기록 ${playCount(game.events)}개`);
+
+  if (쿼터들.length > 1) {
+    L.push("", "■ 쿼터별");
+    for (const ti of [0, 1]) {
+      const 점 = 쿼터들.map((q) => scoreOf(game.events.filter((e) => (e.q || 1) === q))[ti]);
+      L.push(`${이름[ti]}  ${점.join(" / ")}`);
+    }
+  }
+
+  if (T[0].넉넉) {
+    L.push("", "■ 팀 효율 (100 포제션 기준)");
+    for (const ti of [0, 1]) {
+      const t = T[ti];
+      L.push(`${이름[ti]} — 공격 ${num1(t.ortg)} · 수비 ${num1(t.drtg)} · Net ${t.net > 0 ? "+" : ""}${num1(t.net)}`);
+      L.push(`  eFG ${pct1(t.efg)} · TS ${pct1(t.ts)} · 턴오버율 ${num1(t.tov)}% · 공격리바 ${pct1(t.orbPct)}`);
+    }
+  }
+
+  for (const ti of [0, 1]) {
+    const t = T[ti];
+    L.push("", `■ ${이름[ti]} ${t.pts}점`);
+    L.push(`슛 — 2점 ${t.p2m}/${t.p2a}${퍼센트(t.p2m, t.p2a)}`
+      + ` · 3점 ${t.p3m}/${t.p3a}${퍼센트(t.p3m, t.p3a)}`
+      + ` · 자유투 ${t.ftm}/${t.fta}${퍼센트(t.ftm, t.fta)}`);
+    const 자리 = 구역줄(game, ti);
+    if (자리) L.push(자리);
+    L.push(`팀 — 리바 ${몇개(t.reb)}${t.rebO + t.rebD ? ` (공 ${t.rebO} / 수 ${t.rebD})` : ""}`
+      + ` · 어시 ${t.ast} · 스틸 ${t.stl} · 블락 ${t.blk} · 턴오버 ${t.to} · 파울 ${t.pf}`);
+    // 기록이 하나도 없는 선수는 빼고, 득점 많은 순으로 적는다.
+    const 뛴사람 = rows.filter((r) => r.team === ti)
+      .filter((r) => r.pts || r.p2a || r.p3a || r.fta || r.reb || r.ast || r.stl || r.blk || r.to || r.pf)
+      .sort((x, y) => y.pts - x.pts || (y.reb + y.ast) - (x.reb + x.ast));
+    for (const r of 뛴사람) L.push(선수줄(r));
+  }
+
+  const 말 = 짚어볼점(game, T);
+  if (말.length) L.push("", "■ 짚어볼 점", ...말.map((m) => `- ${m}`));
+  return L.join("\n");
 }

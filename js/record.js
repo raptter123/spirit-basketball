@@ -25,7 +25,9 @@ import {
   getRecordGame, saveRecordGame, clearRecordGame, getTeamBuilderDraft,
   getRecordArchive, archiveRecordGame, removeArchivedGame, clearRecordArchive,
 } from "./storage.js";
-import { 효율, plusMinus, 팀지표, 경기요약, pct1, num1, 부호, MIN_POSS } from "./record-stats.js";
+import {
+  효율, plusMinus, 팀지표, 경기요약, 밴드글, pct1, num1, 부호, MIN_POSS,
+} from "./record-stats.js";
 
 // 코트에서 슛이 일어나는 구역만 남긴다. 백코트는 비어 있어 자리만 차지한다.
 const COURT_VIEW = "0 185 500 285";
@@ -788,6 +790,13 @@ export function mountRecord(container) {
             </table>
           </div>`).join("")}
         <div class="rec-save">
+          <button type="button" class="btn btn-primary" id="rec-band">밴드용 글 복사</button>
+          <p class="hint">경기 결과와 분석을 글로 정리했어요. 눌러서 복사한 뒤 밴드에 그대로 붙이면 돼요.
+            (복사가 안 되면 아래 칸에서 직접 골라도 돼요)</p>
+          <textarea class="rec-band-text" id="rec-band-text" readonly rows="10">${esc(밴드글(game))}</textarea>
+        </div>
+
+        <div class="rec-save">
           <button type="button" class="btn btn-primary" id="rec-xlsx">엑셀 받기</button>
           <p class="hint">시트 세 장이 들어 있어요 — <b>선수기록</b>(경기 합계) · <b>쿼터별</b> ·
             <b>이벤트원본</b>(누른 순서 그대로, 슛 좌표까지). 원본이 있으면 나중에 무엇이든 다시 계산돼요.</p>
@@ -800,6 +809,20 @@ export function mountRecord(container) {
         </div>
       </div>
     `;
+    container.querySelector("#rec-band").addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      const 칸 = container.querySelector("#rec-band-text");
+      try {
+        await navigator.clipboard.writeText(칸.value);
+        btn.textContent = "복사됨! 밴드에 붙여넣으세요";
+      } catch {
+        // 클립보드를 막아 둔 브라우저도 있다. 그때는 글을 골라 주고 사람이 복사한다.
+        칸.focus();
+        칸.select();
+        btn.textContent = "복사 실패 — 아래 글을 직접 복사하세요";
+      }
+      setTimeout(() => { btn.textContent = "밴드용 글 복사"; }, 2500);
+    });
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-back").addEventListener("click", () => { screen = "live"; render(); });
     container.querySelector("#rec-new").addEventListener("click", () => {
