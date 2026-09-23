@@ -551,48 +551,194 @@ export async function saveWorkbook(wb) {
 }
 
 // ── 새 통합 문서 ─────────────────────────────────────────
-// 업로드할 파일이 없을 때 쓰는 최소 구성. 첫 줄은 굵게, 열 너비는 글자 수에 맞춘다.
+// 업로드할 파일이 없을 때 쓰는 최소 구성.
+//
+// 서식을 왜 손으로 짜나
+//   xlsx 의 셀 서식은 styles.xml 안의 번호를 가리키는 방식이다. 칸마다 서식을 새로
+//   만들면 파일이 금세 수천 개로 불어나므로, (띠 · 정렬 · 숫자서식) 조합을 미리
+//   열두 가지로 모아 두고 번호만 나눠 쓴다.
+//
+// 그림은 왜 넣을 수 있나
+//   xlsx 는 결국 zip 이고, 그림은 그 안의 xl/media/imageN.png 한 칸이다. 시트가
+//   그림을 가리키려면 그리기 부품(xl/drawings/…)이 한 겹 끼어야 한다. 셀에 매다는
+//   대신 absoluteAnchor 로 시트 왼쪽 위에서 몇 EMU 떨어진 자리인지 직접 적는다 —
+//   열 너비가 달라져도 그림이 안 밀린다. 대신 줄 높이는 ROW_PT 로 못박아, 부르는
+//   쪽이 "표 아래" 가 몇 px 인지 셀 수 있게 한다.
 
-/** 시트 하나를 XML 로 만든다. rows 는 [[셀, 셀, …], …]. */
-function sheetXml(rows, percentCols) {
+const PCT_NUMFMT = 164;                       // "0.0%" — 아래 styles.xml 에서 정의한다
+export const ROW_PT = 18;                     // 모든 줄 높이(pt)
+export const ROW_PX = (ROW_PT * 96) / 72;     // = 24px. 그림 자리를 잴 때 쓴다
+const EMU_PER_PX = 9525;                      // 1px = 9525 EMU (96dpi 기준)
+
+// styles.xml 의 cellXfs 번호. 아래 STYLES 문자열에 적은 순서와 같아야 한다.
+const XF = {
+  plain: { left: 0, center: 1, pct: 2 },
+  zebra: { left: 3, center: 4, pct: 5 },
+  total: { left: 6, center: 7, pct: 8 },
+  head: { left: 9, center: 10, pct: 10 },
+};
+const XF_NOTE = 11;
+// 팀 이름 칸에만 쓰는 색. 줄이 많아지면 어느 팀 줄인지 눈으로 못 따라가서 넣었다.
+const XF_TEAM = [
+  { plain: 12, zebra: 13, total: 14, head: 12 },
+  { plain: 15, zebra: 16, total: 17, head: 15 },
+];
+
+const STYLES =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+  `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+  `<numFmts count="1"><numFmt numFmtId="${PCT_NUMFMT}" formatCode="0.0%"/></numFmts>` +
+  // 4·5번은 팀 색이다. js/record-image.js 의 C.team(#C2410C · #15803D) 을 조금
+  // 어둡게 한 값이다 — 원래 색 그대로는 합계 줄 바탕(#EAEEF7) 위에서 명암비가
+  // 4.46 · 4.32 로 기준(4.5)에 못 미쳤다. 지금은 가장 나쁜 자리에서도 4.81 · 4.85 고,
+  // 원래 색과의 색차는 ΔE 3.4 · 4.5 라 같은 팀 색으로 읽힌다.
+  // (css/style.css 가 --accent 와 --accent-text 를 나눠 쓰는 것과 같은 이유다.)
+  `<fonts count="6">` +
+  `<font><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FFDFE4F5"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="12"/><color rgb="FF2C3557"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FFB93E0B"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FF147739"/><name val="맑은 고딕"/></font>` +
+  `</fonts>` +
+  `<fills count="5">` +
+  `<fill><patternFill patternType="none"/></fill>` +
+  `<fill><patternFill patternType="gray125"/></fill>` +
+  `<fill><patternFill patternType="solid"><fgColor rgb="FF2C3557"/><bgColor indexed="64"/></patternFill></fill>` +
+  `<fill><patternFill patternType="solid"><fgColor rgb="FFF5F7FB"/><bgColor indexed="64"/></patternFill></fill>` +
+  `<fill><patternFill patternType="solid"><fgColor rgb="FFEAEEF7"/><bgColor indexed="64"/></patternFill></fill>` +
+  `</fills>` +
+  `<borders count="2">` +
+  `<border><left/><right/><top/><bottom/><diagonal/></border>` +
+  `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD7DBE6"/></bottom><diagonal/></border>` +
+  `</borders>` +
+  `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+  `<cellXfs count="18">` +
+  // 0~2 보통 줄
+  `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  `<xf numFmtId="${PCT_NUMFMT}" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  // 3~5 얼룩 줄
+  `<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  `<xf numFmtId="${PCT_NUMFMT}" fontId="0" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  // 6~8 합계 줄
+  `<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="1" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  `<xf numFmtId="${PCT_NUMFMT}" fontId="1" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
+  // 9~10 머리글
+  `<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>` +
+  `<xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>` +
+  // 11 표 아래 안내 줄
+  `<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+  // 12~17 팀 이름 칸 (앞 팀 · 뒤 팀 × 보통 · 얼룩 · 합계)
+  `<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="4" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="5" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="5" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="5" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `</cellXfs>` +
+  `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
+  `</styleSheet>`;
+
+/** 숫자만 든 열은 가운데로 맞춘다. 이름·날짜 같은 글자 열은 왼쪽이 읽기 좋다. */
+function 가운데열(rows) {
+  const set = new Set();
+  const cols = rows.reduce((a, r) => Math.max(a, r.length), 0);
+  for (let c = 0; c < cols; c++) {
+    let 숫자 = 0;
+    let 글자 = 0;
+    for (let r = 1; r < rows.length; r++) {
+      const v = rows[r][c];
+      if (v === "" || v == null) continue;
+      if (typeof v === "number") 숫자++;
+      else 글자++;
+    }
+    if (숫자 && !글자) set.add(c);
+  }
+  return set;
+}
+
+/** 한글은 대략 두 칸을 먹는다. 열 너비를 글자 수로 잡을 때 쓴다. */
+function 글자폭(v) {
+  return String(v ?? "").split("").reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0);
+}
+
+function 셀(ref, value, style) {
+  const s = style ? ` s="${style}"` : "";
+  if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escXml(value)}</t></is></c>`;
+}
+
+/** 시트 하나를 XML 로 만든다. sheet 는 createWorkbookSheets 가 받는 것과 같은 모양.
+ *  drawingRel 이 있으면 시트 끝에 그리기 부품을 매단다. */
+function sheetXml(sheet, drawingRel) {
+  const rows = sheet.rows;
+  const pctSet = new Set(sheet.percentCols || []);
+  const 강조 = new Set(sheet.강조행 || []);
+  const 꼬리말 = sheet.꼬리말 || [];
+  const 센터 = 가운데열(rows);
+
+  // 열 너비는 표에서만 잰다. 꼬리말까지 같이 재면 긴 문장 하나가 첫 열을 통째로 늘린다.
   const widths = [];
-  rows.forEach((row) => {
-    row.forEach((v, i) => {
-      // 한글은 대략 두 칸을 먹는다.
-      const len = String(v ?? "").split("").reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0);
-      widths[i] = Math.max(widths[i] || 0, len);
-    });
-  });
-  const pctSet = new Set(percentCols);
+  rows.forEach((row) => row.forEach((v, i) => {
+    widths[i] = Math.max(widths[i] || 0, 글자폭(v));
+  }));
   const cols = widths
-    .map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.min(28, Math.max(6, w + 2))}" customWidth="1"/>`)
+    .map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.min(28, Math.max(6, w + 3))}" customWidth="1"/>`)
     .join("");
 
-  const body = rows
-    .map((row, r) => {
-      const cells = row
-        .map((value, c) => {
-          if (value === null || value === undefined || value === "") return "";
-          const ref = `${colLetter(c + 1)}${r + 1}`;
-          // 0 = 보통, 1 = 굵게(머리글), 2 = 0.00% 퍼센트
-          const style = r === 0 ? 1 : pctSet.has(c) ? 2 : 0;
-          const s = style ? ` s="${style}"` : "";
-          if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
-          return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escXml(value)}</t></is></c>`;
-        })
-        .join("");
-      return `<row r="${r + 1}">${cells}</row>`;
-    })
-    .join("");
+  const 팀열 = sheet.팀열 || null;
+  const 띠 = (r) => (r === 0 ? "head" : 강조.has(r) ? "total" : r % 2 === 0 ? "zebra" : "plain");
+  const body = rows.map((row, r) => {
+    const 결 = 띠(r);
+    const 칸 = XF[결];
+    const cells = row.map((value, c) => {
+      if (value === null || value === undefined || value === "") return "";
+      // 팀 이름 칸만 팀 색으로 쓴다. 이름이 안 맞으면(게스트 팀 등) 보통 서식으로 둔다.
+      const ti = 팀열 && c === 팀열.col && r > 0 ? 팀열.이름.indexOf(value) : -1;
+      const style = ti >= 0 ? XF_TEAM[ti][결]
+        : pctSet.has(c) && r > 0 ? 칸.pct
+          : 센터.has(c) ? 칸.center : 칸.left;
+      return 셀(`${colLetter(c + 1)}${r + 1}`, value, style);
+    }).join("");
+    return `<row r="${r + 1}" ht="${ROW_PT}" customHeight="1">${cells}</row>`;
+  });
+  // 꼬리말은 표와 한 칸 떼어 놓는다 — 붙이면 자동 필터가 같이 집어간다.
+  꼬리말.forEach((말, i) => {
+    const r = rows.length + 2 + i;
+    body.push(`<row r="${r}" ht="${ROW_PT}" customHeight="1">${셀(`A${r}`, 말, XF_NOTE)}</row>`);
+  });
 
-  const lastRef = `${colLetter(Math.max(1, widths.length))}${Math.max(1, rows.length)}`;
+  const lastCol = colLetter(Math.max(1, widths.length));
+  const lastRow = Math.max(1, rows.length + (꼬리말.length ? 꼬리말.length + 1 : 0));
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<dimension ref="A1:${lastRef}"/>` +
-    `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
-    `<sheetFormatPr defaultRowHeight="15"/>` +
+    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
+    `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+    `<dimension ref="A1:${lastCol}${lastRow}"/>` +
+    `<sheetViews><sheetView showGridLines="0" workbookViewId="0">` +
+    `<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+    `<sheetFormatPr defaultRowHeight="${ROW_PT}"/>` +
     (cols ? `<cols>${cols}</cols>` : "") +
-    `<sheetData>${body}</sheetData></worksheet>`;
+    `<sheetData>${body.join("")}</sheetData>` +
+    (rows.length > 1 ? `<autoFilter ref="A1:${lastCol}${rows.length}"/>` : "") +
+    (drawingRel ? `<drawing r:id="${drawingRel}"/>` : "") +
+    `</worksheet>`;
+}
+
+/** 그림 한 장을 시트 왼쪽 위에서 (x, y) px 자리에 w × h px 로 놓는 닻.
+ *  absoluteAnchor 라서 열 너비·줄 높이가 달라져도 자리가 안 움직인다. */
+function 그림닻(i, relId, { x, y, w, h }) {
+  const emu = (px) => Math.round(px * EMU_PER_PX);
+  return `<xdr:absoluteAnchor>` +
+    `<xdr:pos x="${emu(x)}" y="${emu(y)}"/><xdr:ext cx="${emu(w)}" cy="${emu(h)}"/>` +
+    `<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 2}" name="Chart ${i + 1}"/>` +
+    `<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>` +
+    `<xdr:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
+    `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>` +
+    `<xdr:clientData/></xdr:absoluteAnchor>`;
 }
 
 /** 시트 하나짜리 통합 문서. 시트를 여럿 넣으려면 createWorkbookSheets 를 쓴다. */
@@ -600,13 +746,53 @@ export async function createWorkbook(sheetName, rows, percentCols = []) {
   return createWorkbookSheets([{ name: sheetName, rows, percentCols }]);
 }
 
-/** 시트 여러 장짜리 통합 문서. sheets 는 [{ name, rows, percentCols }, …].
- *  합계와 원본을 한 파일에 담으려고 나눠 두었다 — 파일이 여러 개면 짝이 흩어진다. */
+/** 시트 여러 장짜리 통합 문서.
+ *  합계와 원본을 한 파일에 담으려고 나눠 두었다 — 파일이 여러 개면 짝이 흩어진다.
+ *
+ *  sheets 는 [{ name, rows, percentCols, 강조행, 팀열, 꼬리말, pics }, …]
+ *    percentCols  0.0% 서식을 입힐 열 번호. 값은 분수로 넣어야 한다
+ *    강조행       굵게·바탕색으로 띄울 줄 번호(0 = 머리글이므로 1부터)
+ *    팀열         { col, 이름: [앞팀, 뒤팀] } — 그 칸을 팀 색으로 쓴다
+ *    꼬리말       표 아래 한 칸 띄고 붙일 안내 문구들
+ *    pics         [{ bytes, x, y, w, h }] — png 바이트와 px 자리 */
 export async function createWorkbookSheets(sheets) {
   if (!zipSupported()) {
     throw new Error("이 브라우저는 엑셀 파일 만들기를 지원하지 않습니다. 크롬이나 최신 사파리에서 열어주세요.");
   }
   if (!sheets.length) throw new Error("시트가 없습니다.");
+
+  // 그림이 든 시트마다 그리기 부품을 하나씩 만든다. 그림 파일은 통합 문서 전체에서
+  // 이어진 번호를 쓴다 — 시트별로 1부터 매기면 이름이 부딪친다.
+  const media = [];
+  const drawings = [];
+  const sheetDrawing = new Map();
+  sheets.forEach((s, si) => {
+    const pics = s.pics || [];
+    if (!pics.length) return;
+    const dn = drawings.length + 1;
+    const rels = [];
+    const anchors = [];
+    pics.forEach((p, i) => {
+      const mn = media.length + 1;
+      media.push({ name: `xl/media/image${mn}.png`, bytes: p.bytes });
+      const rid = `rId${i + 1}`;
+      rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${mn}.png"/>`);
+      anchors.push(그림닻(i, rid, p));
+    });
+    drawings.push({
+      n: dn,
+      xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ` +
+        `xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ` +
+        `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+        anchors.join("") + `</xdr:wsDr>`,
+      rels: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+        rels.join("") + `</Relationships>`,
+      sheet: si + 1,
+    });
+    sheetDrawing.set(si, dn);
+  });
 
   // 스타일은 마지막 관계 번호로 둔다. 시트가 rId1..rIdN 을 차례로 쓴다.
   const styleRel = sheets.length + 1;
@@ -616,9 +802,12 @@ export async function createWorkbookSheets(sheets) {
       `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
       `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
       `<Default Extension="xml" ContentType="application/xml"/>` +
+      (media.length ? `<Default Extension="png" ContentType="image/png"/>` : "") +
       `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
       sheets.map((_, i) =>
         `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("") +
+      drawings.map((d) =>
+        `<Override PartName="/xl/drawings/drawing${d.n}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`).join("") +
       `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
       `</Types>`,
     "_rels/.rels":
@@ -639,24 +828,20 @@ export async function createWorkbookSheets(sheets) {
         `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("") +
       `<Relationship Id="rId${styleRel}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
       `</Relationships>`,
-    "xl/styles.xml":
-      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-      `<fonts count="2"><font><sz val="11"/><name val="맑은 고딕"/></font>` +
-      `<font><b/><sz val="11"/><name val="맑은 고딕"/></font></fonts>` +
-      `<fills count="2"><fill><patternFill patternType="none"/></fill>` +
-      `<fill><patternFill patternType="gray125"/></fill></fills>` +
-      `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
-      `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-      `<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
-      `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
-      `<xf numFmtId="${PERCENT_NUMFMT}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>` +
-      `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
-      `</styleSheet>`,
+    "xl/styles.xml": STYLES,
   };
   sheets.forEach((s, i) => {
-    files[`xl/worksheets/sheet${i + 1}.xml`] = sheetXml(s.rows, s.percentCols || []);
+    files[`xl/worksheets/sheet${i + 1}.xml`] = sheetXml(s, sheetDrawing.has(i) ? "rId1" : null);
   });
+  for (const d of drawings) {
+    files[`xl/drawings/drawing${d.n}.xml`] = d.xml;
+    files[`xl/worksheets/_rels/sheet${d.sheet}.xml.rels`] =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+      `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${d.n}.xml"/>` +
+      `</Relationships>`;
+    files[`xl/drawings/_rels/drawing${d.n}.xml.rels`] = d.rels;
+  }
 
   const enc = new TextEncoder();
   const stamp = dosTime();
@@ -666,6 +851,13 @@ export async function createWorkbookSheets(sheets) {
     entries.push({
       name, method: 8, time: stamp.time, date: stamp.date,
       crc: crc32(raw), usize: raw.length, cdata: await deflateRaw(raw),
+    });
+  }
+  // png 는 이미 압축된 형식이라 그대로 담는다(method 0). 다시 압축해도 안 줄고 시간만 든다.
+  for (const m of media) {
+    entries.push({
+      name: m.name, method: 0, time: stamp.time, date: stamp.date,
+      crc: crc32(m.bytes), usize: m.bytes.length, cdata: m.bytes,
     });
   }
   return buildZip(entries);

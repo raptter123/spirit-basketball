@@ -5,8 +5,9 @@
 //   사람이 바로 읽을 합계(선수기록 · 팀효율 · 자리별 · 쿼터별)와 **이벤트 원본**을
 //   같이 넣는다. 원본 한 장이 있으면 나머지는 언제든 다시 만들 수 있다. 반대는 안 된다.
 //
-//   자리별 시트가 샷 차트를 대신한다. 그림은 한 사람씩 받아야 하고 기록한 기기에만
-//   남아서, 다른 사람에게 닿는 길은 이 표와 밴드 글뿐이다.
+//   자리별 시트는 표와 그림을 같이 싣는다. 표는 "골밑 2/8" 까지만 말해 주고, 그
+//   여덟 개가 어디였는지는 좌표에만 있다. xlsx 안에 png 를 박아 둘 수 있으므로
+//   (xlsx-lite.js 의 pics) 표 아래에 샷 차트를 함께 넣어 한 파일로 끝낸다.
 //
 // 왜 필요할 때만 불러오나
 //   기록 화면(record.js)은 app.js 가 처음부터 들고 간다. 여기를 정적으로 import
@@ -23,8 +24,10 @@
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
 import { boxScore, pointsOf, qLabel } from "./record.js";
 import {
-  효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름,
+  효율, plusMinus, 팀지표, 승패, 자리별선수, 슛모음, 구역들, 구역이름, 좌우이름,
 } from "./record-stats.js";
+import { 차트한장SVG } from "./record-image.js";
+import { PNG만들기 } from "./record-chart.js";
 
 const 종류이름 = {
   shot: "슛", ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
@@ -173,6 +176,70 @@ export function 원본시트(game) {
   return rows;
 }
 
+// ── 자리별 시트에 얹을 샷 차트 그림 ──────────────────────
+// 표는 "골밑 2/8" 까지만 말해 준다. 그 여덟 개가 왼쪽이었는지 오른쪽이었는지는
+// 좌표에만 있고, 좌표를 사람이 읽는 길은 그림뿐이다. 그래서 같은 시트에 같이 둔다.
+//
+// 그림은 셀을 밀어내지 않고 위에 떠 있다. 그러니 표 밑에 빈 자리를 만들어 두고
+// 그 위에 놓아야 한다 — 자리는 줄 높이(ROW_PX)가 고정이라 px 로 셀 수 있다.
+const 그림 = {
+  팀칸: 460,      // 팀 차트 한 칸 너비(px)
+  선수칸: 300,    // 선수 차트 한 칸 너비(px)
+  사이: 16,
+  왼쪽: 6,
+  위여백: 8,
+};
+
+/** 코트 그림의 세로:가로 비율에 제목줄과 요약줄을 더한 높이. record-image.js 와 같다. */
+const 칸높이 = (w) => Math.ceil(26 + (w * 285) / 500 + 22);
+
+async function PNG바이트(svg) {
+  // 2배로 뽑는다. 엑셀에서 보이는 크기는 닻(ext)이 정하므로, 원본이 촘촘할수록 선명하다.
+  const blob = await PNG만들기(svg, 2);
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/** 자리별 시트에 넣을 그림들. 표 아래 빈 자리에 팀 둘 · 선수 셋씩 늘어놓는다.
+ *  시작 y 는 "표 줄 수 + 빈 줄 + 안내 줄" 을 px 로 환산한 값이다. */
+async function 자리그림(game, 시작줄, ROW_PX) {
+  const 이름 = game.teams.map((t) => t.name);
+  const pics = [];
+  let y = 시작줄 * ROW_PX + 그림.위여백;
+
+  const 몫 = (shots) => `${shots.filter((s) => s.made).length}/${shots.length}`;
+
+  // 팀 차트 둘을 나란히
+  const 팀h = 칸높이(그림.팀칸);
+  for (const ti of [0, 1]) {
+    const shots = 슛모음([game], null, ti);
+    const { svg } = 차트한장SVG(shots, 이름[ti], 몫(shots), 그림.팀칸);
+    pics.push({
+      bytes: await PNG바이트(svg),
+      x: 그림.왼쪽 + ti * (그림.팀칸 + 그림.사이),
+      y, w: 그림.팀칸, h: 팀h,
+    });
+  }
+  y += 팀h + 그림.사이;
+
+  // 선수 차트 — 슛을 쏜 사람만, 팀 순서 · 많이 쏜 순. 세 칸씩 줄을 바꾼다.
+  const 사람들 = 자리별선수(game)
+    .filter((r) => r.총.a > 0)
+    .sort((a, b) => a.team - b.team || b.총.a - a.총.a);
+  const 선수h = 칸높이(그림.선수칸);
+  for (let i = 0; i < 사람들.length; i++) {
+    const r = 사람들[i];
+    const shots = 슛모음([game], r.name);
+    const { svg } = 차트한장SVG(shots, r.name, 몫(shots), 그림.선수칸);
+    pics.push({
+      bytes: await PNG바이트(svg),
+      x: 그림.왼쪽 + (i % 3) * (그림.선수칸 + 그림.사이),
+      y: y + Math.floor(i / 3) * (선수h + 그림.사이),
+      w: 그림.선수칸, h: 선수h,
+    });
+  }
+  return pics;
+}
+
 /** 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로 버리고 확장자 없는
  *  "download" 로 받는다 — 더블클릭해도 안 열린다. 그래서 파일명은 아스키만 쓴다. */
 export function 파일이름(game) {
@@ -181,22 +248,51 @@ export function 파일이름(game) {
   return `spirit-game-${game.date}-${시각}.xlsx`;
 }
 
-/** 다섯 시트를 담은 xlsx 바이트. */
+/** 다섯 시트를 담은 xlsx 바이트. 자리별 시트에는 표 아래에 샷 차트 그림도 넣는다. */
 export async function 엑셀만들기(game) {
-  const { createWorkbookSheets } = await import("./xlsx-lite.js");
-  // 비율 칸은 0.562 같은 분수로 넣고 엑셀에서 0.00% 서식으로 보이게 한다.
+  const { createWorkbookSheets, ROW_PX } = await import("./xlsx-lite.js");
+  // 비율 칸은 0.562 같은 분수로 넣고 엑셀에서 0.0% 서식으로 보이게 한다.
   // 56.2 로 넣으면 나중에 평균을 낼 때 100배 틀린 값이 나온다 (js/gamestats.js:236 과 같은 이유).
   const 합계 = 합계시트(game);
   const 팀 = 팀시트(game);
   const 자리 = 자리시트(game);
   const 쿼터 = 쿼터시트(game);
   const 비율 = (머리, 이름들) => 이름들.map((n) => 머리.indexOf(n)).filter((i) => i >= 0);
+
+  // 팀 합계 줄은 굵게 띄운다. 자리는 "구분" 칸으로 찾는다 — 줄 수를 세면 선수가
+  // 늘거나 줄 때마다 어긋난다.
+  const 자리강조 = 자리.map((r, i) => (i > 0 && r[1] === "팀" ? i : -1)).filter((i) => i > 0);
+  const 자리꼬리 = ["■ 샷 차트 — 팀별 · 개인별  (● 들어감  ✕ 빗나감)"];
+  const pics = await 자리그림(game, 자리.length + 1 + 자리꼬리.length, ROW_PX);
+
+  // 팀 이름 칸은 팀 색으로 쓴다. 시트마다 그 칸이 몇 번째인지 머리글에서 찾는다 —
+  // 숫자로 박아 두면 칸이 하나 늘 때마다 엉뚱한 열이 물든다.
+  const 이름 = game.teams.map((t) => t.name);
+  const 팀열 = (머리) => {
+    const col = 머리.indexOf("팀");
+    return col < 0 ? undefined : { col, 이름 };
+  };
+  const 원본 = 원본시트(game);
+
   return createWorkbookSheets([
-    { name: "선수기록", rows: 합계, percentCols: 비율(합계[0], ["eFG%", "TS%"]) },
-    { name: "팀효율", rows: 팀, percentCols: 비율(팀[0], ["eFG%", "TS%", "공격리바%", "수비리바%"]) },
-    { name: "자리별", rows: 자리, percentCols: 비율(자리[0], 자리[0].filter((h) => h.endsWith("성공률"))) },
-    { name: "쿼터별", rows: 쿼터 },
-    { name: "이벤트원본", rows: 원본시트(game) },
+    { name: "선수기록", rows: 합계, percentCols: 비율(합계[0], ["eFG%", "TS%"]), 팀열: 팀열(합계[0]) },
+    {
+      name: "팀효율",
+      rows: 팀,
+      percentCols: 비율(팀[0], ["eFG%", "TS%", "공격리바%", "수비리바%"]),
+      팀열: 팀열(팀[0]),
+    },
+    {
+      name: "자리별",
+      rows: 자리,
+      percentCols: 비율(자리[0], 자리[0].filter((h) => h.endsWith("성공률"))),
+      강조행: 자리강조,
+      팀열: 팀열(자리[0]),
+      꼬리말: 자리꼬리,
+      pics,
+    },
+    { name: "쿼터별", rows: 쿼터, 팀열: 팀열(쿼터[0]) },
+    { name: "이벤트원본", rows: 원본, 팀열: 팀열(원본[0]) },
   ]);
 }
 
