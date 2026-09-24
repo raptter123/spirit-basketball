@@ -19,7 +19,9 @@
 // 왜 테마를 안 따르는가
 //   이 그림은 내 화면이 아니라 남이 볼 곳으로 간다. 어두운 테마에서 뽑아 올리면
 //   밴드에서 배경이 검은 그림이 되므로, 색을 고정해 둔다.
-import { boxScore, scoreOf, playCount, qLabel, 팀색자리, 기록팀 } from "./record.js";
+import {
+  boxScore, scoreOf, playCount, qLabel, 팀색자리, 기록팀, 경기점수, 이긴팀, 점수글, 플마있음,
+} from "./record.js";
 import {
   효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 파일꼬리, 내려주기, pct1, num1,
 } from "./record-stats.js";
@@ -100,14 +102,15 @@ function 박스스코어(rows, pm, ti, 팀이름, y, 색) {
   줄.forEach((r, i) => {
     if (i % 2) out.push(사각(PAD, cy, INNER, ROW_H, C.zebra));
     const e = 효율(r);
-    const p = pm[`${ti}|${r.name}`] ?? 0;
+    // pm 이 null 이면 +/- 를 셀 수 없는 경기(교류전)다. 0 으로 적으면 "재 봤더니 0" 으로 읽힌다.
+    const p = pm ? (pm[`${ti}|${r.name}`] ?? 0) : null;
     const 값 = {
       name: r.name, pts: String(r.pts),
       p2: `${r.p2m}/${r.p2a}`, p3: `${r.p3m}/${r.p3a}`, ft: `${r.ftm}/${r.fta}`,
       reb: r.rebO + r.rebD ? `${r.reb} (${r.rebO}/${r.rebD})` : String(r.reb),
       ast: String(r.ast), stl: String(r.stl), blk: String(r.blk),
       to: String(r.to), pf: String(r.pf),
-      efg: pct1(e.efg), pm: p > 0 ? `+${p}` : String(p),
+      efg: pct1(e.efg), pm: p == null ? "–" : p > 0 ? `+${p}` : String(p),
     };
     for (const c of COLS) {
       const 굵게 = c.k === "name" || c.k === "pts";
@@ -238,11 +241,11 @@ export function 샷차트한장SVG(game, 경기들 = [game], w = 1000) {
 
 /** 밴드에 올릴 결과 이미지 전체. SVG 문자열과 크기를 돌려준다. */
 export function 결과이미지SVG(game, 경기들 = [game]) {
-  const [sa, sb] = scoreOf(game.events);
+  const [sa, sb] = 경기점수(game).map(점수글);
   const 이름 = game.teams.map((t) => t.name);
-  const 이긴팀 = sa === sb ? -1 : sa > sb ? 0 : 1;
+  const 누가 = 이긴팀(game);   // 교류전에서 상대 점수를 안 적었으면 null
   const rows = boxScore(game);
-  const pm = plusMinus(game);
+  const pm = 플마있음(game) ? plusMinus(game) : null;
   const T2 = 팀지표(game);
   const 쿼터들 = [...new Set(game.events.map((e) => e.q || 1))].sort((a, b) => a - b);
   const out = [];
@@ -253,19 +256,23 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
   out.push(T(PAD, 38, `${game.date} · ${qLabel(쿼터들[쿼터들.length - 1] || 1, game.quarters)}까지 · 기록 ${playCount(game.events)}개`,
     { size: 15, weight: 600, fill: C.bandText, op: 0.72 }));
   out.push(T(PAD, 80, `${이름[0]}  ${sa} : ${sb}  ${이름[1]}`, { size: 30, weight: 900, fill: C.bandText }));
-  out.push(T(W - PAD, 80, 이긴팀 === -1 ? "무승부" : `${이름[이긴팀]} 승`,
-    { size: 20, weight: 900, fill: 이긴팀 === -1 ? C.draw : C.win, anchor: "end" }));
+  if (누가 != null) {
+    out.push(T(W - PAD, 80, 누가 === -1 ? "무승부" : `${이름[누가]} 승`,
+      { size: 20, weight: 900, fill: 누가 === -1 ? C.draw : C.win, anchor: "end" }));
+  }
   y = 108 + 20;
 
   // ── 쿼터별 · 팀 효율 ──────────────────────────────────
   if (쿼터들.length > 1) {
     out.push(T(PAD, y + 14, "쿼터별", { size: 14, weight: 800, fill: C.ink2 }));
-    [0, 1].forEach((ti) => {
+    // 교류전 상대는 최종 점수만 적으므로 쿼터별은 우리 팀 한 줄이다.
+    const 줄팀 = 기록팀(game);
+    줄팀.forEach((ti, k) => {
       const 점 = 쿼터들.map((q) => scoreOf(game.events.filter((e) => (e.q || 1) === q))[ti]);
-      out.push(T(PAD + 74, y + 14 + ti * 22, `${이름[ti]}   ${점.join("  /  ")}`,
+      out.push(T(PAD + 74, y + 14 + k * 22, `${이름[ti]}   ${점.join("  /  ")}`,
         { size: 14, weight: 700, fill: C.team[팀색자리(game, ti)] }));
     });
-    y += 22 * 2 + 10;
+    y += 22 * 줄팀.length + 10;
   }
   if (T2[0].넉넉) {
     const 칸w = (INNER - 16) / 2;

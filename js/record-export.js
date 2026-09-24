@@ -22,7 +22,7 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀 } from "./record.js";
+import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀, 플마있음 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 파일꼬리, 내려주기,
 } from "./record-stats.js";
@@ -64,10 +64,11 @@ const 값 = (v) => (v == null ? "" : v);
 
 /** 선수기록 시트 — 경기 전체 합계. 한 줄이 한 선수다. */
 export function 합계시트(game) {
-  const pm = plusMinus(game);
+  // 교류전은 +/- 를 셀 수 없어 빈 칸으로 둔다 (0 이면 "재 봤더니 0" 이 된다).
+  const pm = 플마있음(game) ? plusMinus(game) : null;
   return [[...합계머리, ...효율머리], ...boxScore(game).map((r) => {
     const e = 효율(r);
-    return [...합계줄(game, r), 값(e.efg), 값(e.ts), 값(e.astTo), pm[`${r.team}|${r.name}`] ?? 0];
+    return [...합계줄(game, r), 값(e.efg), 값(e.ts), 값(e.astTo), pm ? (pm[`${r.team}|${r.name}`] ?? 0) : ""];
   })];
 }
 
@@ -81,7 +82,8 @@ export function 팀시트(game) {
   기록팀(game).forEach((ti) => {
     const t = T[ti];
     rows.push([game.date, game.teams[ti].name, 승패(game, ti),
-      t.pts, T[1 - ti].pts, Math.round(t.poss * 10) / 10,
+      // 교류전에서 상대 점수를 아직 안 적었으면 실점은 빈 칸이다.
+      값(t.pts), 값(T[1 - ti].pts), Math.round(t.poss * 10) / 10,
       값(t.ortg && Math.round(t.ortg * 10) / 10),
       값(t.drtg && Math.round(t.drtg * 10) / 10),
       값(t.net && Math.round(t.net * 10) / 10),
