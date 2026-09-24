@@ -4053,6 +4053,18 @@ body {
 .rec-pchip.is-armed { background: rgba(250, 204, 21, .16); border-color: #facc15; }
 .rec-pchip.is-armed .nm { color: var(--text); }
 
+/* 교류전 상대 줄. 상대는 누가 넣었는지 안 적고 점수만 누른다.
+   선수 칩(54px)과 높이를 맞춰, 한 팀일 때와 두 팀일 때 화면 길이가 같게 둔다. */
+.rec-opp-row { grid-template-columns: repeat(3, 1fr); }
+.rec-oppbtn {
+  /* 테두리는 글자용 짙은 색(--ct)으로 둔다. 도형용(--c) 초록은 밝은 테마 흰 바탕에서
+     2.28:1 로 도형 기준(3.0)에 못 미쳤다. 점선은 실선보다 칠해진 면적이 적어 더 흐리다. */
+  min-height: 54px; border-radius: 10px; border: 2px dashed var(--ct);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  font-size: var(--fs-xl); font-weight: 900;
+}
+.rec-oppbtn:active { background: var(--surface-2); }
+
 .rec-bench { margin-bottom: 6px; }
 .rec-bench > summary {
   min-height: 44px; display: flex; align-items: center;
@@ -4112,6 +4124,15 @@ body {
 }
 .rec-nbtn.is-on { border-color: var(--accent); background: var(--surface-2); }
 .rec-nteam .hint { margin: 0; }
+
+/* 교류전 상대 이름 칸 — 설정 화면과 결과 화면('다음 경기')이 같이 쓴다. */
+.rec-opp-field { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 10px; }
+.rec-opp-field > span { font-size: var(--fs-sm); font-weight: 800; color: var(--text); }
+.rec-opp-field input {
+  min-height: 44px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); font-size: var(--fs-md);
+}
 
 /* 여덟 개를 네 열 두 줄로. 리바가 하나로 돌아오면서 다섯 열로 좁혔던 것을
    되돌린다 — 기록 화면은 390×844 에 꽉 차 있어 줄을 더 얹을 자리는 없다. */

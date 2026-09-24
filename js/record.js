@@ -92,6 +92,7 @@ const EVENT_LABEL = {
   ast: "어시스트", reb: "리바운드", stl: "스틸", blk: "블락",
   to: "턴오버", pf: "파울", ftm: "자유투 ✓", fta: "자유투 ✗",
   rebO: "공격 리바운드", rebD: "수비 리바운드",
+  opp: "상대 득점",
 };
 
 /** 직전에 빗나간 슛을 쏜 팀. 그 팀이 잡으면 공격 리바운드, 상대가 잡으면 수비다.
@@ -132,12 +133,32 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 이벤트 한 줄이 그 선수에게 몇 점인가. 점수는 슛과 자유투에서만 나온다. */
+/** 이벤트 한 줄이 몇 점인가. 점수는 슛과 자유투, 그리고 교류전 상대 득점에서 나온다.
+ *
+ *  교류전 상대는 로스터에 없는 사람들이라 누가 넣었는지는 안 적고 점수만 적는다
+ *  ({ type: "opp", team: 1, pts }). 선수가 없으니 박스스코어에는 안 잡히지만,
+ *  점수 · 쿼터별 · +/- 는 모두 이 함수를 거치므로 여기 한 줄로 다 따라온다. */
 export function pointsOf(ev) {
   if (ev.type === "shot") return ev.made ? ev.pts : 0;
   if (ev.type === "ftm") return 1;
+  if (ev.type === "opp") return ev.pts || 0;
   return 0;
 }
+
+/** 교류전인가 — 뒷자리 팀이 바깥 팀(선수 명단 없이 점수만 적는 상대)인가. */
+export function 교류전(game) {
+  return !!game?.teams?.[1]?.opp;
+}
+
+/** 선수별로 기록하는 팀 번호들. 교류전이면 우리 팀 하나뿐이다.
+ *  팀마다 표·차트·합계를 그리는 곳은 [0, 1] 대신 이걸 돈다 — 상대 팀 칸을
+ *  그리면 선수가 없어 0 으로 가득 찬 표가 나오고, 0 을 기록처럼 읽게 된다. */
+export function 기록팀(game) {
+  return 교류전(game) ? [0] : [0, 1];
+}
+
+/** 교류전 우리 팀 이름. */
+export const 우리팀이름 = "혼";
 
 /** 이벤트 목록 → 팀 점수 [A, B]. */
 export function scoreOf(events) {
@@ -241,6 +262,15 @@ function newGame(src) {
     };
   });
   return { date: src?.gameDate || todayStr(), quarters: 4, q: 1, teams, events: [], startedAt: Date.now() };
+}
+
+/** 교류전 경기 하나. 우리 팀은 온 사람 전원이고, 상대는 이름만 있다.
+ *  no 는 그날 몇 번째 교류전인가 — 파일 이름에 EX1 · EX2 로 붙는다. */
+export function 교류전경기(players, 상대이름, no = 1, gameDate) {
+  const g = newGame({ gameDate, teams: [{ name: 우리팀이름, players }, { name: 상대이름 || "상대", players: [] }] });
+  g.teams[1].opp = true;
+  g.no = no;
+  return g;
 }
 
 /** 등록한 팀들로 대진만큼 경기를 만든다.
@@ -350,10 +380,14 @@ export function mountRecord(container) {
         <div class="rec-manual">
           <h3>직접 고르기</h3>
           <div class="rec-nteam">
-            ${[2, 3].map((n) => `
-              <button type="button" class="rec-nbtn${n === 2 ? " is-on" : ""}" data-n="${n}">${n}팀</button>`).join("")}
+            ${[1, 2, 3].map((n) => `
+              <button type="button" class="rec-nbtn${n === 2 ? " is-on" : ""}" data-n="${n}">${n === 1 ? "1팀 · 교류전" : `${n}팀`}</button>`).join("")}
             <span class="hint" id="rec-nteam-say"></span>
           </div>
+          <label class="rec-opp-field" id="rec-opp-field" hidden>
+            <span>상대 팀 이름</span>
+            <input type="text" id="rec-opp-name" maxlength="20" placeholder="예: 불사조" autocomplete="off" />
+          </label>
           <p class="hint">이름을 누르면 팀이 차례로 채워집니다.</p>
           <div class="rec-pick-teams" id="rec-pick-teams"></div>
           <div class="rec-roster">
@@ -381,10 +415,12 @@ export function mountRecord(container) {
     let 팀수 = 2;
     let picked = [[], []];
     let next = 0;
+    // 교류전(1팀)이면 우리 팀 이름은 '혼' 하나다. 칸 이름표도 그걸 따른다.
+    const 칸이름 = (i) => (팀수 === 1 ? 우리팀이름 : TEAM_NAME[i]);
     const 다시그리기 = () => {
       container.querySelector("#rec-pick-teams").innerHTML = picked.map((list, i) => `
-        <div class="rec-pick-col" data-t="${팀색번호(TEAM_NAME[i], i)}">
-          <b>${TEAM_NAME[i]}</b>
+        <div class="rec-pick-col" data-t="${팀색번호(칸이름(i), i)}">
+          <b>${칸이름(i)}</b>
           <div class="rec-pick-list" data-team="${i}">${
             list.map((n) => `<button type="button" class="rec-picked" data-drop="${esc(n)}">${esc(n)} ✕</button>`).join("")
             || `<span class="rec-empty">아직 없음</span>`}</div>
@@ -397,13 +433,17 @@ export function mountRecord(container) {
       }
       const 대진 = 대진표(팀수);
       container.querySelector("#rec-nteam-say").textContent =
-        팀수 === 2 ? "한 경기로 시작해요" : `${대진.map(([a, c]) => `${TEAM_NAME[a]}–${TEAM_NAME[c]}`).join(" · ")} 세 경기`;
+        팀수 === 1 ? "온 사람 전원이 한 팀 — 상대는 점수만 적어요"
+          : 팀수 === 2 ? "한 경기로 시작해요"
+            : `${대진.map(([a, c]) => `${TEAM_NAME[a]}–${TEAM_NAME[c]}`).join(" · ")} 세 경기`;
+      container.querySelector("#rec-opp-field").hidden = 팀수 !== 1;
       const btn = container.querySelector("#rec-start");
       const 빈팀 = picked.filter((t) => !t.length).length;
       btn.disabled = 빈팀 > 0;
       btn.textContent = btn.disabled
-        ? `${빈팀}개 팀이 비어 있어요`
-        : `경기 시작 (${picked.map((t) => t.length).join(" vs ")})`;
+        ? (팀수 === 1 ? "뛸 사람을 골라 주세요" : `${빈팀}개 팀이 비어 있어요`)
+        : 팀수 === 1 ? `경기 시작 (${picked[0].length}명)`
+          : `경기 시작 (${picked.map((t) => t.length).join(" vs ")})`;
     };
 
     // 위임 핸들러는 container 가 아니라 방금 만든 .rec-setup 에 건다.
@@ -484,6 +524,12 @@ export function mountRecord(container) {
     });
 
     container.querySelector("#rec-start").addEventListener("click", () => {
+      const 사람 = (names) => names.map((n) => ROSTER.find((r) => r.name === n) || { name: n });
+      if (팀수 === 1) {
+        const 상대 = container.querySelector("#rec-opp-name").value.trim() || "상대";
+        세션시작([교류전경기(사람(picked[0]), 상대, 1)]);
+        return;
+      }
       세션시작(경기들만들기(picked.map((names, i) => ({
         name: TEAM_NAME[i],
         players: names.map((n) => ROSTER.find((r) => r.name === n) || { name: n }),
@@ -538,6 +584,7 @@ export function mountRecord(container) {
       if (e.type === "sub") {
         return `${머리}<b>${esc(e.player)} 들어감${e.out ? ` · ${esc(e.out)} 나감` : ""}</b>`;
       }
+      if (e.type === "opp") return `${머리}<b>${esc(game.teams[e.team].name)} +${e.pts}</b>`;
       const 말 = e.type === "shot" ? `${e.pts}점 ${e.made ? "✓" : "✗"}` : EVENT_LABEL[e.type];
       return `${머리}<b>${esc(e.player)} ${말}</b>`;
     }).join("<br />");
@@ -620,7 +667,11 @@ export function mountRecord(container) {
         </div>
 
         <div class="rec-side">
-          ${game.teams.map((t, ti) => `
+          ${game.teams.map((t, ti) => t.opp ? `
+            <div class="rec-team-row rec-opp-row" data-t="${팀색자리(game, ti)}">
+              <span class="rec-team-tag">${esc(t.name)}</span>
+              ${[1, 2, 3].map((n) => `<button type="button" class="rec-oppbtn" data-opp="${n}">+${n}</button>`).join("")}
+            </div>` : `
             <div class="rec-team-row" data-t="${팀색자리(game, ti)}">
               <span class="rec-team-tag">${esc(t.name)}</span>
               ${onCourt[ti].map((p) => playerChip(ti, p)).join("")}
@@ -793,6 +844,16 @@ export function mountRecord(container) {
       if (el) el.addEventListener("click", fn);
     }
 
+    // 교류전 상대 득점. 누가 넣었는지는 안 적는다 — 쿼터는 이벤트에 붙으므로
+    // 쿼터별 상대 점수는 따로 적지 않아도 저절로 모인다.
+    for (const el of container.querySelectorAll("[data-opp]")) {
+      el.addEventListener("click", () => {
+        이벤트추가({ type: "opp", team: 1, pts: Number(el.dataset.opp) });
+        pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
+        renderLive();
+      });
+    }
+
     container.querySelector("#rec-undo").addEventListener("click", () => {
       const 지운것 = game.events.pop();
       // 진행 이벤트는 화면 상태까지 같이 되돌려야 한다. 줄만 지우면
@@ -953,7 +1014,9 @@ export function mountRecord(container) {
   /** 차트 밑에 붙는 한 문장. 조각을 템플릿 안에서 이으면 빈 조각 자리에 줄바꿈이
    *  남아 "슛 13/22 ." 처럼 마침표가 떠 버리므로 여기서 미리 이어 둔다. */
   function 안내문(들어간것, 총시도, 경기수) {
-    const 누구 = 차트대상 ? `<b>${esc(차트대상)}</b>` : "양 팀 전부";
+    // 교류전은 상대 슛을 안 적으므로 "양 팀" 이 아니라 우리 팀 전부다.
+    const 누구 = 차트대상 ? `<b>${esc(차트대상)}</b>`
+      : 교류전(game) ? `${esc(game.teams[0].name)} 전부` : "양 팀 전부";
     const 범위 = 차트누적 ? ` · ${경기수}경기 누적` : "";
     const 적음 = 총시도 && 총시도 < 20
       ? ` 슛이 ${총시도}개뿐이라 "여기서 잘 들어간다" 를 말하기엔 일러요 — 경기가 쌓이면 뚜렷해져요.`
@@ -1083,6 +1146,10 @@ export function mountRecord(container) {
         <h2 class="rec-final">${esc(game.teams[0].name)} <b>${sa}</b> : <b>${sb}</b> ${esc(game.teams[1].name)}</h2>
         <p class="hint">${game.date} · 기록 ${playCount(game.events)}개 · ${qLabel(마지막쿼터(), game.quarters)}까지</p>
 
+        ${교류전(game) ? `
+        <p class="hint rec-adv-note rec-ex-note">교류전은 상대를 점수만 적어서 <b>팀 효율(ORtg·DRtg)은 안 나와요</b>.
+          100 포제션당 실점을 내려면 상대의 슛 시도·리바·턴오버가 있어야 하거든요.
+          우리 선수 기록 · +/- · 샷 차트는 그대로 나와요.</p>` : `
         <h3 class="rec-adv-title">팀 효율</h3>
         <div class="rec-adv">${[0, 1].map(팀카드).join("")}</div>
         <p class="hint rec-adv-note">100 포제션당 낸 점수(ORtg)와 내준 점수(DRtg)예요.
@@ -1092,12 +1159,12 @@ export function mountRecord(container) {
           ${팀[0].넉넉 ? "" :
             `<br /><b>포제션이 ${MIN_POSS}개도 안 돼서 ORtg·DRtg 는 안 보여줘요.</b>
              한 번의 공격에서 2점이 나면 계산상 200이 되는데, 그건 잘했다는 뜻이 아니라
-             잴 거리가 없다는 뜻이거든요. 한 쿼터쯤 쌓이면 나와요.`}</p>
+             잴 거리가 없다는 뜻이거든요. 한 쿼터쯤 쌓이면 나와요.`}</p>`}
 
         <h3 class="rec-adv-title">샷 차트</h3>
         <div id="rec-chart"></div>
 
-        ${game.teams.map((t, ti) => `
+        ${기록팀(game).map((ti) => [game.teams[ti], ti]).map(([t, ti]) => `
           <h3 class="rec-bs-team" data-t="${팀색자리(game, ti)}">${esc(t.name)}</h3>
           <div class="table-scroll">
             <table class="rec-bs">
@@ -1109,6 +1176,16 @@ export function mountRecord(container) {
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}
+        ${교류전(game) ? `
+        <div class="rec-save rec-next">
+          <label class="rec-opp-field">
+            <span>다음 경기 상대</span>
+            <input type="text" id="rec-next-opp" maxlength="20" value="${esc(game.teams[1].name)}" autocomplete="off" />
+          </label>
+          <button type="button" class="btn btn-primary" id="rec-next">＋ 다음 경기 시작</button>
+          <p class="hint">같은 사람들로 새 경기를 열어요. 이 경기는 보관함에 남고, 맨 위 줄에서 오갈 수 있어요.
+            상대가 바뀌었으면 이름만 고쳐 주세요.</p>
+        </div>` : ""}
         ${여럿 ? `
         <div class="rec-save">
           <button type="button" class="btn btn-primary" id="rec-all">📦 ${경기수말} 경기 한꺼번에 받기</button>
@@ -1160,6 +1237,21 @@ export function mountRecord(container) {
     });
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-all")?.addEventListener("click", (e) => 한꺼번에받기(e.currentTarget));
+    // 교류전 다음 경기 — 같은 사람들, 상대 이름은 앞 경기 것을 미리 채워 둔다.
+    container.querySelector("#rec-next")?.addEventListener("click", () => {
+      const 상대 = container.querySelector("#rec-next-opp").value.trim() || "상대";
+      const 번호 = Math.max(...session.games.filter(교류전).map((g) => g.no || 1)) + 1;
+      const 새 = 교류전경기(game.teams[0].players, 상대, 번호, game.date);
+      session.games.push(새);
+      session.at = session.games.length - 1;
+      game = 새;
+      pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
+      차트대상 = null;
+      save();
+      screen = "live";
+      render();
+      window.scrollTo(0, 0);
+    });
     // 결과 화면에서 경기를 갈아타면 결과 화면에 머문다(screen 은 그대로 "done").
     // 보고 있던 선수 차트는 다른 경기에 그 사람이 없을 수 있으므로 전체로 되돌린다.
     // 결과 화면에 들어온 경기는 보관함에 넣는다 — '결과 보기' 버튼과 같은 약속이다.
