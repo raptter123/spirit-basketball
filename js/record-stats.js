@@ -10,7 +10,9 @@
 //   슛을 한 번도 안 쏜 선수의 야투율은 0% 가 아니라 "없음" 이다. 0 으로 적으면
 //   평균을 낼 때 못 쏜 사람이 못 넣은 사람으로 섞인다. 그래서 null 을 돌려주고,
 //   화면에서는 "–" 로 적는다.
-import { boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf, 교류전, 기록팀 } from "./record.js";
+import {
+  boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf, 교류전, 기록팀, 경기점수, 이긴팀, 점수글,
+} from "./record.js";
 
 /** 자유투 시도를 포제션으로 환산하는 계수.
  *
@@ -223,10 +225,12 @@ function 팀합계(game, ti, events) {
  *  한 팀씩이 아니라 경기 단위로 낸다. */
 export function 팀지표(game, events = game.events) {
   const T = [0, 1].map((ti) => 팀합계(game, ti, events));
-  // 교류전 상대는 선수가 없어 선수 합계로는 늘 0점이 된다. 점수는 이벤트에서 바로 센다.
+  // 교류전 상대는 선수가 없어 선수 합계로는 늘 0점이 된다. 상대 점수는 결과 화면에
+  // 적은 최종 점수(경기점수)이고, 안 적었으면 null 이다. 경기 일부(쿼터)만 셀 때는
+  // 상대가 그 사이에 몇 점 넣었는지 모르므로 역시 null 이다.
   // (나머지 칸은 0 으로 남지만, 상대 기록이 필요한 값은 아래에서 전부 비운다.)
   const 바깥 = 교류전(game);
-  if (바깥) T[1].pts = scoreOf(events)[1];
+  if (바깥) T[1].pts = events === game.events ? 경기점수(game)[1] : null;
 
   // 포제션(공격 기회) 추정식 — NBA 가 쓰는 것과 같다.
   //   슛 시도 − 공격 리바운드 + 턴오버 + 0.44 × 자유투 시도
@@ -273,9 +277,10 @@ export const 부호 = (v) => (v > 0 ? `+${v}` : `${v}`);
 
 /** 경기 한 줄 요약에 쓸 승패. 비기면 "무". */
 export function 승패(game, ti) {
-  const [a, b] = scoreOf(game.events);
-  if (a === b) return "무";
-  return (a > b ? 0 : 1) === ti ? "승" : "패";
+  const w = 이긴팀(game);
+  if (w == null) return "";          // 교류전에서 상대 점수를 아직 안 적었다
+  if (w === -1) return "무";
+  return w === ti ? "승" : "패";
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -342,7 +347,7 @@ export function 내려주기(blob, 이름) {
  *  목록은 경기가 스무 개까지 쌓이므로, 줄마다 boxScore 를 두 번 돌리지 않도록
  *  여기서 한 번에 뽑는다. */
 export function 경기요약(game) {
-  const [a, b] = scoreOf(game.events);
+  const [a, b] = 경기점수(game);
   const rows = boxScore(game);
   // 최다 득점자. 동점이면 리바운드·어시스트가 많은 쪽을 앞에 둔다.
   const 최다 = rows
@@ -352,7 +357,7 @@ export function 경기요약(game) {
   return {
     날짜: 짧은날짜(game.date),
     점수: [a, b],
-    이긴팀: a === b ? -1 : a > b ? 0 : 1,
+    이긴팀: 이긴팀(game),   // 교류전에서 상대 점수를 안 적었으면 null
     이름: game.teams.map((t) => t.name),
     마지막쿼터,
     기록수: playCount(game.events),
@@ -397,8 +402,8 @@ function 선수줄(r) {
 function 짚어볼점(game, T) {
   const 말 = [];
   const 이름 = game.teams.map((t) => t.name);
-  const [sa, sb] = scoreOf(game.events);
-  const 차 = Math.abs(sa - sb);
+  const [sa, sb] = 경기점수(game);
+  const 차 = sa == null || sb == null ? 0 : Math.abs(sa - sb);
 
   for (const ti of 기록팀(game)) {
     const t = T[ti];
@@ -437,21 +442,22 @@ function 짚어볼점(game, T) {
 
 /** 밴드에 그대로 붙여 넣을 경기 요약. */
 export function 밴드글(game) {
-  const [sa, sb] = scoreOf(game.events);
+  const [sa, sb] = 경기점수(game);
   const T = 팀지표(game);
   const rows = boxScore(game);
   const 이름 = game.teams.map((t) => t.name);
-  const 이긴팀 = sa === sb ? -1 : sa > sb ? 0 : 1;
+  const 누가 = 이긴팀(game);
   const 쿼터들 = [...new Set(game.events.map((e) => e.q || 1))].sort((a, b) => a - b);
   const L = [];
 
-  L.push(`[${game.date}] ${이름[0]} ${sa} : ${sb} ${이름[1]}`
-    + (이긴팀 === -1 ? " — 무승부" : ` — ${이름[이긴팀]} 승`));
+  L.push(`[${game.date}] ${이름[0]} ${점수글(sa)} : ${점수글(sb)} ${이름[1]}`
+    + (누가 == null ? "" : 누가 === -1 ? " — 무승부" : ` — ${이름[누가]} 승`));
   L.push(`${qLabel(쿼터들[쿼터들.length - 1] || 1, game.quarters)}까지 · 기록 ${playCount(game.events)}개`);
 
   if (쿼터들.length > 1) {
     L.push("", "■ 쿼터별");
-    for (const ti of [0, 1]) {
+    // 교류전 상대는 최종 점수만 적으므로 쿼터별은 우리 팀만 나온다.
+    for (const ti of 기록팀(game)) {
       const 점 = 쿼터들.map((q) => scoreOf(game.events.filter((e) => (e.q || 1) === q))[ti]);
       L.push(`${이름[ti]}  ${점.join(" / ")}`);
     }

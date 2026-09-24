@@ -133,11 +133,11 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 이벤트 한 줄이 몇 점인가. 점수는 슛과 자유투, 그리고 교류전 상대 득점에서 나온다.
+/** 이벤트 한 줄이 몇 점인가. 점수는 슛과 자유투에서 나온다.
  *
- *  교류전 상대는 로스터에 없는 사람들이라 누가 넣었는지는 안 적고 점수만 적는다
- *  ({ type: "opp", team: 1, pts }). 선수가 없으니 박스스코어에는 안 잡히지만,
- *  점수 · 쿼터별 · +/- 는 모두 이 함수를 거치므로 여기 한 줄로 다 따라온다. */
+ *  "opp" 는 교류전 상대 득점을 +1/+2/+3 버튼으로 적던 때(rev 150)의 기록이다. 지금은
+ *  상대를 결과 화면에서 최종 점수 하나로 적지만, 그때 적은 경기가 보관함에 있을 수
+ *  있어 읽는 길은 남긴다. */
 export function pointsOf(ev) {
   if (ev.type === "shot") return ev.made ? ev.pts : 0;
   if (ev.type === "ftm") return 1;
@@ -159,6 +159,39 @@ export function 기록팀(game) {
 
 /** 교류전 우리 팀 이름. */
 export const 우리팀이름 = "혼";
+
+/** 경기 점수 [앞팀, 뒷팀]. 화면 · 이미지 · 엑셀 · 글이 전부 이걸 거친다.
+ *
+ *  교류전 상대는 누가 언제 넣었는지 안 적고, 결과 화면에서 **최종 점수 하나**만 적는다
+ *  (teams[1].final). 아직 안 적었으면 null 이다 — 0 으로 두면 "0점 주고 이겼다" 로
+ *  읽힌다. 옛 버튼 기록("opp" 이벤트)만 있는 경기는 그 합을 쓴다.
+ *
+ *  scoreOf() 는 이벤트만 보므로 교류전 상대 점수를 모른다. 경기 전체 점수가 필요한
+ *  곳은 반드시 이 함수를 쓴다. (쿼터별처럼 이벤트 일부를 셀 때만 scoreOf 를 쓴다.) */
+export function 경기점수(game) {
+  const s = scoreOf(game.events);
+  if (!교류전(game)) return s;
+  const 적은것 = game.teams[1].final;
+  if (Number.isFinite(적은것)) s[1] = 적은것;
+  else if (!game.events.some((e) => e.type === "opp")) s[1] = null;
+  return s;
+}
+
+/** 이긴 팀 번호. 비기면 -1, 상대 점수를 아직 안 적었으면 null. */
+export function 이긴팀(game) {
+  const [a, b] = 경기점수(game);
+  if (a == null || b == null) return null;
+  return a === b ? -1 : a > b ? 0 : 1;
+}
+
+/** 점수 한 칸을 글로. 모르는 점수는 "–". */
+export const 점수글 = (v) => (v == null ? "–" : String(v));
+
+/** +/- 를 셀 수 있나. 교류전은 상대가 언제 넣었는지 모르므로 못 센다 —
+ *  +/- 는 "점수가 날 때 코트에 누가 있었나" 로 세는 값이다. */
+export function 플마있음(game) {
+  return !교류전(game);
+}
 
 /** 이벤트 목록 → 팀 점수 [A, B]. */
 export function scoreOf(events) {
@@ -197,8 +230,8 @@ export function boxScore(game, events = game.events) {
 
 /** 보관함 목록에 한 줄로 적을 말. */
 export function 한줄요약(game) {
-  const [a, b] = scoreOf(game.events);
-  return `${game.date} · ${game.teams[0]?.name || "A팀"} ${a} : ${b} ${game.teams[1]?.name || "B팀"} · 기록 ${playCount(game.events)}개`;
+  const [a, b] = 경기점수(game);
+  return `${game.date} · ${game.teams[0]?.name || "A팀"} ${점수글(a)} : ${점수글(b)} ${game.teams[1]?.name || "B팀"} · 기록 ${playCount(game.events)}개`;
 }
 
 /** 내보내기 코드는 버튼을 누를 때만 불러온다. 정적으로 import 하면 기록 화면이
@@ -337,7 +370,8 @@ export function mountRecord(container) {
    *  그 셋을 먼저 두고, 누르는 것들은 아래 줄로 내린다. */
   function 경기줄(g) {
     const s = 경기요약(g);
-    const 결과 = s.이긴팀 === -1 ? "무" : `${s.이름[s.이긴팀]} 승`;
+    // 교류전에서 상대 점수를 아직 안 적었으면 승패를 모른다.
+    const 결과 = s.이긴팀 == null ? "–" : s.이긴팀 === -1 ? "무" : `${s.이름[s.이긴팀]} 승`;
     return `
       <div class="rec-arch-row">
         <div class="rec-arch-when">${esc(s.날짜)}</div>
@@ -345,7 +379,7 @@ export function mountRecord(container) {
           <div class="rec-arch-score">
             ${[0, 1].map((i) => `
               <span class="rec-arch-side${s.이긴팀 === i ? " win" : ""}" data-t="${팀색번호(s.이름[i], i)}">
-                <span class="nm">${esc(s.이름[i])}</span><b>${s.점수[i]}</b>
+                <span class="nm">${esc(s.이름[i])}</span><b>${점수글(s.점수[i])}</b>
               </span>`).join(`<span class="rec-arch-colon">:</span>`)}
           </div>
           <div class="rec-arch-sub">
@@ -353,7 +387,7 @@ export function mountRecord(container) {
               s.최다 ? ` <span>· 최다 <b>${esc(s.최다.name)} ${s.최다.pts}점</b></span>` : ""}
           </div>
         </div>
-        <div class="rec-arch-badge ${s.이긴팀 === -1 ? "tie" : ""}">${esc(결과)}</div>
+        <div class="rec-arch-badge ${s.이긴팀 === -1 || s.이긴팀 == null ? "tie" : ""}">${esc(결과)}</div>
         <div class="rec-arch-btns">
           <button type="button" class="btn-sm" data-arch-open="${g.startedAt}">열기</button>
           <button type="button" class="btn-sm" data-arch-xlsx="${g.startedAt}">엑셀</button>
@@ -433,7 +467,7 @@ export function mountRecord(container) {
       }
       const 대진 = 대진표(팀수);
       container.querySelector("#rec-nteam-say").textContent =
-        팀수 === 1 ? "온 사람 전원이 한 팀 — 상대는 점수만 적어요"
+        팀수 === 1 ? "온 사람 전원이 한 팀 — 상대는 끝나고 최종 점수만 적어요"
           : 팀수 === 2 ? "한 경기로 시작해요"
             : `${대진.map(([a, c]) => `${TEAM_NAME[a]}–${TEAM_NAME[c]}`).join(" · ")} 세 경기`;
       container.querySelector("#rec-opp-field").hidden = 팀수 !== 1;
@@ -604,7 +638,7 @@ export function mountRecord(container) {
     return `
       <div class="rec-gswitch">
         ${session.games.map((g, i) => {
-          const [x, y] = scoreOf(g.events);
+          const [x, y] = 경기점수(g).map(점수글);
           const [a, b] = g.teams.map((t) => t.name);
           const 쿼터 = qLabel(g.q, g.quarters);
           const 수 = playCount(g.events);
@@ -619,7 +653,7 @@ export function mountRecord(container) {
   }
 
   function renderLive() {
-    const [sa, sb] = scoreOf(game.events);
+    const [sa, sb] = 경기점수(game).map(점수글);
     const onCourt = game.teams.map((t) =>
       t.players.filter((p) => t.onCourt.includes(p.name)));
     const bench = game.teams.map((t) =>
@@ -667,11 +701,7 @@ export function mountRecord(container) {
         </div>
 
         <div class="rec-side">
-          ${game.teams.map((t, ti) => t.opp ? `
-            <div class="rec-team-row rec-opp-row" data-t="${팀색자리(game, ti)}">
-              <span class="rec-team-tag">${esc(t.name)}</span>
-              ${[1, 2, 3].map((n) => `<button type="button" class="rec-oppbtn" data-opp="${n}">+${n}</button>`).join("")}
-            </div>` : `
+          ${game.teams.map((t, ti) => t.opp ? "" : `
             <div class="rec-team-row" data-t="${팀색자리(game, ti)}">
               <span class="rec-team-tag">${esc(t.name)}</span>
               ${onCourt[ti].map((p) => playerChip(ti, p)).join("")}
@@ -842,16 +872,6 @@ export function mountRecord(container) {
     for (const [sel, fn] of 짝) {
       const el = container.querySelector(sel);
       if (el) el.addEventListener("click", fn);
-    }
-
-    // 교류전 상대 득점. 누가 넣었는지는 안 적는다 — 쿼터는 이벤트에 붙으므로
-    // 쿼터별 상대 점수는 따로 적지 않아도 저절로 모인다.
-    for (const el of container.querySelectorAll("[data-opp]")) {
-      el.addEventListener("click", () => {
-        이벤트추가({ type: "opp", team: 1, pts: Number(el.dataset.opp) });
-        pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
-        renderLive();
-      });
     }
 
     container.querySelector("#rec-undo").addEventListener("click", () => {
@@ -1095,8 +1115,9 @@ export function mountRecord(container) {
     const 여럿 = !!session && session.games.length > 1;
     const 경기수말 = ["", "한", "두", "세", "네"][session?.games.length] || `${session?.games.length}`;
     const rows = boxScore(game);
-    const [sa, sb] = scoreOf(game.events);
+    const [sa, sb] = 경기점수(game).map(점수글);
     const pm = plusMinus(game);
+    const 플마 = 플마있음(game);
     const 팀 = 팀지표(game);
     const col = (r) => {
       const e = 효율(r);
@@ -1111,7 +1132,7 @@ export function mountRecord(container) {
         <td class="rec-bs-adv">${pct1(e.efg)}</td>
         <td class="rec-bs-adv">${pct1(e.ts)}</td>
         <td class="rec-bs-adv">${e.astTo == null ? "–" : num1(e.astTo)}</td>
-        <td class="rec-bs-adv ${p > 0 ? "up" : p < 0 ? "down" : ""}">${부호(p)}</td>
+        <td class="rec-bs-adv ${플마 && p > 0 ? "up" : 플마 && p < 0 ? "down" : ""}">${플마 ? 부호(p) : "–"}</td>
       </tr>`;
     };
 
@@ -1147,9 +1168,19 @@ export function mountRecord(container) {
         <p class="hint">${game.date} · 기록 ${playCount(game.events)}개 · ${qLabel(마지막쿼터(), game.quarters)}까지</p>
 
         ${교류전(game) ? `
-        <p class="hint rec-adv-note rec-ex-note">교류전은 상대를 점수만 적어서 <b>팀 효율(ORtg·DRtg)은 안 나와요</b>.
-          100 포제션당 실점을 내려면 상대의 슛 시도·리바·턴오버가 있어야 하거든요.
-          우리 선수 기록 · +/- · 샷 차트는 그대로 나와요.</p>` : `
+        <div class="rec-save rec-oppfinal">
+          <label class="rec-opp-field">
+            <span>${esc(game.teams[1].name)} 최종 점수</span>
+            <input type="number" id="rec-opp-final" inputmode="numeric" min="0" max="300" step="1"
+              value="${Number.isFinite(game.teams[1].final) ? game.teams[1].final : ""}" placeholder="예: 38" />
+          </label>
+          <p class="hint">${Number.isFinite(game.teams[1].final)
+            ? "적어 둔 점수로 승패와 밴드 이미지 · 엑셀이 나와요. 틀렸으면 고치면 돼요."
+            : "<b>상대 점수를 적어 주세요.</b> 적어야 승패가 정해지고, 밴드 이미지 · 엑셀에 상대 점수가 들어가요."}</p>
+        </div>
+        <p class="hint rec-adv-note rec-ex-note">교류전은 상대를 최종 점수만 적어서 <b>팀 효율(ORtg·DRtg)과 +/- 는 안 나와요</b>.
+          실점을 공격 기회로 나누려면 상대의 슛 시도·리바·턴오버가, +/- 는 상대가 <i>언제</i> 넣었는지가 있어야 하거든요.
+          우리 선수 기록 · 샷 차트는 그대로 나와요.</p>` : `
         <h3 class="rec-adv-title">팀 효율</h3>
         <div class="rec-adv">${[0, 1].map(팀카드).join("")}</div>
         <p class="hint rec-adv-note">100 포제션당 낸 점수(ORtg)와 내준 점수(DRtg)예요.
@@ -1237,6 +1268,21 @@ export function mountRecord(container) {
     });
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-all")?.addEventListener("click", (e) => 한꺼번에받기(e.currentTarget));
+    // 교류전 상대 최종 점수. 누를 때마다 다시 그리면 적는 도중에 칸이 날아가므로
+    // 다 적고 칸을 벗어날 때(change) 한 번 적는다. 비우면 '아직 안 적음' 으로 돌아간다.
+    const 최종칸 = container.querySelector("#rec-opp-final");
+    if (최종칸) {
+      최종칸.addEventListener("change", () => {
+        const v = 최종칸.value.trim();
+        const n = Math.round(Number(v));
+        if (v === "" || !Number.isFinite(n) || n < 0) delete game.teams[1].final;
+        else game.teams[1].final = Math.min(n, 300);
+        save();
+        archiveRecordGame(game);   // 보관함에 든 것도 같은 점수로
+        renderDone();
+      });
+      최종칸.addEventListener("keydown", (e) => { if (e.key === "Enter") 최종칸.blur(); });
+    }
     // 교류전 다음 경기 — 같은 사람들, 상대 이름은 앞 경기 것을 미리 채워 둔다.
     container.querySelector("#rec-next")?.addEventListener("click", () => {
       const 상대 = container.querySelector("#rec-next-opp").value.trim() || "상대";
