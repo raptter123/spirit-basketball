@@ -24,7 +24,7 @@
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
 import { boxScore, pointsOf, qLabel, TEAM_NAME } from "./record.js";
 import {
-  효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 대진표시,
+  효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 파일꼬리, 내려주기,
 } from "./record-stats.js";
 import { 샷차트한장SVG } from "./record-image.js";
 import { PNG만들기 } from "./record-chart.js";
@@ -211,11 +211,9 @@ export async function 차트시트(game) {
 
 /** 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로 버리고 확장자 없는
  *  "download" 로 받는다 — 더블클릭해도 안 열린다. 그래서 파일명은 아스키만 쓴다.
- *  대진 표시를 붙이는 이유는 record-stats.js 의 대진표시() 주석에 적어 두었다. */
+ *  뒷부분은 밴드 이미지와 같은 파일꼬리() 를 쓴다(record-stats.js). */
 export function 파일이름(game) {
-  const d = new Date(game.startedAt || Date.now());
-  const 시각 = `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
-  return `spirit-game-${game.date}-${시각}-${대진표시(game)}.xlsx`;
+  return `spirit-game-${파일꼬리(game)}.xlsx`;
 }
 
 /** 여섯 시트를 담은 xlsx 바이트. 샷차트 시트에는 차트 그림이 들어간다. */
@@ -268,16 +266,18 @@ export async function 엑셀만들기(game) {
   ]);
 }
 
-/** 버튼에서 부르는 것. 파일을 만들어 바로 내려받는다. */
-export async function 엑셀받기(game) {
+/** 엑셀 파일 하나 — 내려받지는 않고 Blob 과 이름만 만든다.
+ *  한꺼번에 받기가 여러 경기를 다 만든 뒤에 내려주므로 둘을 갈라 둔다. */
+export async function 엑셀파일(game) {
   const bytes = await 엑셀만들기(game);
   const blob = new Blob([bytes], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = 파일이름(game);
-  a.click();
-  URL.revokeObjectURL(url);
+  return { blob, 이름: 파일이름(game) };
+}
+
+/** 버튼에서 부르는 것. 파일을 만들어 바로 내려받는다. */
+export async function 엑셀받기(game) {
+  const f = await 엑셀파일(game);
+  내려주기(f.blob, f.이름);
 }

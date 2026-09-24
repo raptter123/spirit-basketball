@@ -1070,7 +1070,8 @@ export function mountRecord(container) {
 
         <div class="rec-save">
           <button type="button" class="btn btn-primary" id="rec-xlsx">엑셀 받기</button>
-          <p class="hint">시트 세 장이 들어 있어요 — <b>선수기록</b>(경기 합계) · <b>쿼터별</b> ·
+          <p class="hint rec-xlsx-sheets">시트 여섯 장이 들어 있어요 — <b>선수기록</b>(경기 합계) · <b>팀효율</b> ·
+            <b>자리별</b>(골밑·미들·3점) · <b>샷차트</b>(그림) · <b>쿼터별</b> ·
             <b>이벤트원본</b>(누른 순서 그대로, 슛 좌표까지). 원본이 있으면 나중에 무엇이든 다시 계산돼요.</p>
           <p class="hint">이 경기는 보관함에 들어갔어요. 기록 화면 첫 장의 <b>지난 경기</b> 목록에서
             다시 열거나 엑셀을 또 받을 수 있어요.</p>

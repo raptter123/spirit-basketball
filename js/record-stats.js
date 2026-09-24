@@ -301,6 +301,36 @@ export function 대진표시(game) {
     : String((game.startedAt || 0) % 1000).padStart(3, "0");
 }
 
+/** 내려받는 파일 이름의 뒷부분 — "2026-09-23-1715-AB".
+ *
+ *  엑셀과 밴드 이미지가 이 함수 하나를 같이 쓴다. 전에는 각자 이름을 만들었는데
+ *  엑셀에만 시각이 들어가고 이미지에는 빠져서, 같은 날 A팀–B팀을 두 번 하면 두 번째
+ *  이미지가 첫 번째를 덮어썼다. 한 곳에서 만들면 둘이 다시 갈라질 수 없다.
+ *
+ *  시각은 경기를 **시작한** 때다. 끝낸 때로 하면 같은 경기를 두 번 받을 때 이름이
+ *  달라져 한 경기가 파일 두 개로 남는다. */
+export function 파일꼬리(game) {
+  const d = new Date(game.startedAt || Date.now());
+  const 시각 = `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${game.date}-${시각}-${대진표시(game)}`;
+}
+
+/** Blob 을 파일로 내려준다.
+ *
+ *  주소(object URL)를 a.click() 바로 뒤에 거두면 사파리·파이어폭스는 받기를 시작하기도
+ *  전에 주소가 사라져 받기가 조용히 취소될 수 있다. 크로미움은 괜찮아서 여기서는 티가
+ *  안 났다. 넉넉히 1분 뒤에 거둔다 — 그동안 차지하는 것은 이 파일 크기만큼의 메모리다. */
+export function 내려주기(blob, 이름) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = 이름;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 /** 지난 경기 목록 한 줄에 필요한 것만 추린다.
  *  목록은 경기가 스무 개까지 쌓이므로, 줄마다 boxScore 를 두 번 돌리지 않도록
  *  여기서 한 번에 뽑는다. */

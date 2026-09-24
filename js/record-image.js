@@ -21,7 +21,7 @@
 //   밴드에서 배경이 검은 그림이 되므로, 색을 고정해 둔다.
 import { boxScore, scoreOf, playCount, qLabel, 팀색자리 } from "./record.js";
 import {
-  효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 대진표시, pct1, num1,
+  효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 파일꼬리, 내려주기, pct1, num1,
 } from "./record-stats.js";
 import { 차트속, CHART_VIEW, PNG만들기 } from "./record-chart.js";
 
@@ -308,16 +308,19 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
   };
 }
 
-/** 버튼에서 부르는 것. 이미지를 만들어 바로 내려받는다. */
-export async function 결과이미지받기(game, 경기들 = [game]) {
+/** 밴드 이미지 파일 하나 — 내려받지는 않고 Blob 과 이름만 만든다.
+ *  이름 뒷부분은 엑셀과 같은 파일꼬리() 다. 전에는 여기에만 시각이 빠져 있어서
+ *  같은 날 같은 대진을 두 번 하면 두 번째 이미지가 첫 번째를 덮어썼다. */
+export async function 결과이미지파일(game, 경기들 = [game]) {
   const { svg } = 결과이미지SVG(game, 경기들);
   const blob = await PNG만들기(svg, 2);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
   // 크로미움은 파일명에 한글이 섞이면 이름을 통째로 버린다. 아스키만 쓴다.
-  a.download = `spirit-result-${game.date}-${대진표시(game)}.png`;
-  a.click();
-  URL.revokeObjectURL(url);
-  return blob;
+  return { blob, 이름: `spirit-result-${파일꼬리(game)}.png` };
+}
+
+/** 버튼에서 부르는 것. 이미지를 만들어 바로 내려받는다. */
+export async function 결과이미지받기(game, 경기들 = [game]) {
+  const f = await 결과이미지파일(game, 경기들);
+  내려주기(f.blob, f.이름);
+  return f.blob;
 }
