@@ -27,7 +27,7 @@ import {
 } from "./storage.js";
 import {
   효율, plusMinus, 팀지표, 경기요약, 밴드글, pct1, num1, 부호, MIN_POSS,
-  슛모음, 슛쏜사람, 구역집계, 구역들,
+  슛모음, 슛쏜사람, 구역집계, 구역들, 내려주기,
 } from "./record-stats.js";
 import { CHART_VIEW, 차트속, 구역말 } from "./record-chart.js";
 
@@ -545,16 +545,27 @@ export function mountRecord(container) {
 
   /** 경기가 둘 이상이면 맨 위에 갈아타는 줄을 둔다.
    *  3파전은 코트에서 AB → BC → CA → AB 순으로 도는데, 그때마다 여기를 눌러
-   *  옮긴다. 각 경기는 제 쿼터와 점수를 그대로 들고 있으므로 이어서 적힌다. */
+   *  옮긴다. 각 경기는 제 쿼터와 점수를 그대로 들고 있으므로 이어서 적힌다.
+   *  기록 화면과 결과 화면이 같이 쓴다.
+   *
+   *  한 칸을 세 줄(대진 / 점수 / 쿼터·기록 수)로 쌓는다. 전에는 "A팀 18 : 15 B팀" 을
+   *  한 줄에 적었더니 칸이 글자만큼 넓어져서, 360px 폰에서는 0 : 0 일 때도 셋째
+   *  칸이 74% 만 보였고 390px 폰도 점수가 두 자리가 되면 잘렸다. 세 칸을 똑같이
+   *  나누고 글자를 쌓으면 칸 너비가 글자에 끌려가지 않는다. */
   function 경기전환줄() {
     if (!session || session.games.length < 2) return "";
     return `
       <div class="rec-gswitch">
         ${session.games.map((g, i) => {
           const [x, y] = scoreOf(g.events);
-          return `<button type="button" class="rec-gbtn${i === session.at ? " is-on" : ""}" data-game="${i}">
-            <b>${esc(g.teams[0].name)} ${x} : ${y} ${esc(g.teams[1].name)}</b>
-            <span>${qLabel(g.q, g.quarters)} · 기록 ${playCount(g.events)}개</span>
+          const [a, b] = g.teams.map((t) => t.name);
+          const 쿼터 = qLabel(g.q, g.quarters);
+          const 수 = playCount(g.events);
+          return `<button type="button" class="rec-gbtn${i === session.at ? " is-on" : ""}" data-game="${i}"
+              aria-label="${esc(`${a} ${x} 대 ${y} ${b}, ${쿼터}, 기록 ${수}개`)}">
+            <span class="rec-gbtn-vs">${esc(a)} : ${esc(b)}</span>
+            <b>${x} : ${y}</b>
+            <span>${쿼터} · ${수}개</span>
           </button>`;
         }).join("")}
       </div>`;
@@ -880,6 +891,45 @@ export function mountRecord(container) {
     }
   }
 
+  /** 세션의 경기를 전부 받는다 — 경기마다 엑셀 하나 + 밴드 이미지 하나.
+   *
+   *  3파전은 결과 화면에서 한 경기씩만 받을 수 있어서, 세 경기를 받으려면 '계속
+   *  기록하기 → 갈아타기 → 결과 보기 → 받기' 를 세 번 돌아야 했다.
+   *
+   *  **다 만든 뒤에** 내려준다. 만들면서 하나씩 내려주면 셋째 경기 그림에서 실패했을
+   *  때 반쯤만 받은 채로 끝나, 무엇을 받았고 무엇을 못 받았는지 사람이 헤아려야 한다.
+   *  내려줄 때는 조금씩 띄운다 — 같은 순간에 여러 개를 던지면 브라우저가 일부를 버린다.
+   *
+   *  받는 경기는 보관함에도 넣는다. 결과 화면에 들어온 경기를 보관함에 넣는 것과
+   *  같은 약속이다 — 파일을 받았는데 보관함에 없으면 나중에 다시 열 수가 없다. */
+  async function 한꺼번에받기(btn) {
+    const 원래 = btn.textContent;
+    const 경기들 = session?.games || [game];
+    btn.disabled = true;
+    try {
+      const [{ 엑셀파일 }, { 결과이미지파일 }] = await Promise.all([
+        import("./record-export.js"), import("./record-image.js"),
+      ]);
+      const 파일들 = [];
+      for (const [i, g] of 경기들.entries()) {
+        btn.textContent = `만드는 중… ${i + 1}/${경기들.length}경기`;
+        archiveRecordGame(g);
+        파일들.push(await 엑셀파일(g), await 결과이미지파일(g, [g]));
+      }
+      for (const [i, f] of 파일들.entries()) {
+        if (i) await new Promise((r) => setTimeout(r, 400));
+        내려주기(f.blob, f.이름);
+      }
+      btn.textContent = `받았어요 ✓ 파일 ${파일들.length}개`;
+    } catch (err) {
+      alert(`파일을 만들지 못했어요.\n${err?.message || err}`);
+      btn.textContent = 원래;
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 원래; }, 3000);
+    }
+  }
+
   // ── 결과 화면 ────────────────────────────────────────────
   /** 실제로 기록이 찍힌 마지막 쿼터. 4쿼터를 다 안 했는데 "4쿼터" 라고 쓰면 거짓말이 된다. */
   function 마지막쿼터() {
@@ -979,6 +1029,8 @@ export function mountRecord(container) {
   }
 
   function renderDone() {
+    const 여럿 = !!session && session.games.length > 1;
+    const 경기수말 = ["", "한", "두", "세", "네"][session?.games.length] || `${session?.games.length}`;
     const rows = boxScore(game);
     const [sa, sb] = scoreOf(game.events);
     const pm = plusMinus(game);
@@ -1027,6 +1079,7 @@ export function mountRecord(container) {
     };
     container.innerHTML = `
       <div class="rec-done">
+        ${경기전환줄()}
         <h2 class="rec-final">${esc(game.teams[0].name)} <b>${sa}</b> : <b>${sb}</b> ${esc(game.teams[1].name)}</h2>
         <p class="hint">${game.date} · 기록 ${playCount(game.events)}개 · ${qLabel(마지막쿼터(), game.quarters)}까지</p>
 
@@ -1056,8 +1109,15 @@ export function mountRecord(container) {
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}
+        ${여럿 ? `
         <div class="rec-save">
-          <button type="button" class="btn btn-primary" id="rec-band-img">밴드용 결과 이미지 받기</button>
+          <button type="button" class="btn btn-primary" id="rec-all">📦 ${경기수말} 경기 한꺼번에 받기</button>
+          <p class="hint">경기마다 <b>엑셀 하나 + 밴드 이미지 하나</b>, 모두 ${session.games.length * 2}개를 차례로 받아요.
+            휴대폰이 "여러 파일을 받을까요?" 하고 물으면 <b>허용</b>을 눌러 주세요.
+            한 경기만 필요하면 맨 위 줄에서 경기를 고른 뒤 아래 버튼으로 받으면 돼요.</p>
+        </div>` : ""}
+        <div class="rec-save">
+          <button type="button" class="btn btn-primary" id="rec-band-img">${여럿 ? "이 경기 밴드 이미지 받기" : "밴드용 결과 이미지 받기"}</button>
           <p class="hint">결과 · 팀 효율 · 선수 기록 · <b>팀과 선수 전원의 샷 차트</b>를 한 장에 담아요.
             표는 글로 올리면 칸이 어긋나서 읽기 힘든데, 그림은 어느 기기에서나 같은 모양으로 보여요.</p>
           <details class="rec-band-more">
@@ -1069,7 +1129,7 @@ export function mountRecord(container) {
         </div>
 
         <div class="rec-save">
-          <button type="button" class="btn btn-primary" id="rec-xlsx">엑셀 받기</button>
+          <button type="button" class="btn btn-primary" id="rec-xlsx">${여럿 ? "이 경기 엑셀만 받기" : "엑셀 받기"}</button>
           <p class="hint rec-xlsx-sheets">시트 여섯 장이 들어 있어요 — <b>선수기록</b>(경기 합계) · <b>팀효율</b> ·
             <b>자리별</b>(골밑·미들·3점) · <b>샷차트</b>(그림) · <b>쿼터별</b> ·
             <b>이벤트원본</b>(누른 순서 그대로, 슛 좌표까지). 원본이 있으면 나중에 무엇이든 다시 계산돼요.</p>
@@ -1099,6 +1159,20 @@ export function mountRecord(container) {
       setTimeout(() => { btn.textContent = "밴드용 글 복사"; }, 2500);
     });
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
+    container.querySelector("#rec-all")?.addEventListener("click", (e) => 한꺼번에받기(e.currentTarget));
+    // 결과 화면에서 경기를 갈아타면 결과 화면에 머문다(screen 은 그대로 "done").
+    // 보고 있던 선수 차트는 다른 경기에 그 사람이 없을 수 있으므로 전체로 되돌린다.
+    // 결과 화면에 들어온 경기는 보관함에 넣는다 — '결과 보기' 버튼과 같은 약속이다.
+    for (const el of container.querySelectorAll("[data-game]")) {
+      el.addEventListener("click", () => {
+        const i = Number(el.dataset.game);
+        if (!session?.games[i] || i === session.at) return;
+        archiveRecordGame(session.games[i]);
+        차트대상 = null;
+        경기로(i);
+        window.scrollTo(0, 0);
+      });
+    }
     container.querySelector("#rec-back").addEventListener("click", () => { screen = "live"; render(); });
     container.querySelector("#rec-new").addEventListener("click", () => {
       const 여럿 = session && session.games.length > 1;

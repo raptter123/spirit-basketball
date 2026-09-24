@@ -4082,14 +4082,25 @@ body {
 
 /* 경기 갈아타는 줄. 3파전은 코트에서 AB → BC → CA 순으로 도니까 맨 위에 둔다 —
    쿼터가 끝날 때마다 누르는 것이라 손이 제일 먼저 닿는 자리여야 한다. */
-.rec-gswitch { display: flex; gap: 6px; margin-bottom: 6px; overflow-x: auto; }
-.rec-gbtn {
-  flex: 1 0 auto; min-height: 46px; padding: 5px 10px; border-radius: 10px;
-  border: 1px solid var(--accent-line); background: var(--surface);
-  color: var(--text); cursor: pointer; text-align: left; line-height: 1.25;
+/* 칸은 똑같이 나눈다(minmax(0, 1fr)). 글자 너비에 맞춰 늘게 두면 점수가 두 자리가
+   되는 순간 셋째 칸이 화면 밖으로 밀려난다. 넘치는 이름은 … 으로 줄인다. */
+.rec-gswitch {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: 6px; margin-bottom: 6px;
 }
-.rec-gbtn b { display: block; font-size: var(--fs-sm); font-weight: 800; white-space: nowrap; }
-.rec-gbtn span { display: block; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.rec-gbtn {
+  min-width: 0; min-height: 46px; padding: 2px 6px; border-radius: 10px;
+  border: 1px solid var(--accent-line); background: var(--surface);
+  color: var(--text); cursor: pointer; text-align: center;
+  /* 세 줄을 쌓으니 줄 간격을 좁혀야 옛 두 줄짜리(46px)와 높이가 비슷해진다.
+     1.2 로 두면 56px 이 되어 기록 화면이 10px 길어진다. 글자가 한 줄씩이라
+     1.1 이어도 서로 닿지 않는다. */
+  line-height: 1.1;
+}
+.rec-gbtn > * { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-gbtn b { font-size: var(--fs-sm); font-weight: 800; }
+.rec-gbtn span { font-size: var(--fs-xs); color: var(--muted); }
+.rec-gbtn .rec-gbtn-vs { color: var(--text); font-weight: 700; }
 .rec-gbtn.is-on { border-color: #facc15; background: rgba(250, 204, 21, .16); }
 
 /* 팀 수 고르기. 2팀이면 한 경기, 3팀이면 서로 한 경기씩 세 경기가 만들어진다. */
