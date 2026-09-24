@@ -22,7 +22,7 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, qLabel, TEAM_NAME } from "./record.js";
+import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 파일꼬리, 내려주기,
 } from "./record-stats.js";
@@ -34,6 +34,7 @@ const 종류이름 = {
   to: "턴오버", pf: "파울", ftm: "자유투", fta: "자유투",
   rebO: "공격리바", rebD: "수비리바",
   sub: "교체", quarter: "쿼터",
+  opp: "상대 득점",
 };
 
 /** 경기 시작부터 흐른 시간. 절대 시각보다 "언제쯤 일어난 일인가"를 보기 쉽다. */
@@ -75,7 +76,9 @@ export function 팀시트(game) {
   const T = 팀지표(game);
   const rows = [["날짜", "팀", "승패", "득점", "실점", "포제션",
     "ORtg", "DRtg", "NetRtg", "eFG%", "TS%", "턴오버%", "공격리바%", "수비리바%"]];
-  [0, 1].forEach((ti) => {
+  // 교류전은 우리 팀 한 줄. 상대는 점수만 있어 나머지 칸이 모두 비기 때문이다
+  // (득점·실점은 우리 줄에 이미 둘 다 있다).
+  기록팀(game).forEach((ti) => {
     const t = T[ti];
     rows.push([game.date, game.teams[ti].name, 승패(game, ti),
       t.pts, T[1 - ti].pts, Math.round(t.poss * 10) / 10,
@@ -136,7 +139,8 @@ export function 자리시트(game) {
   }
   // 팀 줄은 선수 줄을 더한 것이다. 엑셀에서 따로 합치지 않아도 되게 여기서 낸다.
   // 구분 칸으로 갈라 두어 걸러 보거나 피벗할 때 섞이지 않는다.
-  [0, 1].forEach((ti) => {
+  // 교류전 상대는 슛 자리를 안 적으므로 줄을 만들지 않는다 — 0/0 줄이 생긴다.
+  기록팀(game).forEach((ti) => {
     const 내사람 = 사람들.filter((r) => r.team === ti);
     const 칸 = Object.fromEntries(구역들.map((z) => [z, {
       m: 내사람.reduce((a, r) => a + r.칸[z].m, 0),
@@ -191,7 +195,7 @@ const 차트너비 = 1000;   // 그림 안 좌표계 너비(px). 밴드 이미�
 export async function 차트시트(game) {
   const rows = [
     ["샷 차트"],
-    ["● 들어감 · ✕ 빗나감 — 팀 차트 두 장 다음에, 슛을 쏜 선수 차트가 이어집니다"],
+    ["● 들어감 · ✕ 빗나감 — 팀 차트 다음에, 슛을 쏜 선수 차트가 이어집니다"],
   ];
   const { svg, width, height } = 샷차트한장SVG(game, [game], 차트너비);
   // 2배로 뽑는다. 엑셀에서 보이는 크기는 닻(ext)이 정하므로 원본이 촘촘할수록 선명하다.

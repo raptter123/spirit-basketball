@@ -10,7 +10,7 @@
 //   슛을 한 번도 안 쏜 선수의 야투율은 0% 가 아니라 "없음" 이다. 0 으로 적으면
 //   평균을 낼 때 못 쏜 사람이 못 넣은 사람으로 섞인다. 그래서 null 을 돌려주고,
 //   화면에서는 "–" 로 적는다.
-import { boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf } from "./record.js";
+import { boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf, 교류전, 기록팀 } from "./record.js";
 
 /** 자유투 시도를 포제션으로 환산하는 계수.
  *
@@ -223,6 +223,10 @@ function 팀합계(game, ti, events) {
  *  한 팀씩이 아니라 경기 단위로 낸다. */
 export function 팀지표(game, events = game.events) {
   const T = [0, 1].map((ti) => 팀합계(game, ti, events));
+  // 교류전 상대는 선수가 없어 선수 합계로는 늘 0점이 된다. 점수는 이벤트에서 바로 센다.
+  // (나머지 칸은 0 으로 남지만, 상대 기록이 필요한 값은 아래에서 전부 비운다.)
+  const 바깥 = 교류전(game);
+  if (바깥) T[1].pts = scoreOf(events)[1];
 
   // 포제션(공격 기회) 추정식 — NBA 가 쓰는 것과 같다.
   //   슛 시도 − 공격 리바운드 + 턴오버 + 0.44 × 자유투 시도
@@ -255,8 +259,9 @@ export function 팀지표(game, events = game.events) {
       tov: rate(me.to, poss[ti]),
       // 리바운드 점유율 — 잡을 수 있었던 것 중 몇 할을 잡았나.
       // 내 공격 리바운드의 상대는 상대의 수비 리바운드다.
-      orbPct: 나누기(me.rebO, me.rebO + 상대.rebD),
-      drbPct: 나누기(me.rebD, me.rebD + 상대.rebO),
+      // 교류전은 상대 리바운드를 안 적으므로 비운다 — 두면 우리 공격리바가 늘 100% 로 나온다.
+      orbPct: 바깥 ? null : 나누기(me.rebO, me.rebO + 상대.rebD),
+      drbPct: 바깥 ? null : 나누기(me.rebD, me.rebD + 상대.rebO),
     };
   });
 }
@@ -295,6 +300,8 @@ export function 짧은날짜(s) {
  *  아스키만 쓰는 이유: 크로미움은 a[download] 이름에 한글이 섞이면 이름을 통째로
  *  버리고 확장자 없는 "download" 로 받는다. */
 export function 대진표시(game) {
+  // 교류전은 상대 이름이 대개 한글이라 딸 글자가 없다. 그날 몇 번째 교류전인지로 가른다.
+  if (교류전(game)) return `EX${game.no || 1}`;
   const 딴것 = (game.teams || []).map((t) => (String(t?.name || "").match(/[A-Za-z0-9]+/) || [""])[0]);
   return 딴것.length && 딴것.every(Boolean)
     ? 딴것.join("")
@@ -393,7 +400,7 @@ function 짚어볼점(game, T) {
   const [sa, sb] = scoreOf(game.events);
   const 차 = Math.abs(sa - sb);
 
-  for (const ti of [0, 1]) {
+  for (const ti of 기록팀(game)) {
     const t = T[ti];
     const fga = t.p2a + t.p3a;
     if (fga >= 10 && t.efg != null) {
@@ -420,7 +427,8 @@ function 짚어볼점(game, T) {
     }
   }
 
-  const 리바차 = Math.abs(T[0].reb - T[1].reb);
+  // 교류전은 상대 리바운드를 안 적는다 — 견주면 우리가 늘 이긴 것처럼 나온다.
+  const 리바차 = 교류전(game) ? 0 : Math.abs(T[0].reb - T[1].reb);
   if (리바차 >= 8) 말.push(`리바운드 ${리바차}개 차로 ${이름[T[0].reb > T[1].reb ? 0 : 1]} 우세`);
   if (차 && 차 <= 3) 말.push(`${차}점 차 접전`);
   else if (차 >= 20) 말.push(`${차}점 차`);
@@ -458,7 +466,7 @@ export function 밴드글(game) {
     }
   }
 
-  for (const ti of [0, 1]) {
+  for (const ti of 기록팀(game)) {
     const t = T[ti];
     L.push("", `■ ${이름[ti]} ${t.pts}점`);
     L.push(`슛 — 2점 ${t.p2m}/${t.p2a}${퍼센트(t.p2m, t.p2a)}`

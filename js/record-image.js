@@ -19,7 +19,7 @@
 // 왜 테마를 안 따르는가
 //   이 그림은 내 화면이 아니라 남이 볼 곳으로 간다. 어두운 테마에서 뽑아 올리면
 //   밴드에서 배경이 검은 그림이 되므로, 색을 고정해 둔다.
-import { boxScore, scoreOf, playCount, qLabel, 팀색자리 } from "./record.js";
+import { boxScore, scoreOf, playCount, qLabel, 팀색자리, 기록팀 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 파일꼬리, 내려주기, pct1, num1,
 } from "./record-stats.js";
@@ -191,12 +191,15 @@ function 차트묶음(x0, y0, w, game, 경기들 = [game]) {
     { size: 13, weight: 700, fill: C.ink2, anchor: "end" }));
   y += 34;
 
-  // 팀 샷차트 둘을 나란히
-  const 팀w = (w - 20) / 2;
+  // 팀 샷차트 둘을 나란히. 교류전은 상대 슛을 안 적으므로 우리 팀 하나만,
+  // 선수 차트 두 칸 너비로 그린다 — 한 칸 너비로 두면 오른쪽 절반이 비고,
+  // 통째로 펴면 코트 하나가 그림 높이를 600px 넘게 먹는다.
+  const 팀들 = 기록팀(game);
+  const 팀w = 팀들.length === 1 ? ((w - 32) / 3) * 2 + 16 : (w - 20) / 2;
   let 팀높이 = 0;
-  [0, 1].forEach((ti) => {
+  팀들.forEach((ti, k) => {
     const shots = 슛모음([game], null, ti);
-    const c = 차트칸(x0 + ti * (팀w + 20), y, 팀w, shots, 이름[ti], 몫(shots),
+    const c = 차트칸(x0 + k * (팀w + 20), y, 팀w, shots, 이름[ti], 몫(shots),
       { ti: 팀색자리(game, ti), 이름: null });
     out.push(c.svg);
     팀높이 = c.높이;
@@ -282,7 +285,8 @@ export function 결과이미지SVG(game, 경기들 = [game]) {
   }
 
   // ── 박스스코어 ────────────────────────────────────────
-  for (const ti of [0, 1]) {
+  // 교류전 상대는 선수 명단이 없어 표가 비므로 그리지 않는다.
+  for (const ti of 기록팀(game)) {
     const b = 박스스코어(rows, pm, ti, 이름[ti], y, 팀색자리(game, ti));
     out.push(b.svg);
     y += b.높이 + 10;
