@@ -22,9 +22,10 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀, 플마있음 } from "./record.js";
+import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀, 플마있음, 경기점수, 점수글 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 파일꼬리, 내려주기,
+  하루합계, 하루파일꼬리,
 } from "./record-stats.js";
 import { 샷차트한장SVG } from "./record-image.js";
 import { PNG만들기 } from "./record-chart.js";
@@ -280,6 +281,37 @@ export async function 엑셀파일(game) {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   return { blob, 이름: 파일이름(game) };
+}
+
+/** 하루합계 시트 — 그날 경기 전부를 선수별로 더한 것. 한 줄이 한 선수다.
+ *  팀 칸은 그날 뛴 팀을 다 적는다(3파전 A팀 선수는 "A팀"). +/- 는 셀 수 있는 경기만. */
+export function 하루시트(games) {
+  const 머리 = ["날짜", "순위", "선수", "팀", "등번호", "경기수", "득점",
+    "2점성공", "2점시도", "3점성공", "3점시도", "자유투성공", "자유투시도",
+    "리바운드", "공격리바", "수비리바", "어시스트", "스틸", "블락", "턴오버", "파울",
+    ...효율머리];
+  return [머리, ...하루합계(games).map((r, i) => {
+    const e = 효율(r);
+    return [games[0].date, i + 1, r.name, r.팀, typeof r.number === "number" ? r.number : "", r.경기수, r.pts,
+      r.p2m, r.p2a, r.p3m, r.p3a, r.ftm, r.fta, r.reb, r.rebO, r.rebD, r.ast, r.stl, r.blk, r.to, r.pf,
+      값(e.efg), 값(e.ts), 값(e.astTo), 값(r.pm)];
+  })];
+}
+
+/** 하루 합계 엑셀 — 시트 한 장. 아래에 그날 경기 점수를 적어 둔다. */
+export async function 하루엑셀파일(games) {
+  const { createWorkbookSheets } = await import("./xlsx-lite.js");
+  const rows = 하루시트(games);
+  const 비율 = ["eFG%", "TS%"].map((n) => rows[0].indexOf(n));
+  const 꼬리말 = games.map((g, i) => {
+    const [a, b] = 경기점수(g);
+    return `■ ${i + 1}경기: ${g.teams[0].name} ${점수글(a)} : ${점수글(b)} ${g.teams[1].name}`;
+  });
+  const bytes = await createWorkbookSheets([{ name: "하루합계", rows, percentCols: 비율, 꼬리말 }]);
+  const blob = new Blob([bytes], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  return { blob, 이름: `spirit-day-${하루파일꼬리(games)}.xlsx` };
 }
 
 /** 버튼에서 부르는 것. 파일을 만들어 바로 내려받는다. */

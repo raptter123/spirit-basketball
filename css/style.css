@@ -4580,6 +4580,8 @@ body {
 .rec-final b { font-size: var(--fs-2xl); }
 .rec-bs-team { border-left: 4px solid var(--c); padding-left: 8px; margin: 18px 0 8px; }
 .rec-bs { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+/* 오늘 합계 제목 옆 "3경기 · 12명". 제목보다 작고 흐리게. */
+.rec-day-sub { font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted); margin-left: 6px; }
 .rec-bs th, .rec-bs td { padding: 7px 6px; text-align: center; white-space: nowrap; }
 .rec-bs th { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 700; }
 .rec-bs tbody tr { border-top: 1px solid var(--accent-line); }

@@ -28,7 +28,7 @@ import {
 } from "./storage.js";
 import {
   효율, plusMinus, 팀지표, 경기요약, 밴드글, pct1, num1, 부호, MIN_POSS,
-  슛모음, 슛쏜사람, 구역집계, 구역들, 내려주기,
+  슛모음, 슛쏜사람, 구역집계, 구역들, 내려주기, 하루합계,
 } from "./record-stats.js";
 import { CHART_VIEW, 차트속, 구역말 } from "./record-chart.js";
 
@@ -1103,6 +1103,38 @@ export function mountRecord(container) {
     }
   }
 
+  /** 오늘 합계 — 그날 경기 전부를 선수별로 더한 순위. 경기가 둘 이상일 때만.
+   *  3파전은 세 경기를 오가며 봐야 "오늘 누가 제일 많이 넣었나" 가 나왔다. */
+  function 하루합계HTML() {
+    const 경기들 = session.games;
+    const rows = 하루합계(경기들);
+    const 플마 = rows.some((r) => r.pm != null);
+    return `
+      <h3 class="rec-adv-title">오늘 합계 <span class="rec-day-sub">${경기들.length}경기 · ${rows.length}명</span></h3>
+      <div class="table-scroll">
+        <table class="rec-bs rec-day">
+          <thead><tr><th>#</th><th class="rec-bs-name">선수</th><th>팀</th><th>경기</th><th>득점</th>
+            <th>리바</th><th>어시</th><th>스틸</th><th>블락</th><th>3점</th><th>턴오버</th>
+            <th class="rec-bs-adv">eFG%</th><th class="rec-bs-adv">TS%</th>${플마 ? `<th class="rec-bs-adv">+/-</th>` : ""}</tr></thead>
+          <tbody>${rows.map((r, i) => {
+            const e = 효율(r);
+            return `<tr>
+              <td>${i + 1}</td><td class="rec-bs-name">${esc(r.name)}</td><td>${esc(r.팀)}</td><td>${r.경기수}</td>
+              <td><b>${r.pts}</b></td><td>${r.reb}</td><td>${r.ast}</td><td>${r.stl}</td><td>${r.blk}</td>
+              <td>${r.p3m}/${r.p3a}</td><td>${r.to}</td>
+              <td class="rec-bs-adv">${pct1(e.efg)}</td><td class="rec-bs-adv">${pct1(e.ts)}</td>
+              ${플마 ? `<td class="rec-bs-adv ${r.pm > 0 ? "up" : r.pm < 0 ? "down" : ""}">${r.pm == null ? "–" : 부호(r.pm)}</td>` : ""}
+            </tr>`;
+          }).join("")}</tbody>
+        </table>
+      </div>
+      <div class="rec-save">
+        <button type="button" class="btn" id="rec-day-xlsx">오늘 합계 엑셀 받기</button>
+        <p class="hint">위 표를 엑셀 한 장(하루합계)으로 받아요. 아래에 경기별 점수도 적혀 있어요.
+          ${플마 && 경기들.some(교류전) ? "+/- 는 교류전을 빼고 셌어요 — 교류전은 상대가 언제 넣었는지 안 적으니까요." : ""}</p>
+      </div>`;
+  }
+
   function renderDone() {
     const 여럿 = !!session && session.games.length > 1;
     const 경기수말 = ["", "한", "두", "세", "네"][session?.games.length] || `${session?.games.length}`;
@@ -1199,6 +1231,7 @@ export function mountRecord(container) {
               <tbody>${rows.filter((r) => r.team === ti).map(col).join("")}</tbody>
             </table>
           </div>`).join("")}
+        ${여럿 ? 하루합계HTML() : ""}
         ${교류전(game) ? `
         <div class="rec-save rec-next">
           <label class="rec-opp-field">
@@ -1260,6 +1293,19 @@ export function mountRecord(container) {
     });
     container.querySelector("#rec-xlsx").addEventListener("click", (e) => 엑셀내려받기(game, e.currentTarget));
     container.querySelector("#rec-all")?.addEventListener("click", (e) => 한꺼번에받기(e.currentTarget));
+    container.querySelector("#rec-day-xlsx")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        const { 하루엑셀파일 } = await import("./record-export.js");
+        const f = await 하루엑셀파일(session.games);
+        내려주기(f.blob, f.이름);
+      } catch (err) {
+        alert(`파일을 만들지 못했어요.\n${err?.message || err}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
     // 교류전 상대 최종 점수. 누를 때마다 다시 그리면 적는 도중에 칸이 날아가므로
     // 다 적고 칸을 벗어날 때(change) 한 번 적는다. 비우면 '아직 안 적음' 으로 돌아간다.
     const 최종칸 = container.querySelector("#rec-opp-final");
