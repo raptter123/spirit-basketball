@@ -878,7 +878,7 @@ export function mountTeamBuilder(container) {
           return btns.length ? `<div class="ts-pick-actions">${btns.join("")}</div>` : "";
         })()
       }
-      <input type="text" id="ts-search" class="search-input" placeholder="이름 검색" value="${escapeHtml(search)}" />
+      <input type="text" id="ts-search" class="search-input" aria-label="선수 이름 검색" placeholder="이름 검색" value="${escapeHtml(search)}" />
       <div class="ts-roster-grid">
         ${
           filtered.length

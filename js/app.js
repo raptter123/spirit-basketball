@@ -221,7 +221,7 @@ function renderList() {
         </div>
         <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
         <div class="list-controls">
-          <input type="text" id="tactic-search" class="search-input" placeholder="전술 이름/설명 검색" value="${escapeHtml(query)}" />
+          <input type="text" id="tactic-search" class="search-input" aria-label="전술 검색" placeholder="전술 이름/설명 검색" value="${escapeHtml(query)}" />
           <div class="category-filter">
             ${CATEGORIES.map(
               (c) => `<button type="button" class="chip ${category === c ? "chip-active" : ""}" data-category="${c}">${c}</button>`
@@ -610,7 +610,7 @@ function renderGlossary() {
         <h1>용어 사전</h1>
         <p class="hint">경기 중에 나오는 콜과 용어를 모아뒀어요. 용어를 누르면 실제로 그 움직임이 나오는 전술로 갈 수 있어요.</p>
         <div class="list-controls">
-          <input type="text" id="glossary-search" class="search-input" placeholder="용어 검색 (예: 블리츠, switch)" value="${escapeHtml(query)}" />
+          <input type="text" id="glossary-search" class="search-input" aria-label="용어 검색" placeholder="용어 검색 (예: 블리츠, switch)" value="${escapeHtml(query)}" />
           <div class="category-filter">
             ${["전체", ...GLOSSARY_GROUPS]
               .map(

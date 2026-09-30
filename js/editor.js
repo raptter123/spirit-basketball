@@ -259,7 +259,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
                   aria-label="${i + 1}번째 지점 가로 위치" />
                 <input type="number" class="pt-y" value="${pt[1]}" min="10" max="460"
                   aria-label="${i + 1}번째 지점 세로 위치" />
-                <button type="button" class="btn-icon" data-action="remove-point" ${
+                <button type="button" class="btn-icon" data-action="remove-point" aria-label="${i + 1}번째 지점 지우기" ${
                   p.path.length <= 1 ? "disabled" : ""
                 }>×</button>
               </div>
@@ -392,7 +392,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
             <select class="ball-holder">${playerOptionsHTML(tactic.players, k.holder)}</select>
             <input type="range" min="0" max="100" value="${Math.round(k.at * 100)}" class="ball-at" />
             <span class="ball-at-value">${Math.round(k.at * 100)}%</span>
-            <button type="button" class="btn-icon" data-action="remove-keyframe">×</button>
+            <button type="button" class="btn-icon" data-action="remove-keyframe" aria-label="이 공 이동 지우기">×</button>
           </div>
         `
           )

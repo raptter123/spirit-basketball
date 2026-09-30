@@ -55,9 +55,9 @@ export function mountCalendar(container) {
     container.innerHTML = `
       <div class="calendar">
         <div class="calendar-header">
-          <button type="button" class="btn calendar-nav" data-nav="-1">‹</button>
+          <button type="button" class="btn calendar-nav" data-nav="-1" aria-label="이전 달">‹</button>
           <span class="calendar-title">${year}년 ${month + 1}월</span>
-          <button type="button" class="btn calendar-nav" data-nav="1">›</button>
+          <button type="button" class="btn calendar-nav" data-nav="1" aria-label="다음 달">›</button>
         </div>
         <div class="calendar-grid calendar-weekdays">
           ${WEEKDAYS.map((w) => `<div class="calendar-weekday">${w}</div>`).join("")}

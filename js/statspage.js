@@ -978,7 +978,8 @@ export function mountStatsPage(container) {
         <div class="stats-qrow">
           <span class="stats-qteam">${escapeHtml(team.name || `${i + 1}팀`)}</span>
           ${cum.map((v, q) =>
-            `<input type="number" inputmode="numeric" min="0" data-team="${i}" data-q="${q}" value="${v}" />`).join("")}
+            `<input type="number" inputmode="numeric" min="0" data-team="${i}" data-q="${q}" value="${v}"
+               aria-label="${escapeHtml(team.name || `${i + 1}팀`)} ${q + 1}쿼터까지 누적 점수" />`).join("")}
           <span class="stats-qtotal">${cum[3]}점</span>
         </div>`;
     };
@@ -1029,7 +1030,7 @@ export function mountStatsPage(container) {
             <span class="stats-team-tag">${res} · ${teamScore(team)}점</span>
             <span class="stats-note">${team.players.length}명</span></h3>
           <div class="stats-add">
-            <select data-pick="${ti}"><option value="">선수 선택…</option>${options}</select>
+            <select data-pick="${ti}" aria-label="${escapeHtml(team.name || `${ti + 1}팀`)}에 넣을 선수"><option value="">선수 선택…</option>${options}</select>
             <button type="button" class="btn btn-sm" data-add="${ti}">추가</button>
             <button type="button" class="btn btn-sm" data-guest="${ti}">게스트</button>
           </div>
@@ -1085,7 +1086,8 @@ export function mountStatsPage(container) {
           `<button type="button" class="stats-qchip${p.quarters.includes(q) ? " is-on" : ""}"
              data-team="${ti}" data-row="${i}" data-q="${q}">${q}</button>`).join("")}</td>
         ${STAT_FIELDS.map((f) =>
-          `<td><input type="number" inputmode="numeric" min="0" data-team="${ti}" data-row="${i}" data-key="${f.key}" value="${p[f.key]}" /></td>`).join("")}
+          `<td><input type="number" inputmode="numeric" min="0" data-team="${ti}" data-row="${i}" data-key="${f.key}" value="${p[f.key]}"
+             aria-label="${escapeHtml(p.name)} ${escapeHtml(f.label || f.key)}" /></td>`).join("")}
         <td class="stats-pts">${d.pts}</td>
         <td class="stats-gs">${gameScore(p).toFixed(1)}</td>
         <td><input type="text" class="stats-memo" data-team="${ti}" data-row="${i}" data-key="memo" value="${escapeHtml(p.memo)}"
