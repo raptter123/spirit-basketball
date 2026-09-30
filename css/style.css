@@ -4394,7 +4394,10 @@ body.rec-focus .record-view > .back-link,
 body.rec-focus .site-foot {
   display: none;
 }
-body.rec-focus main { padding-top: 8px; padding-bottom: 8px; }
+/* main 이 아니라 #app 으로 잡아야 한다. 여백은 #app(아이디)이 주므로 body.rec-focus main
+   으로 쓰면 우선순위에서 져서 24px 이 그대로 남는다 — 실제로 #130 부터 한 번도 안 먹었고,
+   3파전이 390×844 에서 16px 넘쳐 스크롤이 생겼다. */
+body.rec-focus #app { padding-top: 8px; padding-bottom: 8px; }
 
 .rec-exit {
   flex: none; display: grid; place-items: center;
