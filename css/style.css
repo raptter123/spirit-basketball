@@ -2894,71 +2894,122 @@ body {
   color: var(--text);
 }
 
-.home-upcoming {
-  display: block;
+/* ── 홈 '다음 일정' 카드 ──
+   가장 가까운 일정 하나와 그날 할 일(팀 짜기 · 기록 시작). 카드 전체를 링크로 두지 않는다 —
+   안에 버튼이 둘 있어서, 겹친 링크는 어느 쪽이 눌렸는지 브라우저마다 다르게 처리한다. */
+.home-next {
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-left: 3px solid var(--accent);
   border-radius: 12px;
-  padding: 16px 20px;
-  text-decoration: none;
-  color: var(--text);
-  margin-top: 20px;
-  transition: border-color 0.15s ease;
+  padding: 12px 16px 14px;
+  margin-top: 16px;
 }
 
-.home-upcoming:hover {
-  border-color: var(--accent);
-}
-
-.home-upcoming-head {
+.home-next-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
-.home-upcoming-label {
+.home-next-label {
+  font-size: var(--fs-sm);
   font-weight: 700;
-  font-size: var(--fs-md);
+  color: var(--text-muted);
 }
 
-.home-upcoming-more {
+/* 글씨는 작아도 누르는 자리는 44px. 위아래로 넓혀도 카드 여백 안이라 다른 것과 안 겹친다. */
+.home-next-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -8px 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.home-next-more:hover {
+  color: var(--text);
+}
+
+.home-next-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.home-next-dday {
+  flex: none;
+  font-family: "SF Mono", "Menlo", ui-monospace, monospace;
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--accent-text);
+}
+
+.home-next-what {
+  margin: 0;
+  font-size: var(--fs-lg);
+  min-width: 0;
+}
+
+.home-next-sub,
+.home-next-due {
+  margin: 6px 0 0;
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
-.home-upcoming-list {
-  display: grid;
-  gap: 8px;
+.home-next-due {
+  color: var(--text);
+  font-weight: 700;
 }
 
-/* 한 줄 고정. 좁은 화면에서 날짜가 아랫줄로 떨어지지 않도록 wrap을 쓰지 않고,
-   길이가 남으면 제목만 줄어들게 한다. */
-.home-upcoming-item {
+.home-next-sub span,
+.home-next-due span {
+  white-space: nowrap;
+}
+
+.home-next-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.home-next-btns .btn {
+  flex: 1 1 0;
+  text-decoration: none;
+}
+
+.home-next-rest {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--surface-2);
+  display: grid;
+  gap: 6px;
+}
+
+/* 한 줄 고정. 좁은 화면에서 날짜가 아랫줄로 떨어지지 않도록 제목만 줄어들게 한다. */
+.home-next-rest li {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
   font-size: var(--fs-sm);
   min-width: 0;
 }
 
-.home-upcoming-dday {
-  flex: 0 0 auto;
+.home-next-rest-dday {
+  flex: none;
+  min-width: 44px;
   font-family: "SF Mono", "Menlo", ui-monospace, monospace;
   font-weight: 700;
   color: var(--accent-text);
-  min-width: 44px;
 }
 
-.home-upcoming-item .badge {
-  flex: 0 0 auto;
-}
-
-.home-upcoming-title {
-  font-weight: 600;
+.home-next-rest-title {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -2966,19 +3017,25 @@ body {
   white-space: nowrap;
 }
 
-.home-upcoming-date {
-  flex: 0 0 auto;
-  margin-left: auto;
-  white-space: nowrap;
+.home-next-rest-date {
+  flex: none;
   color: var(--text-muted);
-  font-size: var(--fs-sm);
 }
 
+/* ── 홈 메뉴 ──
+   폰에서는 두 칸씩. 한 칸에 한 줄씩 놓던 때는 390px 에서 메뉴만 902px 이었다. */
 .home-menu {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (min-width: 720px) {
+  .home-menu {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
 }
 
 .home-card {
@@ -2986,9 +3043,10 @@ body {
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px 14px;
   text-decoration: none;
   color: var(--text);
+  min-width: 0;
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
@@ -2999,17 +3057,69 @@ body {
 
 .home-card-icon {
   font-size: var(--fs-2xl);
+  line-height: 1;
 }
 
+/* 두 칸이라 좁다. 한글이 "나 / 누기" 처럼 낱말 가운데서 끊기지 않게 낱말 단위로 넘긴다. */
 .home-card h2 {
-  margin: 10px 0 6px;
-  font-size: var(--fs-lg);
+  margin: 8px 0 2px;
+  font-size: var(--fs-md);
+  word-break: keep-all;
 }
 
 .home-card p {
   margin: 0;
   color: var(--text-muted);
   font-size: var(--fs-sm);
+  word-break: keep-all;
+}
+
+@media (min-width: 720px) {
+  .home-card { padding: 20px; }
+  .home-card h2 { margin: 10px 0 6px; font-size: var(--fs-lg); }
+}
+
+/* 보관함의 가장 최근 경기. 메뉴 아래 한 줄. */
+.home-last {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.home-last:hover {
+  border-color: var(--accent);
+}
+
+.home-last-text {
+  display: grid;
+  min-width: 0;
+}
+
+.home-last-text small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.home-last-text b {
+  font-size: var(--fs-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-last-more {
+  flex: none;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
 }
 
 .list-header {
