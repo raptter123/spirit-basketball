@@ -1,7 +1,7 @@
 // 3파전 결과 화면을 확인한다.
 //   1. 전환 줄 셋째 칸이 안 잘린다 (360 · 390 · 430px, 점수 두 자리)
 //   2. 결과 화면에도 전환 줄이 있고, 누르면 결과 화면에 머문 채 경기가 바뀐다
-//   3. 한꺼번에 받기 — 엑셀 3 + 이미지 3, 이름이 전부 다르고 점수가 맞다
+//   3. 한꺼번에 받기 — 엑셀 3 + 이미지 3 + 오늘 합계 엑셀 1, 이름이 전부 다르고 점수가 맞다
 //   4. 2팀 경기에는 전환 줄도 한꺼번에 받기도 안 나온다
 import { chromium } from "playwright";
 import { URL, 폴더 } from "../lib.mjs";
@@ -136,24 +136,27 @@ say(결과2.위 === 0, `갈아탄 뒤 맨 위로 (scrollY ${결과2.위})`);
 await p.evaluate(() => document.querySelector('.rec-done .rec-gbtn[data-game="2"]').click());
 await p.waitForTimeout(200);
 
-// 한꺼번에 받기 — 6개 다 받는지
+// 한꺼번에 받기 — 7개 다 받는지 (경기마다 엑셀 + 이미지, 맨 끝에 오늘 합계 엑셀)
 const 받음 = [];
 p.on("download", (d) => 받음.push(d));
 await p.click("#rec-all");
 const 끝 = Date.now() + 60000;
-while (받음.length < 6 && Date.now() < 끝) await p.waitForTimeout(200);
-await p.waitForTimeout(1500);   // 7번째가 오는지도 본다
+while (받음.length < 7 && Date.now() < 끝) await p.waitForTimeout(200);
+await p.waitForTimeout(1500);   // 8번째가 오는지도 본다
 for (const d of 받음) await d.saveAs(`${DL}/${d.suggestedFilename()}`);
 const 이름들 = 받음.map((d) => d.suggestedFilename());
 console.log("   받은 파일:", 이름들.join("  "));
-say(받음.length === 6, `받은 파일 ${받음.length}개 (엑셀 3 + 이미지 3)`);
+say(받음.length === 7, `받은 파일 ${받음.length}개 (엑셀 3 + 이미지 3 + 오늘 합계 1)`);
 say(new Set(이름들).size === 이름들.length, "이름이 전부 다름");
-say(이름들.filter((n) => n.endsWith(".xlsx")).length === 3 && 이름들.filter((n) => n.endsWith(".png")).length === 3,
-  "엑셀 3 · 이미지 3");
+const 경기엑셀 = 이름들.filter((n) => n.startsWith("spirit-game-") && n.endsWith(".xlsx"));
+say(경기엑셀.length === 3 && 이름들.filter((n) => n.endsWith(".png")).length === 3,
+  "경기 엑셀 3 · 이미지 3");
+say(/^spirit-day-\d{4}-\d{2}-\d{2}-\d{4}-DAY\.xlsx$/.test(이름들[이름들.length - 1] || ""),
+  `맨 끝이 오늘 합계 엑셀 — ${이름들[이름들.length - 1]}`);
 say(["AB", "BC", "CA"].every((v) => 이름들.some((n) => n.endsWith(`-${v}.xlsx`)) && 이름들.some((n) => n.endsWith(`-${v}.png`))),
   "AB · BC · CA 마다 엑셀과 이미지가 하나씩");
 const 버튼끝 = await p.evaluate(() => document.querySelector("#rec-all").textContent.trim());
-say(버튼끝.includes("6개"), `버튼이 "${버튼끝}" 로 알려 줌`);
+say(버튼끝.includes("7개"), `버튼이 "${버튼끝}" 로 알려 줌`);
 
 // 엑셀 점수가 각 경기 점수와 같은가
 const 점수들 = await p.evaluate(async () => {
@@ -163,7 +166,7 @@ const 점수들 = await p.evaluate(async () => {
 const 엑셀점수 = JSON.parse(execFileSync("python3", ["-c", `
 import json, glob, openpyxl
 out = {}
-for f in glob.glob(${JSON.stringify(`${DL}/*.xlsx`)}):
+for f in glob.glob(${JSON.stringify(`${DL}/spirit-game-*.xlsx`)}):
     ws = openpyxl.load_workbook(f, data_only=True).worksheets[0]
     rows = list(ws.iter_rows(values_only=True)); h = list(rows[0])
     i팀, i득 = h.index("팀"), h.index("득점")

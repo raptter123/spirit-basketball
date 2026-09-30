@@ -980,7 +980,7 @@ export function mountRecord(container) {
     const 경기들 = session?.games || [game];
     btn.disabled = true;
     try {
-      const [{ 엑셀파일 }, { 결과이미지파일 }] = await Promise.all([
+      const [{ 엑셀파일, 하루엑셀파일 }, { 결과이미지파일 }] = await Promise.all([
         import("./record-export.js"), import("./record-image.js"),
       ]);
       const 파일들 = [];
@@ -989,6 +989,8 @@ export function mountRecord(container) {
         archiveRecordGame(g);
         파일들.push(await 엑셀파일(g), await 결과이미지파일(g, [g]));
       }
+      // 경기가 둘 이상이면 오늘 합계 엑셀도 맨 끝에 같이 받는다.
+      if (경기들.length > 1) 파일들.push(await 하루엑셀파일(경기들));
       for (const [i, f] of 파일들.entries()) {
         if (i) await new Promise((r) => setTimeout(r, 400));
         내려주기(f.blob, f.이름);
@@ -1245,7 +1247,8 @@ export function mountRecord(container) {
         ${여럿 ? `
         <div class="rec-save">
           <button type="button" class="btn btn-primary" id="rec-all">📦 ${경기수말} 경기 한꺼번에 받기</button>
-          <p class="hint">경기마다 <b>엑셀 하나 + 밴드 이미지 하나</b>, 모두 ${session.games.length * 2}개를 차례로 받아요.
+          <p class="hint">경기마다 <b>엑셀 하나 + 밴드 이미지 하나</b>, 그리고 맨 끝에 <b>오늘 합계 엑셀</b> 하나 —
+            모두 ${session.games.length * 2 + 1}개를 차례로 받아요.
             휴대폰이 "여러 파일을 받을까요?" 하고 물으면 <b>허용</b>을 눌러 주세요.
             한 경기만 필요하면 맨 위 줄에서 경기를 고른 뒤 아래 버튼으로 받으면 돼요.</p>
         </div>` : ""}
