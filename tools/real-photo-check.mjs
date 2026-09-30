@@ -15,7 +15,7 @@
 // 쓰는 법:  npx http-server -p 8911 -s .   그리고   node tools/real-photo-check.mjs
 import { chromium } from "playwright";
 
-const URL = "http://127.0.0.1:8911";
+const URL = process.env.CHECK_URL || "http://127.0.0.1:8911";   // tools/checks/run.mjs 가 주소를 넘겨준다
 const PHOTO = "/test/fixtures/sheet-honA-260823.jpg";
 
 // 사람이 종이를 보고 확인해 준 값 (2026-08-23 · 1경기 · 혼 A)

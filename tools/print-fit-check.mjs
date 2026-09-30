@@ -14,7 +14,7 @@ import { chromium } from "playwright";
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:390,height:844}});
 p.on("pageerror",e=>console.log("PAGEERROR:",e.message));
-await p.goto("http://127.0.0.1:8911/index.html#/team-shuffle");
+await p.goto(`${process.env.CHECK_URL || "http://127.0.0.1:8911"}/index.html#/team-shuffle`);
 await p.waitForTimeout(1500);
 await p.evaluate(()=>{ for(const c of [...document.querySelectorAll("input[data-name]")].slice(0,10)){
   c.checked=true; c.dispatchEvent(new Event("change",{bubbles:true})); } });
@@ -48,4 +48,6 @@ console.log(`  상자 ${pg.면_가로} x ${pg.면_세로}mm`);
 console.log(`  세로 여유 ${(IOS_USABLE_H-pg.면_세로).toFixed(1)}mm ${okH?"✅":"❌ 넘침 — 한 장이 두 면으로 쪼개진다"}`);
 console.log(`  가로 여유 ${(IOS_USABLE_W-pg.면_가로).toFixed(1)}mm ${okW?"✅":"❌"}`);
 if(!okH||!okW) process.exitCode=1;
+// tools/checks/run.mjs 가 끝줄로 합격을 판정한다.
+console.log(okH&&okW ? "\n✅ 전부 통과" : "\n❌ 인쇄 영역을 넘침");
 await b.close();
