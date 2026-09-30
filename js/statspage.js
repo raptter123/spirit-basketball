@@ -19,6 +19,7 @@ import {
   cumulativeRows, sheetDateKey, summaryText,
 } from "./gamestats.js";
 import { drawGameImage } from "./gameimage.js";
+import { mountSeason } from "./season.js";
 import { sheetHTML, measureSheet, SHEET_CSS, PLAYER_ROWS, CODE_BITS } from "./sheetform.js";
 import {
   detectFiducials, readBubbles, readingsToTeam, debugOverlay, judgeReading,
@@ -195,6 +196,14 @@ export function mountStatsPage(container) {
         </div>
       </section>
 
+      <section class="stats-block">
+        <h2>4. 시즌 합치기</h2>
+        <p class="hint">기록 탭에서 받은 <b>경기 엑셀 여러 개</b>를 한꺼번에 올리면 선수별 누적과 누적 샷 차트를 보여 줘요.
+          기록 탭 보관함은 이 기기에 최근 20경기까지만 남으니, 시즌 전체는 받아 둔 엑셀로 봐요.
+          같은 경기를 두 번 올려도 한 번만 세고, 파일은 이 기기 밖으로 나가지 않아요.</p>
+        <div id="season-root"></div>
+      </section>
+
       <details class="stats-block stats-fold" id="st-edit">
         <summary>숫자 고치기 <span class="stats-note" id="st-edit-tag"></span></summary>
         <div class="stats-edit-body">
@@ -214,6 +223,7 @@ export function mountStatsPage(container) {
   `;
 
   const $ = (sel) => container.querySelector(sel);
+  mountSeason($("#season-root"));
 
   // ── 1. 기록지 사진 ──────────────────────────────────────
   // 사진을 넣으면 바로 읽어본다. 네 귀퉁이 표식을 못 찾으면(잘려 찍혔거나 그늘)
