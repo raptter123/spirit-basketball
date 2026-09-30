@@ -46,6 +46,12 @@ export const RECURRING_EVENTS = [
     address: "서울시 중구 난계로 141 (지번: 신당동 161-2)",
     startTime: "12:00",
     endTime: "15:00",
+    // 홈 '다음 일정' 카드가 한 줄로 보여 주는 값. 아래 rules 첫째 · 둘째 문장과 같은
+    // 내용이므로, 마감 요일이나 인원이 바뀌면 두 곳을 같이 고친다.
+    //   rsvpWeekday: 참불 체크 마감 요일(0=일 ~ 6=토) · guestLimit: 이 인원 이상이면 게스트 없음
+    rsvpWeekday: 3,
+    guestLimit: 18,
+    entrance: "후문 입장",
     rules: [
       '농구 참불 체크 가급적 "수요일"까지 체크 바랍니다',
       "수요일 기준 참불체크 18명 이상 시 게스트는 받지 않습니다 (가급적 댓글도 남겨주세요)",
@@ -74,6 +80,11 @@ function recurringEventsOn(dateStr) {
     location: e.location,
     address: e.address,
     note: `${e.startTime} ~ ${e.endTime}`,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    rsvpWeekday: e.rsvpWeekday,
+    guestLimit: e.guestLimit,
+    entrance: e.entrance,
     rules: e.rules,
     notes: e.notes,
     recurring: true,

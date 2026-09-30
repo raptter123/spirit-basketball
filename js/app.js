@@ -5,7 +5,7 @@ import { mountEditor } from "./editor.js";
 import { mountTeamBuilder } from "./team-shuffle.js";
 import { mountBoard } from "./board.js";
 import { mountStatsPage } from "./statspage.js";
-import { mountRecord } from "./record.js";
+import { mountRecord, 경기점수, 점수글 } from "./record.js";
 import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
@@ -25,6 +25,7 @@ import {
   saveTacticSimAssignment,
   clearTacticSimAssignment,
   saveTheme,
+  getRecordArchive,
 } from "./storage.js";
 
 const app = document.getElementById("app");
@@ -37,13 +38,15 @@ function badgeClassFor(category) {
   return "badge-offense";
 }
 
+// 홈 메뉴. 폰에서 두 칸씩 놓으므로 설명은 한 줄에 들어가게 짧게 쓴다.
+// 예전에는 한 칸에 한 줄씩 긴 설명을 달아 390px 에서 메뉴만 902px 이었다.
 const HOME_MENU = [
-  { icon: "🏀", title: "전술", desc: "저장된 전술을 코트 위에서 보고, 직접 편집하거나 새로 만들어보세요.", href: "#/tactics" },
-  { icon: "✍️", title: "작전판", desc: "풀코트 위에서 선수와 공을 끌어 옮기며 즉석에서 이야기해보세요.", href: "#/board" },
-  { icon: "🔀", title: "팀 편성", desc: "참석자를 선택해서 팀을 나누고, 공지 이미지까지 만들어보세요.", href: "#/team-shuffle" },
-  { icon: "👥", title: "로스터", desc: "선수 명단과 이번 시즌 기록을 확인하세요.", href: "#/roster" },
-  { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록을 모아둔 보관실이에요.", href: "https://kimjunseok.github.io/Spirit/", external: true },
-  { icon: "✅", title: "출석체크", desc: "자체전 출석체크는 여기서 해주세요.", href: "https://band.us/band/47755703", external: true },
+  { icon: "🏀", title: "전술", desc: "코트 위 움직임 보기", href: "#/tactics" },
+  { icon: "✍️", title: "작전판", desc: "끌어 옮기며 설명", href: "#/board" },
+  { icon: "🔀", title: "팀 편성", desc: "참석자로 팀 나누기", href: "#/team-shuffle" },
+  { icon: "👥", title: "로스터", desc: "선수 명단 · 시즌 기록", href: "#/roster" },
+  { icon: "📚", title: "기록 보관실", desc: "예전 활동 기록", href: "https://kimjunseok.github.io/Spirit/", external: true },
+  { icon: "✅", title: "출석체크", desc: "참불 체크(밴드)", href: "https://band.us/band/47755703", external: true },
 ];
 
 function tacticCardHTML(t, isFav) {
@@ -80,28 +83,94 @@ function shortDateLabel(dateStr) {
   return y === String(new Date().getFullYear()) ? `${m}-${d}` : `${y}-${m}-${d}`;
 }
 
-function homeUpcomingHTML() {
-  const upcoming = getUpcomingEvents(todayStr(), 60).slice(0, 3);
+const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
+// "2026-10-04" → "10월 4일(일)"
+function longDateLabel(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일(${WEEKDAY_KO[d.getDay()]})`;
+}
+
+// 참불 체크 마감 — 일정 날짜에서 거슬러 올라가 가장 가까운 마감 요일.
+// 일요일 자체전 · 수요일 마감이면 그 주 수요일이다. 오늘 기준으로 말을 바꾼다.
+function rsvpDueLabel(e) {
+  if (!Number.isInteger(e.rsvpWeekday)) return [];
+  const 날 = new Date(`${e.date}T00:00:00`);
+  const 마감 = new Date(날);
+  마감.setDate(날.getDate() - ((날.getDay() - e.rsvpWeekday + 7) % 7));
+  const 오늘 = new Date(`${todayStr()}T00:00:00`);
+  const 남은날 = Math.round((마감 - 오늘) / 86400000);
+  const 요일 = WEEKDAY_KO[e.rsvpWeekday];
+  const 언제 = 남은날 === 0 ? `오늘(${요일})까지`
+    : 남은날 === 1 ? `내일(${요일})까지`
+    : 남은날 > 1 ? `${마감.getMonth() + 1}월 ${마감.getDate()}일(${요일})까지`
+    : `${요일}요일에 마감됐어요`;
+  const 게스트 = Number.isInteger(e.guestLimit) ? `${e.guestLimit}명 넘으면 게스트 없음` : "";
+  return [`참불 마감 ${언제}`, 게스트].filter(Boolean);
+}
+
+// 홈 맨 위 '다음 일정' 카드.
+//
+// 예전에는 다가오는 일정을 한 줄씩 늘어놓아서 "D-4 자체전 자체전 10-04" 처럼 종류와
+// 제목이 겹쳐 보였고, 시간 · 장소 · 참불 마감은 일정 화면에 들어가야 보였다.
+// 가장 가까운 일정 하나를 크게, 그 날 할 일(팀 짜기 · 기록 시작)을 바로 아래에 둔다.
+// 그다음 일정은 한 줄씩 두 개까지만.
+function homeNextHTML() {
+  const upcoming = getUpcomingEvents(todayStr(), 60);
   if (!upcoming.length) return "";
+  const [e, ...rest] = upcoming;
+  const 제목 = e.title === e.type ? e.title : `${e.type} · ${e.title}`;
+  const 시간 = e.startTime ? `${e.startTime}–${e.endTime}` : e.note;
+  // 좁은 폰에서 줄이 바뀔 때 "후문 입 / 장" 처럼 낱말 중간에서 끊기지 않게, 조각마다
+  // 한 덩어리(nowrap)로 싸고 조각 사이 " · " 에서만 줄이 바뀌게 한다.
+  const 덩어리 = (조각들) => 조각들.filter(Boolean).map((x) => `<span>${escapeHtml(x)}</span>`).join(" · ");
+  const 둘째줄 = 덩어리([시간, e.location, e.entrance]);
+  const 오늘이날 = e.date === todayStr();
+  const 마감 = 오늘이날 ? "" : 덩어리(rsvpDueLabel(e));
   return `
-    <a class="home-upcoming" href="#/schedule">
-      <div class="home-upcoming-head">
-        <span class="home-upcoming-label">📅 다가오는 일정</span>
-        <span class="home-upcoming-more">전체 일정 보기 →</span>
+    <section class="home-next" aria-labelledby="home-next-title">
+      <div class="home-next-head">
+        <span class="home-next-label">다음 일정</span>
+        <a class="home-next-more" href="#/schedule">전체 일정 →</a>
       </div>
-      <div class="home-upcoming-list">
-        ${upcoming
-          .map(
-            (e) => `
-          <div class="home-upcoming-item">
-            <span class="home-upcoming-dday">${dDayLabel(e.date)}</span>
-            <span class="badge ${e.type === "대회" ? "badge-defense" : "badge-offense"}">${e.type}</span>
-            <span class="home-upcoming-title">${escapeHtml(e.title)}</span>
-            <span class="home-upcoming-date">${shortDateLabel(e.date)}</span>
-          </div>`
-          )
-          .join("")}
+      <div class="home-next-row">
+        <span class="home-next-dday">${dDayLabel(e.date)}</span>
+        <h2 id="home-next-title" class="home-next-what">${escapeHtml(제목)} · ${longDateLabel(e.date)}</h2>
       </div>
+      ${둘째줄 ? `<p class="home-next-sub">${둘째줄}</p>` : ""}
+      ${마감 ? `<p class="home-next-due">${마감}</p>` : ""}
+      <div class="home-next-btns">
+        ${e.type === "자체전" ? `<a class="btn" href="#/team-shuffle">팀 짜기</a>` : ""}
+        <a class="btn btn-primary" href="#/record">기록 시작</a>
+      </div>
+      ${rest.length ? `
+        <ul class="home-next-rest">
+          ${rest.slice(0, 2).map((r) => `
+            <li>
+              <span class="home-next-rest-dday">${dDayLabel(r.date)}</span>
+              <span class="home-next-rest-title">${escapeHtml(r.title === r.type ? r.title : `${r.type} · ${r.title}`)}</span>
+              <span class="home-next-rest-date">${shortDateLabel(r.date)}</span>
+            </li>`).join("")}
+        </ul>` : ""}
+    </section>
+  `;
+}
+
+// 보관함의 가장 최근 경기 한 칸. 결과를 다시 받으러 오는 길을 줄인다.
+function homeLastGameHTML() {
+  const g = getRecordArchive()[0];
+  if (!g) return "";
+  const [a, b] = 경기점수(g);
+  const [, 월, 일] = String(g.date || "").split("-");
+  const 날 = 월 && 일 ? `${Number(월)}/${Number(일)}` : "";
+  const 팀 = g.teams.map((t) => escapeHtml(t.name));
+  return `
+    <a class="home-last" href="#/record">
+      <span class="home-last-text">
+        <small>지난 경기${날 ? ` · ${날}` : ""}</small>
+        <b>${팀[0]} ${점수글(a)} : ${점수글(b)} ${팀[1]}</b>
+      </span>
+      <span class="home-last-more">보관함 →</span>
     </a>
   `;
 }
@@ -123,10 +192,11 @@ function renderHome() {
       <h1>혼(Spirit)</h1>
       <p class="home-tagline">한 팀, 한 코트, 하나의 혼(Spirit)</p>
       <p class="hint">여기는 혼(Spirit)의 혼페이지예요. 전술부터 팀 편성, 일정까지 — 필요한 건 아래에서 다 찾을 수 있어요.</p>
-      ${homeUpcomingHTML()}
+      ${homeNextHTML()}
       <div class="home-menu">
         ${HOME_MENU.map(homeCardHTML).join("")}
       </div>
+      ${homeLastGameHTML()}
 
       ${installGuideHTML()}
     </section>

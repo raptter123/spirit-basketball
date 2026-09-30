@@ -17,7 +17,7 @@ for (const d of 날짜들) {
   await p.clock.install({ time: new Date(d) });
   await p.goto(`${URL}/index.html?d=${d}#/`); await p.waitForTimeout(700);
   const 홈 = await p.evaluate(() => ({
-    다가옴: document.querySelector(".home-upcoming")?.innerText.replace(/\s+/g, " ").trim().slice(0, 90) || "(없음)",
+    다가옴: document.querySelector(".home-next")?.innerText.replace(/\s+/g, " ").trim().slice(0, 90) || "(없음)",
   }));
   await p.goto(`${URL}/index.html?d=${d}x#/schedule`); await p.waitForTimeout(700);
   const 일정 = await p.evaluate(() => ({
