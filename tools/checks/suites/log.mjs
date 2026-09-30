@@ -68,7 +68,7 @@ const 목록 = await p.evaluate(() => [...document.querySelectorAll(".rec-arch-r
   버튼: [...r.querySelectorAll(".rec-arch-btns button")].map((x) => x.textContent.trim()),
 })));
 const 머리 = await p.evaluate(() => ({
-  제목: document.querySelector(".rec-archive h3").textContent.trim(),
+  제목: document.querySelector(".rec-archive h2").textContent.trim(),
   안내: document.querySelector(".rec-archive .hint").textContent.replace(/\s+/g, " ").trim(),
 }));
 

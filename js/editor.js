@@ -384,7 +384,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
     const ballPanel = container.querySelector(".editor-ball");
     if (tactic.ball && tactic.ball.length) {
       ballPanel.innerHTML = `
-        <h4>공 소유 타이밍</h4>
+        <h2>공 소유 타이밍</h2>
         ${tactic.ball
           .map(
             (k, i) => `
@@ -435,7 +435,7 @@ export function mountEditor(container, tactic, { onChange, onReset, onExport, on
       });
     } else {
       ballPanel.innerHTML = `
-        <h4>공 소유 타이밍</h4>
+        <h2>공 소유 타이밍</h2>
         <p class="hint">이 전술에는 공 표시가 없어요.</p>
         <button type="button" class="btn btn-sm" data-action="init-ball">+ 공 표시 추가</button>
       `;

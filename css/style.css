@@ -1508,10 +1508,12 @@ body {
   padding: 16px;
 }
 
-/* 크기를 안 준 h3 라 브라우저 기본(1.17em = 18.72px)이 나오고 있었다 — 사다리 밖 값이다. */
-.day-detail h3,
-.upcoming-list h3 {
-  margin-top: 0;
+/* 크기를 안 준 h3 라 브라우저 기본(1.17em = 18.72px)이 나오고 있었다 — 사다리 밖 값이다.
+   화면 낭독기가 h1 → h3 로 건너뛰지 않게 h2 로 바꾸면서, 브라우저가 h2 에 주는 기본 여백
+   (0.83em)이 끼어들지 않도록 아래 여백을 h3 때 값(1em)으로 박아 둔다. */
+.day-detail h2,
+.upcoming-list h2 {
+  margin: 0 0 1em;
   font-size: var(--fs-lg);
 }
 
@@ -1762,8 +1764,10 @@ body {
   padding: 12px;
 }
 
-.editor-ball h4 {
-  margin-top: 0;
+/* h1 바로 아래 단이라 h2 다. 생김새는 h4 였을 때 그대로(16px, 아래 여백 1.33em). */
+.editor-ball h2 {
+  margin: 0 0 1.33em;
+  font-size: var(--fs-md);
 }
 
 .editor-ball-row {
@@ -2542,8 +2546,10 @@ body {
   padding: 14px 16px;
 }
 
-.ts-preview-card h4 {
+/* '팀 구성 미리보기'(h2) 아래 단이라 h3 다. 크기는 h4 였을 때 그대로 16px. */
+.ts-preview-card h3 {
   margin: 0 0 8px;
+  font-size: var(--fs-md);
 }
 
 .ts-preview-names {
@@ -4130,7 +4136,8 @@ body {
 /* 팀 수 고르기. 2팀이면 한 경기, 3팀이면 서로 한 경기씩 세 경기가 만들어진다. */
 /* '직접 고르기' 제목. 크기를 안 정해 두어 브라우저 기본(1.17em = 18.72px)이
    나왔다 — 글씨 사다리(12/14/16/18/20/24) 밖이다. */
-.rec-manual h3 { font-size: var(--fs-lg); }
+/* h1 바로 아래 단이라 h2 다. 여백은 h3 였을 때 값(1em) 그대로. */
+.rec-manual h2 { font-size: var(--fs-lg); margin: 1em 0; }
 
 .rec-nteam { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; flex-wrap: wrap; }
 .rec-nbtn {
@@ -4236,7 +4243,8 @@ body {
 
 /* ── 지난 경기 보관함 ── */
 .rec-archive { margin-top: 22px; border-top: 1px solid var(--surface-2); padding-top: 14px; }
-.rec-archive h3 { margin: 0; }
+/* h2 로 바꾸면서 크기는 h3 였을 때(1.17em) 그대로 둔다 — 생김새를 바꾸지 않는 정리라서. */
+.rec-archive h2 { margin: 0; font-size: 1.17em; }
 /* 제목과 '전부 지우기' 를 한 줄에. 지우는 버튼은 오른쪽 끝에 둬서
    목록을 훑는 손이 지나다 실수로 닿지 않게 한다. */
 .rec-arch-head {

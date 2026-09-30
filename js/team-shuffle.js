@@ -845,7 +845,7 @@ export function mountTeamBuilder(container) {
         </div>
       </div>
 
-      <h3 class="section-title">참석자 선택 (${selected.size}명)</h3>
+      <h2 class="section-title">참석자 선택 (${selected.size}명)</h2>
       <!-- 명단을 통째로 다루는 단추는 명단 바로 위에 둔다. '전체 초기화'는 원래 저 아래
            팀 배정 줄에 있었는데, 정작 지우는 건 이 위의 참석자 선택이라 스크롤을 내려갔다
            와야 했다. 아래에는 배정만 건드리는 '배정 초기화'를 남긴다.
@@ -912,7 +912,7 @@ export function mountTeamBuilder(container) {
         }
       </div>
 
-      <h3 class="section-title">팀 배정</h3>
+      <h2 class="section-title">팀 배정</h2>
       <p class="hint">이름 옆 팀 글자를 눌러 배정해주세요.</p>
       <div class="ts-assign-toolbar">
         <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
@@ -944,7 +944,7 @@ export function mountTeamBuilder(container) {
         }
       </div>
 
-      <h3 class="section-title">팀 구성 미리보기</h3>
+      <h2 class="section-title">팀 구성 미리보기</h2>
       <p class="hint ts-preview-hint">실제 경기는 5명만 코트에 뛰기 때문에, 인원이 많고 적음에 상관없이 공정하게 비교할 수 있도록 ${TYPICAL_TEAM_SIZE}인 팀 기준으로 환산한 예상치예요.</p>
       <div class="ts-preview-grid">
         ${Array.from({ length: teamCount }, (_, i) => {
@@ -952,7 +952,7 @@ export function mountTeamBuilder(container) {
           const proj = computeProjection(teamNames, playersByName);
           return `
           <div class="ts-preview-card" style="--team-color:${TEAM_ACCENT[i]}">
-            <h4>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h4>
+            <h3>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h3>
             <div class="ts-preview-names">${
               teamNames.length
                 ? teamNames
