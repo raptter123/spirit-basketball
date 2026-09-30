@@ -67,7 +67,7 @@ export function mountCalendar(container) {
         </div>
       </div>
       <div class="day-detail">
-        <h3>${selected} 일정</h3>
+        <h2>${selected} 일정</h2>
         ${selectedHoliday ? `<p class="holiday-label">${selectedHoliday.name}</p>` : ""}
         ${
           selectedEvents.length
@@ -76,7 +76,7 @@ export function mountCalendar(container) {
         }
       </div>
       <div class="upcoming-list">
-        <h3>다가오는 일정</h3>
+        <h2>다가오는 일정</h2>
         ${
           upcoming.length
             ? upcoming.map((e) => eventCardHTML(e)).join("")

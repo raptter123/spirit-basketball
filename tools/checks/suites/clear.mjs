@@ -52,7 +52,7 @@ say(await 셈() === 3, `경기 ${await 셈()}개 쌓임`);
 const 머리 = await p.evaluate(() => {
   const h = document.querySelector(".rec-arch-head");
   const btn = document.querySelector("#rec-arch-clear");
-  const t = h.querySelector("h3").getBoundingClientRect();
+  const t = h.querySelector("h2").getBoundingClientRect();
   const r = btn.getBoundingClientRect();
   return { 글: btn.textContent.trim(), 높이: Math.round(r.height),
     오른쪽끝: Math.round(document.documentElement.clientWidth - r.right),

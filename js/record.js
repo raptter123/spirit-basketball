@@ -404,7 +404,7 @@ export function mountRecord(container) {
              </div>`
           : `<p class="hint rec-nodraft">팀 편성 화면에서 팀을 먼저 짜면 여기로 바로 넘어옵니다.</p>`}
         <div class="rec-manual">
-          <h3>직접 고르기</h3>
+          <h2>직접 고르기</h2>
           <div class="rec-nteam">
             ${[1, 2, 3].map((n) => `
               <button type="button" class="rec-nbtn${n === 2 ? " is-on" : ""}" data-n="${n}">${n === 1 ? "1팀 · 교류전" : `${n}팀`}</button>`).join("")}
@@ -427,7 +427,7 @@ export function mountRecord(container) {
         ${보관함.length ? `
           <div class="rec-archive">
             <div class="rec-arch-head">
-              <h3>지난 경기 ${보관함.length}개</h3>
+              <h2>지난 경기 ${보관함.length}개</h2>
               <button type="button" class="btn-sm rec-arch-del" id="rec-arch-clear">전부 지우기</button>
             </div>
             <p class="hint">기록 ${보관함.reduce((a, g) => a + playCount(g.events), 0)}개가 쌓였어요.
