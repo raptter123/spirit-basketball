@@ -221,7 +221,7 @@ function renderList() {
         </div>
         <p class="hint">전술을 클릭하면 코트 위에서 움직임을 애니메이션으로 볼 수 있어요.</p>
         <div class="list-controls">
-          <input type="text" id="tactic-search" class="search-input" placeholder="전술 이름/설명 검색" value="${query}" />
+          <input type="text" id="tactic-search" class="search-input" placeholder="전술 이름/설명 검색" value="${escapeHtml(query)}" />
           <div class="category-filter">
             ${CATEGORIES.map(
               (c) => `<button type="button" class="chip ${category === c ? "chip-active" : ""}" data-category="${c}">${c}</button>`
