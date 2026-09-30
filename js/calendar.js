@@ -1,14 +1,11 @@
 import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR } from "./events.js";
 import { getHolidayOn } from "./holidays.js";
+import { dateStr } from "./util.js";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-function pad(n) {
-  return String(n).padStart(2, "0");
-}
-
 function toDateStr(y, m, d) {
-  return `${y}-${pad(m + 1)}-${pad(d)}`;
+  return dateStr(new Date(y, m, d));
 }
 
 function dotColor(type) {

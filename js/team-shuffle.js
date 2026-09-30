@@ -11,6 +11,7 @@ import {
 } from "./storage.js";
 import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
+import { escapeHtml, todayStr } from "./util.js";
 import {
   jerseyHTML,
   hasNumber,
@@ -26,10 +27,6 @@ const TEAM_LETTERS = ["A", "B", "C", "D"];
 const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6", "#a855f7"];
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
 function nameWithCaptain(p) {
   if (!p) return "";
   return p.captain ? `${p.name}(C)` : p.name;
@@ -42,11 +39,6 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // "2026-09-06" → "9/6". 지난번 명단이 언제 것인지 알려주는 용도라 연도는 뺀다.
