@@ -12,6 +12,7 @@
 //   화면에서는 "–" 로 적는다.
 import {
   boxScore, pointsOf, scoreOf, playCount, qLabel, zoneOf, 교류전, 기록팀, 경기점수, 이긴팀, 점수글,
+  플마있음,
 } from "./record.js";
 
 /** 자유투 시도를 포제션으로 환산하는 계수.
@@ -268,6 +269,49 @@ export function 팀지표(game, events = game.events) {
       drbPct: 바깥 ? null : 나누기(me.rebD, me.rebD + 상대.rebO),
     };
   });
+}
+
+/** 하루 합계 — 그날 치른 여러 경기(3파전 세 경기, 교류전 여러 판)를 선수별로 더한다.
+ *
+ *  한 사람은 이름으로 묶는다. 3파전에서 A팀 선수는 AB · CA 두 경기에 나오므로 두 경기
+ *  치가 한 줄로 합쳐진다. 교류전 상대(선수 명단 없이 점수만 적는 팀)는 넣지 않는다.
+ *
+ *  +/- 는 셀 수 있는 경기만 더한다(교류전은 못 셈 — 플마있음 참고). 하나도 없으면 null.
+ *  줄 순서: 득점 → 리바운드 → 어시스트가 많은 순, 같으면 이름 순.
+ *
+ *  돌아오는 값: [{ name, number, 팀: "A팀 · B팀", 경기수, pts, p2m, …, pf, pm }] */
+export function 하루합계(games) {
+  const 칸들 = ["pts", "p2m", "p2a", "p3m", "p3a", "ftm", "fta", "rebO", "rebD", "reb", "ast", "stl", "blk", "to", "pf"];
+  const 사람 = new Map();
+  for (const g of games) {
+    const pm = 플마있음(g) ? plusMinus(g) : null;
+    const 셀팀 = 기록팀(g);
+    for (const r of boxScore(g)) {
+      if (!셀팀.includes(r.team)) continue;
+      let a = 사람.get(r.name);
+      if (!a) {
+        a = { name: r.name, number: r.number, 팀들: [], 경기수: 0, pm: null };
+        for (const k of 칸들) a[k] = 0;
+        사람.set(r.name, a);
+      }
+      a.경기수 += 1;
+      const 팀이름 = g.teams[r.team].name;
+      if (!a.팀들.includes(팀이름)) a.팀들.push(팀이름);
+      for (const k of 칸들) a[k] += r[k];
+      if (pm) a.pm = (a.pm ?? 0) + (pm[`${r.team}|${r.name}`] ?? 0);
+    }
+  }
+  return [...사람.values()]
+    .map(({ 팀들, ...a }) => ({ ...a, 팀: 팀들.join(" · ") }))
+    .sort((x, y) => y.pts - x.pts || y.reb - x.reb || y.ast - x.ast || x.name.localeCompare(y.name, "ko"));
+}
+
+/** 하루 합계 파일 이름. 그날 첫 경기의 시작 시각을 붙여 같은 날 두 번 받아도 안 겹친다. */
+export function 하루파일꼬리(games) {
+  const 첫 = Math.min(...games.map((g) => g.startedAt || Date.now()));
+  const d = new Date(첫);
+  const 시각 = `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${games[0].date}-${시각}-DAY`;
 }
 
 /** 화면과 엑셀이 같이 쓰는 표시 규칙. 잴 수 없는 값은 0 이 아니라 "–" 다. */
