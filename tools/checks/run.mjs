@@ -12,7 +12,7 @@
 // 찍혀서 "통과" 로 읽힌다. 실제로 그렇게 깨진 시험 네 벌이 통과로 보고된 적이 있다.
 //
 // 필요한 것: node 20+, playwright (저장소 맨 위 node_modules), python3 + openpyxl
-// (엑셀을 여는 시험들), LibreOffice(soffice — xlsimg 하나만, 빠른 묶음에는 없음).
+// (엑셀을 여는 시험들) + Pillow(img), LibreOffice(soffice — xlsimg 하나만, 빠른 묶음에는 없음).
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";

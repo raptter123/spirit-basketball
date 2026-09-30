@@ -23,6 +23,7 @@ node tools/checks/audit.mjs          # 주간 점검 도구 (판정 없이 재�
 | node 20 이상 | 실행 | `/opt/node22/bin/node` |
 | playwright | 브라우저 | `node_modules` → `/opt/node22/lib/node_modules` 심볼릭 링크 (`.gitignore` 에 있음) |
 | python3 + openpyxl | 받은 엑셀을 열어 숫자 확인 | 있음 |
+| Pillow | `img` — 밴드 이미지의 픽셀을 잰다 | 있음 |
 | LibreOffice (`soffice`) | `xlsimg` 하나 — 엑셀이 실제로 열리나 | `libreoffice-calc` 설치 필요할 수 있음 |
 
 ## 판정
