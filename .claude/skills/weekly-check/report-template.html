@@ -1,0 +1,365 @@
+<title>혼페이지 주간 점검 {{M·D}}</title>
+<!--
+  주간 점검 제안서 틀. SKILL.md 의 "제안서" 절을 먼저 읽는다.
+  {{…}} 는 이번 주 값으로 바꾸고, 안내 주석들은 지운다.
+  본보기: example-2026-09-30.html (사용자가 "맘에 든다" 고 한 판).
+
+  섹션 순서는 바꾸지 않는다 — 고친 것 → 멀쩡한 것(잰 값) → 고를 것(S · B · F) →
+  디자인 제안(지금 vs 시안 + D) → 추천 순서 → 고른 것 복사 막대.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&family=Pacifico&display=swap">
+<style>
+/* 레이아웃: 한 줄로 읽는 점검 보고서. 위에서 "고친 것 → 멀쩡한 것 → 고를 것" 순서.
+   색은 혼페이지 자체 테마를 그대로 쓴다 — 기본은 보라 밤(다크), 밝은 쪽은 크림 코트. */
+:root {
+  --bg: #14102b;
+  --surface: #1e1840;
+  --surface-2: #2a2255;
+  --line: #3a3170;
+  --fg: #ece9f7;
+  --muted: #b2abd4;
+  --accent: #7c5cff;
+  --accent-text: #b3a1ff;
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #fb7185;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mark: "Pacifico", "Brush Script MT", cursive;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #fff3dd; --surface: #ffffff; --surface-2: #f1e4c9; --line: #e3d2ad;
+    --fg: #2a1458; --muted: #6b5d86; --accent: #d80204; --accent-text: #b00203;
+    --good: #047857; --warn: #a16207; --bad: #be123c;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #fff3dd; --surface: #ffffff; --surface-2: #f1e4c9; --line: #e3d2ad;
+  --fg: #2a1458; --muted: #6b5d86; --accent: #d80204; --accent-text: #b00203;
+  --good: #047857; --warn: #a16207; --bad: #be123c;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.65;
+  word-break: keep-all; overflow-wrap: anywhere;   /* 한글은 단어 단위로 줄을 바꾼다 */
+  padding-inline: 16px; padding-block: 28px 64px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 44px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.3; margin: 0; }
+p { margin: 0; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+a { color: var(--accent-text); }
+
+/* ── 머리 ── */
+.head { display: grid; gap: 10px; }
+.mark { font-family: var(--font-mark); color: var(--accent-text); font-size: 20px; line-height: 1; }
+.head h1 { font-size: 30px; font-weight: 700; }
+.head .meta { color: var(--muted); font-size: 14px; }
+.tally { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.tally span {
+  font-size: 13px; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--fg);
+}
+.tally b { font-family: var(--font-num); font-weight: 500; }
+
+section { display: grid; gap: 16px; }
+.sec-head { display: grid; gap: 4px; }
+.sec-head h2 { font-size: 21px; }
+.sec-head p { color: var(--muted); font-size: 14px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; color: var(--accent-text); font-weight: 700; }
+
+/* ── 고친 것 ── */
+.fixes { display: grid; gap: 12px; }
+.fix { background: var(--surface); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; }
+.fix h3 { font-size: 16px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pr { font-family: var(--font-num); font-size: 12px; color: var(--muted); font-weight: 500; }
+.fix ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.fix li { font-size: 14px; }
+.delta { font-family: var(--font-num); white-space: nowrap; }
+.delta s { color: var(--bad); text-decoration-thickness: 1px; }
+.delta b { color: var(--good); font-weight: 500; }
+
+/* ── 멀쩡한 것 ── */
+.checks { width: 100%; border-collapse: collapse; font-size: 14px; }
+.checks td { padding: 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.checks td:first-child { color: var(--muted); padding-right: 14px; width: 38%; }
+.checks td:last-child { font-variant-numeric: tabular-nums; }
+
+/* ── 고를 것 (공통 줄) ── */
+.items { display: grid; gap: 10px; }
+.item {
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 12px;
+  background: var(--surface); border-radius: 12px; padding: 14px 16px;
+  border: 1px solid transparent; cursor: pointer;
+}
+.item:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
+.item input { grid-row: 1 / span 3; width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+.item .t { font-weight: 700; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: baseline; min-width: 0; }
+.item .id { font-family: var(--font-num); font-size: 12px; color: var(--accent-text); font-weight: 500; }
+.item .d { color: var(--muted); font-size: 14px; min-width: 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tag.hi { border-color: var(--bad); color: var(--bad); }
+.tag.mid { border-color: var(--warn); color: var(--warn); }
+.tag.lo { border-color: var(--good); color: var(--good); }
+
+/* ── 시안 ── */
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; align-items: start; }
+.phone-cap { font-size: 13px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
+.phone-cap b { color: var(--fg); }
+.phone {
+  width: 100%; max-width: 300px; aspect-ratio: 390 / 844; border-radius: 26px; overflow: hidden;
+  border: 6px solid #0b0819; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.phone img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.ruler { position: absolute; left: 0; right: 0; border-top: 2px dashed #fbbf24; }
+.ruler span { position: absolute; right: 6px; top: 2px; font-size: 10px; color: #111; background: #fbbf24; padding: 0 5px; border-radius: 4px; font-family: var(--font-num); }
+
+/* 시안 폰 안은 혼페이지 기본(보라 밤) 모습을 그린 그림이라 색을 고정해 둔다.
+   바깥 테마가 밝아도 폰 속은 실제 사이트처럼 어둡게 보여야 비교가 된다. */
+.mock { position: absolute; inset: 0; background: #14102b; color: #ece9f7; font-family: var(--font-body); display: flex; flex-direction: column; font-size: 11px; }
+.mock-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #2a2255; }
+.mock-top .logo { width: 26px; height: 26px; border-radius: 50%; background: #7c5cff; display: grid; place-items: center; font-family: var(--font-mark); font-size: 10px; color: #fff; }
+.mock-top b { font-size: 14px; }
+.mock-top .sun { margin-left: auto; width: 24px; height: 24px; border-radius: 50%; background: #1e1840; }
+.mock-body { flex: 1; padding: 12px; display: grid; gap: 10px; align-content: start; overflow: hidden; }
+.week { background: #1e1840; border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
+.week .row { display: flex; align-items: baseline; gap: 6px; }
+.week .dday { font-family: var(--font-num); font-size: 20px; color: #b3a1ff; }
+.week .what { font-size: 13px; font-weight: 700; }
+.week .sub { color: #b2abd4; font-size: 10.5px; }
+.week .due { background: rgba(251,191,36,.16); color: #fcd34d; border-radius: 6px; padding: 4px 7px; font-size: 10.5px; font-weight: 700; }
+.week .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px; }
+.week .btns span { background: #7c5cff; color: #fff; border-radius: 8px; text-align: center; padding: 7px 0; font-weight: 700; font-size: 11px; }
+.week .btns span + span { background: #2a2255; color: #ece9f7; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 div { background: #1e1840; border-radius: 10px; padding: 10px; display: grid; gap: 3px; }
+.grid2 i { font-style: normal; font-size: 16px; }
+.grid2 b { font-size: 12px; }
+.grid2 small { color: #b2abd4; font-size: 9.5px; line-height: 1.35; }
+.last { background: #1e1840; border-radius: 10px; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+.last small { color: #b2abd4; font-size: 9.5px; }
+.last b { font-family: var(--font-num); font-size: 14px; }
+.tabbar { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid #2a2255; background: #1a1438; padding: 6px 0 8px; }
+.tabbar span { display: grid; justify-items: center; gap: 2px; font-size: 9.5px; color: #b2abd4; }
+.tabbar span i { font-style: normal; font-size: 14px; }
+.tabbar .on { color: #b3a1ff; font-weight: 700; }
+
+.notes { display: grid; gap: 8px; font-size: 14px; }
+.notes li { color: var(--fg); }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+/* ── 고른 것 보내기 ── */
+.picked {
+  position: sticky; bottom: 0; background: var(--surface-2); border-radius: 14px;
+  padding: 14px 16px; display: grid; gap: 10px; box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+.picked .line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; justify-content: space-between; }
+.picked output { font-family: var(--font-num); font-size: 13px; color: var(--fg); min-width: 0; overflow-wrap: anywhere; }
+.picked button {
+  font: inherit; font-weight: 700; font-size: 14px; border: 0; border-radius: 10px;
+  padding: 11px 16px; min-height: 44px; background: var(--accent); color: #fff; cursor: pointer;
+}
+.picked button:disabled { opacity: .45; cursor: default; }
+.picked textarea { width: 100%; font: 13px/1.5 var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical; }
+.picked .say { font-size: 13px; color: var(--muted); }
+
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="head">
+    <span class="mark">Spirit</span>
+    <h1>혼페이지 주간 점검</h1>
+    <p class="meta">{{YYYY}}년 {{M}}월 {{D}}일({{요일}}) · 배포판 rev {{지난주 끝 rev}} → <b class="num">rev {{이번 주 끝 rev}}</b> · 390×844 폰 기준으로 잰 값</p>
+    <div class="tally">
+      <!-- 숫자는 전부 이번 주에 잰 값. 고친 버그가 0건이면 0건이라고 쓴다. -->
+      <span>고친 버그 <b>{{n}}건</b> (PR {{n}}개)</span>
+      <span>회귀 시험 <b>{{n}}벌</b> 전부 통과</span>
+      <span>눌러 본 버튼 <b>{{n}}개</b> · 오류 {{n}}</span>
+      <span>고를 제안 <b>{{n}}개</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">이번 주에 고친 것</span>
+      <h2>이미 올라가 있어요</h2>
+      <p>화면 맨 아래 rev {{이번 주 끝 rev}} 이면 들어 있는 판이에요.</p>
+    </div>
+    <div class="fixes">
+      <!-- PR 하나에 fix 하나. 무엇이 틀렸는지 한 문장 + 전후 값(.delta: <s>전</s> → <b>후</b>). -->
+      <article class="fix">
+        <h3>{{고친 것 한 줄}} <span class="pr">#{{PR}}</span></h3>
+        <ul>
+          <li>{{무엇이 어떻게 틀렸나}} <span class="delta"><s>{{전}}</s> → <b>{{후}}</b></span></li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">점검했는데 멀쩡한 것</span>
+      <h2>잰 방법과 값</h2>
+    </div>
+    <table class="checks">
+      <!-- 한 줄 = 잰 것 하나. 왼쪽: 무엇을, 오른쪽: 어떻게 재서 얼마였나. -->
+      <tr><td>{{잰 것}}</td><td>{{방법과 값}}</td></tr>
+    </table>
+  </section>
+
+  <section id="pick">
+    <div class="sec-head">
+      <span class="eyebrow">고를 것</span>
+      <h2>하고 싶은 걸 골라 주세요</h2>
+      <p>고른 것은 맨 아래 칸에 모여요. 복사해서 대화창에 붙이면 그대로 진행할게요. 하나에 PR 하나씩 올려요.</p>
+    </div>
+
+    <!--
+      항목 번호: S 자동화 · 안전망 / B 남은 문제(결정 필요) / F 기능 아이디어 / D 디자인.
+      번호는 주마다 1부터 새로 매긴다. 지난주에 안 고른 것을 다시 올릴 때는 설명 끝에
+      "(지난주 B5)" 처럼 적는다. history.md 의 보류 목록을 먼저 본다.
+      태그: hi 급함 · mid 추천/체감 큼/정보 필요 · lo 작음/모습 변화 없음 · (색 없음) 선택/큼/보류 중.
+      id="c-<번호>" 를 꼭 단다 — 고른 것 복사가 이걸로 모은다.
+    -->
+    <h3 style="font-size:17px">🔧 먼저 챙길 것 — 자동화 · 안전망</h3>
+    <div class="items">
+      <label class="item"><input type="checkbox" value="S1" id="c-S1">
+        <span class="t"><span class="id">S1</span> {{제목}}</span>
+        <span class="d">{{왜 · 무엇을 · 무엇이 달라지나}}</span>
+        <span class="tags"><span class="tag hi">급함</span></span>
+      </label>
+    </div>
+
+    <h3 style="font-size:17px;margin-top:10px">🗂 남은 문제 — 결정이 필요한 것</h3>
+    <div class="items">
+      <label class="item"><input type="checkbox" value="B1" id="c-B1">
+        <span class="t"><span class="id">B1</span> {{제목}}</span>
+        <span class="d">{{잰 값과 함께}}</span>
+        <span class="tags"><span class="tag mid">정보 필요</span></span>
+      </label>
+    </div>
+
+    <h3 style="font-size:17px;margin-top:10px">💡 기능 아이디어</h3>
+    <div class="items">
+      <label class="item"><input type="checkbox" value="F1" id="c-F1">
+        <span class="t"><span class="id">F1</span> {{제목}}</span>
+        <span class="d">{{누가 · 언제 · 무엇이 편해지나}}</span>
+        <span class="tags"><span class="tag mid">매주 쓰는 것</span></span>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">디자인 제안</span>
+      <h2>{{이번 주 디자인 주제 한 줄}}</h2>
+      <p>{{지금 화면을 잰 값 — 예: 첫 화면 844px 중 212px 을 헤더와 메뉴가 쓴다}}</p>
+    </div>
+
+    <div class="compare">
+      <!-- 왼쪽은 반드시 실제 화면(now-shot.mjs 로 찍은 data URI). 오른쪽은 .mock 으로 그린 시안.
+           시안 속 색은 사이트 기본 테마(보라 밤)를 고정으로 쓴다 — 페이지 테마가 밝아도
+           폰 속은 실제 사이트처럼 보여야 비교가 된다. -->
+      <figure style="margin:0">
+        <figcaption class="phone-cap"><b>지금</b><span>rev {{rev}} · 실제 화면</span></figcaption>
+        <div class="phone">
+          <img src="{{now-shot.mjs 가 만든 data URI}}" alt="{{무엇이 보이는지 한 문장}}">
+          <!-- 잰 값을 선으로 보여 줄 때: top 은 (px / 844 × 100)% -->
+          <div class="ruler" style="top:{{%}}"><span>{{px}}px</span></div>
+        </div>
+      </figure>
+      <figure style="margin:0">
+        <figcaption class="phone-cap"><b>제안 ({{D 번호들}})</b><span>그림 시안</span></figcaption>
+        <div class="phone" role="img" aria-label="{{시안 설명 한 문장}}">
+          <div class="mock">
+            <!-- .mock-top / .mock-body / .week / .grid2 / .last / .tabbar 를 조합한다.
+                 본보기 파일의 시안을 복사해 고쳐 쓰면 된다. -->
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="items">
+      <label class="item"><input type="checkbox" value="D1" id="c-D1">
+        <span class="t"><span class="id">D1</span> {{제목}}</span>
+        <span class="d">{{무엇이 어떻게 바뀌나 · 어림값은 "(어림 — 만들고 잴게요)" 라고 적는다}}</span>
+        <span class="tags"><span class="tag mid">추천</span></span>
+      </label>
+    </div>
+
+    <div class="notes">
+      <p><b>시안은 그림이에요.</b> 색과 글꼴은 지금 사이트 것을 썼고, 고르시면 실제로 만들어서 폰 폭 네 가지와 두 테마로 재 보고 올릴게요.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">제 추천 순서</span>
+      <h2>이렇게 가면 좋아요</h2>
+    </div>
+    <div class="notes">
+      <ul>
+        <li><b>{{번호}}</b> 부터 — {{왜}}</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="picked" aria-live="polite">
+    <div class="line">
+      <output id="picked-ids">아직 고른 것이 없어요</output>
+      <button type="button" id="copy-btn" disabled>고른 것 복사</button>
+    </div>
+    <textarea id="picked-text" rows="2" readonly aria-label="대화창에 붙일 글"></textarea>
+    <p class="say" id="copy-say">복사가 안 되면 위 칸의 글을 길게 눌러 복사하세요.</p>
+  </div>
+
+</div>
+
+<script>
+(() => {
+  const boxes = [...document.querySelectorAll('.item input[type="checkbox"]')];
+  const out = document.getElementById("picked-ids");
+  const btn = document.getElementById("copy-btn");
+  const txt = document.getElementById("picked-text");
+  const say = document.getElementById("copy-say");
+  const KEY = "hon-weekly-{{MMDD}}-picked";   // 주마다 바꾼다 — 지난주 고른 것이 딸려 오지 않게
+
+  const restore = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
+      boxes.forEach((b) => { b.checked = saved.includes(b.value); });
+    } catch (e) { /* 저장소를 못 쓰는 창이면 그냥 빈 채로 */ }
+  };
+  const update = () => {
+    const ids = boxes.filter((b) => b.checked).map((b) => b.value);
+    out.textContent = ids.length ? `고른 것 ${ids.length}개: ${ids.join(" · ")}` : "아직 고른 것이 없어요";
+    txt.value = ids.length ? `주간 점검({{M/D}}) 제안 중 ${ids.join(", ")} 진행해줘` : "";
+    btn.disabled = !ids.length;
+    try { localStorage.setItem(KEY, JSON.stringify(ids)); } catch (e) { /* 무시 */ }
+  };
+  boxes.forEach((b) => b.addEventListener("change", update));
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(txt.value);
+      say.textContent = "복사했어요. 대화창에 붙여 넣으세요.";
+    } catch (e) {
+      txt.focus(); txt.select();
+      say.textContent = "자동 복사가 막혀 있어요. 위 칸의 글이 골라져 있으니 복사해 주세요.";
+    }
+  });
+  restore(); update();
+})();
+</script>
