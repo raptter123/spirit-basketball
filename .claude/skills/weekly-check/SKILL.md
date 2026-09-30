@@ -72,6 +72,12 @@ git fetch origin main -q && git checkout -qB claude/claude-md-docs-mvszjm origin
 - `getBoundingClientRect` 는 `clip-path` 를 모른다 — 잘림은 픽셀로 잰다.
 - 누를 곳 크기는 화면 안으로 굴려 놓고 잰다.
 - h1 32px 은 일부러다(`css/style.css:89`). 글씨 사다리 위반으로 잡지 않는다.
+- 폭만 바꾸고 세로를 844 로 둔 채 재지 않는다. 넓은 폰은 세로도 길다(414×896 · 428×926 ·
+  430×932 · 412×915). 9/30 B3 을 "414 · 430px 에서 넘침" 으로 냈는데 그게 이 실수였고,
+  실제 원인은 다른 데(#app 여백 규칙)에 있었다.
+- "넘침" 은 `scrollHeight − innerHeight` 로 잰다. 마지막 요소의 아랫변만 보면 아래 여백이 빠진다.
+- CSS 규칙이 정말 먹는지 계산된 값(getComputedStyle)으로 확인한다. `#app` 같은 아이디 규칙이
+  있으면 `body.x main` 은 우선순위에서 져서 조용히 무시된다.
 
 ### 6. 분명한 버그는 고친다
 
