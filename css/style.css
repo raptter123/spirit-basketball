@@ -4708,3 +4708,31 @@ body.rec-focus #app { padding-top: 8px; padding-bottom: 8px; }
   .app-stale { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   body.rec-focus .app-stale { bottom: 8px; }
 }
+
+/* ── 시즌 합치기 (통계 화면 4) ── */
+.season-notes {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.season-range {
+  margin: 12px 0 4px;
+}
+
+.season-list ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.season-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
