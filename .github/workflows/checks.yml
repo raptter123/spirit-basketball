@@ -34,8 +34,9 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: openpyxl
-        # 받은 엑셀을 열어 숫자를 확인하는 시험들이 쓴다.
-        run: pip install --quiet openpyxl
+      - name: openpyxl · Pillow
+        # 받은 엑셀을 열어 숫자를 확인하는 시험들(openpyxl), 밴드 이미지의 픽셀을
+        # 재는 시험 img(Pillow)가 쓴다.
+        run: pip install --quiet openpyxl pillow
       - name: 빠른 묶음
         run: node tools/checks/run.mjs --fast
