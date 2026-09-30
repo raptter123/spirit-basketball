@@ -1489,6 +1489,14 @@ function updateNavActive() {
   document.querySelectorAll(".utility-bar a[data-nav]").forEach((a) => {
     a.classList.toggle("is-active", a.dataset.nav === active);
   });
+  // 아래 탭은 홈도 한 칸이다. 로스터 · 작전판처럼 탭에 없는 화면에서는 아무것도 켜지 않는다.
+  const tab = hash === "" || hash === "#/" ? "home" : active;
+  document.querySelectorAll(".tabbar a[data-tab]").forEach((a) => {
+    const on = a.dataset.tab === tab;
+    a.classList.toggle("is-active", on);
+    if (on) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
 }
 
 // 테마별 브라우저 상단바 색 (모바일에서 주소창까지 같이 물든다)
