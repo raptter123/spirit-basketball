@@ -11,6 +11,7 @@ import {
 } from "./storage.js";
 import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
+import { 참석명단읽기 } from "./band-paste.js";
 import { escapeHtml, todayStr } from "./util.js";
 import {
   jerseyHTML,
@@ -777,6 +778,8 @@ export function mountTeamBuilder(container) {
   let teamCount = [2, 3].includes(draft?.teamCount) ? draft.teamCount : 2;
   let gameDate = draft?.gameDate || getNextEventDate("자체전", todayStr()) || todayStr();
   let search = "";
+  // 밴드 참불 글 붙여넣기. 화면을 다시 그려도 펼친 상태 · 적은 글 · 읽은 결과가 남아야 한다.
+  let paste = { open: false, text: "", result: null, guestPick: new Set() };
   // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
   let guests = getGuests(gameDate);
   const rosterNames = new Set(ROSTER.map((p) => p.name));
@@ -820,6 +823,44 @@ export function mountTeamBuilder(container) {
     }
   }
 
+  // 밴드에서 복사한 참불 글을 받아 로스터 이름을 골라 준다(js/band-paste.js).
+  // 로스터에 없는 이름은 바로 넣지 않고 게스트 후보로 보여 준다 — "참석" "오늘" 같은
+  // 말이 이름처럼 섞여 들어오므로 사람이 고른다.
+  function pasteHTML() {
+    if (!paste.open) return "";
+    const r = paste.result;
+    const 이름목록 = (a) => a.map((n) => escapeHtml(n)).join(", ");
+    return `
+      <div class="ts-paste" id="ts-paste">
+        <label class="ts-paste-label" for="ts-paste-text">밴드 참불 글을 통째로 복사해서 붙여 넣으세요</label>
+        <textarea id="ts-paste-text" rows="5" placeholder="예) 참석 12&#10;김산&#10;조우진&#10;…&#10;불참 3&#10;…">${escapeHtml(paste.text)}</textarea>
+        <div class="ts-paste-actions">
+          <button type="button" class="btn btn-primary" id="ts-paste-read">명단 읽기</button>
+          <button type="button" class="btn" id="ts-paste-close">닫기</button>
+        </div>
+        ${r ? `
+          <div class="ts-paste-result" role="status">
+            <p><b>${r.고름.length}명</b>을 참석으로 골랐어요${r.이미 ? ` (이미 골라 둔 ${r.이미}명 포함)` : ""}.
+              ${r.고름.length ? `<span class="ts-paste-names">${이름목록(r.고름)}</span>` : ""}</p>
+            ${r.뺌.length ? `<p class="hint">불참 · 미정 쪽에 적힌 ${r.뺌.length}명은 고르지 않았어요: ${이름목록(r.뺌)}</p>` : ""}
+            ${r.모름.length ? `
+              <p class="ts-paste-q">로스터에 없는 이름 ${r.모름.length}개 — 게스트로 넣을 사람만 골라요</p>
+              <div class="ts-paste-guests">
+                ${r.모름.map((n) => `
+                  <label class="ts-roster-chip ${paste.guestPick.has(n) ? "is-checked" : ""}">
+                    <input type="checkbox" data-paste-guest="${escapeHtml(n)}" ${paste.guestPick.has(n) ? "checked" : ""} />
+                    <span class="ts-roster-mark" aria-hidden="true"></span>
+                    <span class="ts-roster-name">${escapeHtml(n)}</span>
+                  </label>`).join("")}
+              </div>
+              <button type="button" class="btn btn-sm" id="ts-paste-guests" ${paste.guestPick.size ? "" : "disabled"}>
+                고른 ${paste.guestPick.size}명 게스트로 넣기</button>` : ""}
+            ${!r.고름.length && !r.모름.length ? `<p class="hint">글에서 로스터 이름을 못 찾았어요. 이름이 들어 있는 부분을 붙여 넣었는지 봐 주세요.</p>` : ""}
+          </div>` : ""}
+      </div>
+    `;
+  }
+
   function render() {
     const players = getAllPlayers(guests);
     const playersByName = Object.fromEntries(players.map((p) => [p.name, p]));
@@ -855,21 +896,22 @@ export function mountTeamBuilder(container) {
            '전체 초기화'로 게스트까지 지울 수도 있어야 한다. 그래서 조건을 따로 건다. -->
       ${
         (() => {
-          // 줄 자체를 조건부로 만든다. div 를 늘 두고 :empty 로 접으려 했더니,
-          // 템플릿 안의 줄바꿈이 공백 텍스트 노드로 남아 :empty 가 안 먹고
-          // 아래 여백 10px 만 덩그러니 남았다.
+          // 밴드 명단 붙여넣기 단추가 늘 있으므로 이 줄도 늘 있다.
           const btns = [];
           if (selected.size === 0 && lastAttendees) {
             btns.push(`<button type="button" class="btn btn-sm" id="ts-recall">↩ 지난번 그대로 (${lastAttendees.names.length}명${
               lastAttendees.savedFor ? ` · ${shortDate(lastAttendees.savedFor)}` : ""
             })</button>`);
           }
+          btns.push(`<button type="button" class="btn btn-sm" id="ts-paste-toggle" aria-expanded="${paste.open}"
+            aria-controls="ts-paste">📋 밴드 명단 붙여넣기</button>`);
           if (selected.size > 0 || guests.length) {
             btns.push(`<button type="button" class="btn btn-sm" id="ts-clear-all">전체 초기화</button>`);
           }
-          return btns.length ? `<div class="ts-pick-actions">${btns.join("")}</div>` : "";
+          return `<div class="ts-pick-actions">${btns.join("")}</div>`;
         })()
       }
+      ${pasteHTML()}
       <input type="text" id="ts-search" class="search-input" aria-label="선수 이름 검색" placeholder="이름 검색" value="${escapeHtml(search)}" />
       <div class="ts-roster-grid">
         ${
@@ -1061,6 +1103,52 @@ export function mountTeamBuilder(container) {
       });
     });
 
+    document.getElementById("ts-paste-toggle").addEventListener("click", () => {
+      paste.open = !paste.open;
+      render();
+      if (paste.open) document.getElementById("ts-paste-text").focus();
+    });
+    if (paste.open) {
+      const 글칸 = document.getElementById("ts-paste-text");
+      // 다시 그릴 때 글이 날아가지 않게 칠 때마다 담아 둔다(그리기는 안 한다).
+      글칸.addEventListener("input", () => { paste.text = 글칸.value; });
+      document.getElementById("ts-paste-close").addEventListener("click", () => {
+        paste = { open: false, text: "", result: null, guestPick: new Set() };
+        render();
+      });
+      document.getElementById("ts-paste-read").addEventListener("click", () => {
+        paste.text = 글칸.value;
+        const r = 참석명단읽기(paste.text, getAllPlayers(guests).map((p) => p.name));
+        const 이미 = r.찾음.filter((n) => selected.has(n)).length;
+        r.찾음.forEach((n) => selected.add(n));
+        paste.result = { 고름: r.찾음, 이미, 뺌: r.뺌, 모름: r.모름 };
+        paste.guestPick = new Set();
+        persist();
+        render();
+      });
+      container.querySelectorAll("[data-paste-guest]").forEach((input) => {
+        input.addEventListener("change", () => {
+          const n = input.dataset.pasteGuest;
+          if (input.checked) paste.guestPick.add(n); else paste.guestPick.delete(n);
+          render();
+        });
+      });
+      const 게스트넣기 = document.getElementById("ts-paste-guests");
+      if (게스트넣기) {
+        게스트넣기.addEventListener("click", () => {
+          for (const n of paste.guestPick) {
+            if (!guests.includes(n) && !rosterNames.has(n)) guests.push(n);
+            selected.add(n);   // 게스트를 넣는 순간 참석이다
+          }
+          paste.result.고름 = [...paste.result.고름, ...paste.guestPick];
+          paste.result.모름 = paste.result.모름.filter((n) => !paste.guestPick.has(n));
+          paste.guestPick = new Set();
+          persist();
+          render();
+        });
+      }
+    }
+
     const recall = document.getElementById("ts-recall");
     if (recall) {
       recall.addEventListener("click", () => {
@@ -1070,7 +1158,9 @@ export function mountTeamBuilder(container) {
       });
     }
 
-    container.querySelectorAll(".ts-roster-chip input").forEach((input) => {
+    // data-name 이 있는 것만 — 붙여넣기 칸의 게스트 후보 칩도 같은 모양(.ts-roster-chip)이라
+    // 이름표 없이 잡으면 undefined 가 참석자로 들어간다.
+    container.querySelectorAll(".ts-roster-chip input[data-name]").forEach((input) => {
       input.addEventListener("change", (e) => {
         const name = e.target.dataset.name;
         if (e.target.checked) {

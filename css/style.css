@@ -2477,14 +2477,80 @@ body {
   outline-offset: 2px;
 }
 
-/* 명단을 통째로 다루는 단추 줄. 상태에 따라 하나만 나오기도, 둘 다 나오기도 한다.
-   아무 단추도 없을 때는 이 줄 자체가 안 그려진다(team-shuffle.js) — :empty 로 접으려
-   했더니 템플릿 안의 줄바꿈이 공백 텍스트 노드로 남아 안 먹었다. */
+/* 명단을 통째로 다루는 단추 줄. '밴드 명단 붙여넣기' 는 늘 있고, '지난번 그대로' ·
+   '전체 초기화' 는 상태에 따라 붙는다. */
 .ts-pick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+/* ── 밴드 명단 붙여넣기 ── */
+.ts-paste {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--surface-2);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.ts-paste-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.ts-paste textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md); /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대한다 */
+  resize: vertical;
+}
+
+.ts-paste-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ts-paste-result {
+  margin-top: 12px;
+  font-size: var(--fs-sm);
+  word-break: keep-all; /* 이름이 "유우 / 진" 처럼 가운데서 끊기지 않게 */
+}
+
+.ts-paste-result p {
+  margin: 0 0 8px;
+}
+
+.ts-paste-names {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.ts-paste-q {
+  font-weight: 700;
+}
+
+.ts-paste-guests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* 칸 바탕이 이미 --surface 라 칩은 한 단 어둡게 — 그대로 두면 칩 테두리만 보인다. */
+.ts-paste-guests .ts-roster-chip {
+  background: var(--bg);
 }
 
 /* ── 오늘 게스트 ─────────────────────────────────────────
