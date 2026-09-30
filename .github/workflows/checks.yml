@@ -1,0 +1,41 @@
+name: 회귀 시험
+
+# PR 마다 빠른 묶음을 돈다. 사이트에는 빌드 도구가 없어서 PR 단계에서 깨진 것을
+# 잡는 장치가 이것뿐이다 — 전에는 PR 을 만든 사람의 컴퓨터에서 돌린 시험이 유일했다.
+# 전체 묶음(LibreOffice · 날짜 따라 달라지는 시험 · 5분짜리 열 판)은 주간 점검에서 돈다.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 한글 글꼴
+        # 시험 몇 개는 글자 폭을 잰다(예: 경기 전환 칸 글자가 … 로 잘리나).
+        # 시험을 만든 환경과 같은 글꼴(WenQuanYi Zen Hei)을 깔아 같은 폭이 나오게 한다.
+        run: sudo apt-get update -q && sudo apt-get install -yq fonts-wqy-zenhei
+      - name: Playwright
+        # 사이트에 package.json 이 없으므로 저장해 두지 않고 설치만 한다.
+        # 버전은 시험을 만든 환경과 맞춘다.
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: openpyxl
+        # 받은 엑셀을 열어 숫자를 확인하는 시험들이 쓴다.
+        run: pip install --quiet openpyxl
+      - name: 빠른 묶음
+        run: node tools/checks/run.mjs --fast
