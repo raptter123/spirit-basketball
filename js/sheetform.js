@@ -10,6 +10,7 @@
 // 종이 규격: A4 가로 297 × 210mm.
 // 색 규칙: 검정 = 홀수 쿼터(1·3), 빨강 = 짝수 쿼터(2·4).
 // 줄 규칙: 위 두 줄 = 전반, 아래 두 줄 = 후반. 각 반기 안에서 위 = 넣음, 아래 = 놓침.
+import { escapeHtml as esc } from "./util.js";
 
 export const SHEET_MM = { w: 297, h: 210 };
 
@@ -215,10 +216,6 @@ export const SHEET_CSS = `
 .sheet .sw span{font-size:2.1mm;white-space:nowrap;color:var(--ink-2);margin-right:0.5mm}
 .sheet .code{right:0;letter-spacing:.06em;white-space:nowrap;font-size:2.2mm}
 `;
-
-function esc(s) {
-  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 
 // ── 눈금 표식 자리 ───────────────────────────────────────
 // 값은 종이 폭·높이에 대한 비율. 귀퉁이 표식(2.5~8.5mm)과 겹치지 않게 안쪽으로 뺀다.

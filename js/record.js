@@ -21,6 +21,7 @@
 //   영원히 못 뽑는다. 원본이 있으면 무엇이든 다시 계산된다.
 import { ROSTER } from "./roster.js";
 import { hasNumber } from "./jersey.js";
+import { escapeHtml as esc, todayStr } from "./util.js";
 import {
   getRecordSession, saveRecordSession, clearRecordSession, getTeamBuilderDraft,
   getRecordArchive, archiveRecordGame, removeArchivedGame, clearRecordArchive,
@@ -122,15 +123,6 @@ export function qLabel(q, quarters = 4) {
 /** 선수 기록으로 센 이벤트 수. 쿼터 넘김·교체는 빼야 "몇 개를 적었나"가 맞는다. */
 export function playCount(events) {
   return events.filter((e) => !FLOW_TYPES.includes(e.type)).length;
-}
-
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** 이벤트 한 줄이 몇 점인가. 점수는 슛과 자유투에서 나온다.

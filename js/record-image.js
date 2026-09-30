@@ -26,6 +26,7 @@ import {
   효율, plusMinus, 팀지표, 자리별선수, 구역들, 구역집계, 슛모음, 파일꼬리, 내려주기, pct1, num1,
 } from "./record-stats.js";
 import { 차트속, CHART_VIEW, PNG만들기 } from "./record-chart.js";
+import { escapeHtml as esc } from "./util.js";
 
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
@@ -50,10 +51,6 @@ const W = 1000;          // 그리는 좌표계 너비
 const PAD = 24;
 const INNER = W - PAD * 2;
 
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
 
 /** 글자 한 줄. 기본은 왼쪽 정렬, 가운데·오른쪽은 anchor 로 옮긴다. */
 function T(x, y, s, { size = 16, weight = 400, fill = C.ink, anchor = "start", op = 1 } = {}) {

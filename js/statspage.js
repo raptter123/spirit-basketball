@@ -10,6 +10,7 @@
 
 import { ROSTER } from "./roster.js";
 import { getNextEventDate } from "./events.js";
+import { escapeHtml, todayStr } from "./util.js";
 import { getGameStatsDraft, saveGameStatsDraft, clearGameStatsDraft, allSheetRosters } from "./storage.js";
 import {
   emptyGame, emptyTeam, emptyPlayer, derive, teamTotals, teamScore, teamResult,
@@ -44,16 +45,6 @@ const STAT_FIELDS = [
 ];
 
 const MAX_SHEETS = 8;
-
-function escapeHtml(str) {
-  return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 // 크로미움은 a[download]에 한글이 섞이면 이름을 통째로 버리고 확장자 없는 "download"로
 // 내려받는다 — 더블클릭해도 안 열리는 파일이 된다. 그래서 파일명은 아스키만 쓴다.

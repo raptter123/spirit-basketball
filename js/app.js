@@ -10,6 +10,7 @@ import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents } from "./events.js";
+import { escapeHtml, todayStr } from "./util.js";
 import {
   getOverride,
   saveOverride,
@@ -45,10 +46,6 @@ const HOME_MENU = [
   { icon: "✅", title: "출석체크", desc: "자체전 출석체크는 여기서 해주세요.", href: "https://band.us/band/47755703", external: true },
 ];
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
 function tacticCardHTML(t, isFav) {
   return `
     <div class="tactic-card-wrap">
@@ -65,11 +62,6 @@ function tacticCardHTML(t, isFav) {
   }</button>
     </div>
   `;
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function dDayLabel(dateStr) {

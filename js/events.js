@@ -1,6 +1,8 @@
 // 대회/경기 일정 데이터.
 // EVENTS: 특정 날짜 하루짜리 일정 (date는 YYYY-MM-DD).
 // RECURRING_EVENTS: 매주 반복되는 일정 (weekday: 0=일요일 ~ 6=토요일).
+import { dateStr } from "./util.js";
+
 export const EVENTS = [
   {
     date: "2026-08-08",
@@ -91,8 +93,7 @@ export function getUpcomingEvents(fromDateStr, windowDays = 60) {
   for (let i = 0; i < windowDays; i++) {
     const d = new Date(from);
     d.setDate(from.getDate() + i);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    result.push(...getEventsOn(dateStr));
+    result.push(...getEventsOn(dateStr(d)));
   }
   result.sort((a, b) => a.date.localeCompare(b.date));
 
