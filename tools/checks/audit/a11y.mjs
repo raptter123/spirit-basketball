@@ -10,7 +10,9 @@ const lang = [];
 for (const 길 of 화면) {
   await p.goto(`${URL}/index.html?a=${Math.random()}${길}`); await p.waitForTimeout(700);
   const r = await p.evaluate(() => {
-    const 이름 = (el) => (el.getAttribute("aria-label") || el.getAttribute("title") || el.innerText || el.value || el.getAttribute("alt") || "").trim();
+    // innerText 는 닫힌 <details> 안에서 빈 글이 된다 — 글자가 있는 단추를 "이름 없음" 으로
+    // 잘못 잡았다(10/9). 화면 낭독기가 읽는 이름은 글자 내용이므로 textContent 로 본다.
+    const 이름 = (el) => (el.getAttribute("aria-label") || el.getAttribute("title") || el.innerText || el.textContent || el.value || el.getAttribute("alt") || "").trim();
     const 기호만 = (s) => s && !/[0-9A-Za-z가-힣]/.test(s);
     const 이름없음 = [...document.querySelectorAll("button, a[href], [role=button]")]
       .filter((e) => e.getBoundingClientRect().width && !e.closest("[hidden]"))

@@ -24,7 +24,8 @@ node tools/checks/audit.mjs          # 주간 점검 도구 (판정 없이 재�
 | playwright | 브라우저 | `node_modules` → `/opt/node22/lib/node_modules` 심볼릭 링크 (`.gitignore` 에 있음) |
 | python3 + openpyxl | 받은 엑셀을 열어 숫자 확인 | 있음 |
 | Pillow | `img` — 밴드 이미지의 픽셀을 잰다 | 있음 |
-| LibreOffice (`soffice`) | `xlsimg` 하나 — 엑셀이 실제로 열리나 | `libreoffice-calc` 설치 필요할 수 있음 |
+| LibreOffice 계산 (`soffice` + `libreoffice-calc`) | `xlsimg` 하나 — 엑셀이 실제로 열리나 | `libreoffice-core` 만 있으면 어떤 엑셀이든 "source file could not be loaded" 로 실패한다. `apt-get install libreoffice-calc` |
+| poppler-utils (`pdftotext`) | `xlsimg` — pdf 로 바꾼 엑셀의 글자 확인 | `apt-get install poppler-utils` |
 
 ## 판정
 
