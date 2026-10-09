@@ -139,7 +139,15 @@ try {
 const pdf = `${LO}/t.pdf`;
 say(fs.existsSync(pdf) && 변환.includes("calc_pdf_Export"),
   `리브레오피스가 계산 문서로 열어 pdf 로 바꿈 (${fs.existsSync(pdf) ? fs.statSync(pdf).size : 0}바이트)`);
-if (fs.existsSync(pdf)) {
+// 이 오류는 파일이 아니라 작업 환경 탓일 때가 많다 — libreoffice-core 만 있고 계산(calc)이
+// 없으면 아무 엑셀이나 이 말로 실패한다(10/9 새 작업 환경에서 실제로 그랬다).
+if (!fs.existsSync(pdf) && 변환.includes("source file could not be loaded")) {
+  console.log("   ↳ 엑셀 파일 탓이 아닐 수 있어요: 계산 프로그램이 없으면 이렇게 실패해요 — apt-get install libreoffice-calc");
+}
+const 있나 = (명령) => { try { execFileSync("bash", ["-c", `command -v ${명령}`]); return true; } catch { return false; } };
+if (fs.existsSync(pdf) && !있나("pdftotext")) {
+  say(false, "pdftotext 가 없어 pdf 글자를 못 읽음 — apt-get install poppler-utils");
+} else if (fs.existsSync(pdf)) {
   const 글 = execFileSync("pdftotext", ["-f", "1", "-l", "99", pdf, "-"], { encoding: "utf8" });
   say(글.includes("샷 차트"), "머리글 '샷 차트' 가 문서에 찍힘");
   const 이미지수 = Number(execFileSync("bash", ["-c",
