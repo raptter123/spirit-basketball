@@ -29,6 +29,14 @@ git fetch origin main -q && git checkout -qB claude/claude-md-docs-mvszjm origin
 
 ### 2. 회귀 시험 전부
 
+새 작업 환경이면 먼저 준비한다(10/9 에 이게 빠져 xlsimg 가 떨어졌다 — 코드 탓 아님):
+
+```
+ln -sfn /opt/node22/lib/node_modules node_modules
+pip install --quiet openpyxl pillow
+apt-get install -y -q --no-install-recommends libreoffice-calc poppler-utils
+```
+
 ```
 /opt/node22/bin/node tools/checks/run.mjs          # 전체 26벌, 15분쯤
 ```
