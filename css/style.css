@@ -446,6 +446,19 @@ body {
     height: 40px;
   }
 
+  /* 로고를 40px 로 줄이면 홈으로 가는 로고 링크도 40px 이 되어 누를 곳(44px)에 모자란다.
+     그림은 그대로 두고 누르는 범위만 위아래로 넓힌다 — 헤더 안쪽 여백(위 10 · 아래 6px)
+     안이라 다른 것을 가리지 않는다. */
+  .brand {
+    position: relative;
+  }
+
+  .brand::after {
+    content: "";
+    position: absolute;
+    inset: -4px 0;
+  }
+
   /* 경기 중에는 탭을 감춘다 — 코트와 선수 버튼이 한 화면을 다 쓴다(탭을 잘못 누르면
      기록 화면을 벗어난다). */
   body.rec-focus .tabbar {
