@@ -806,6 +806,9 @@ export function mountTeamBuilder(container) {
   let search = "";
   // 밴드 참불 글 붙여넣기. 화면을 다시 그려도 펼친 상태 · 적은 글 · 읽은 결과가 남아야 한다.
   let paste = { open: false, text: "", result: null, guestPick: new Set() };
+  // 팀 배정을 시작하면 참석자 고르기(칩 38개 · 980px)를 한 줄로 접는다. 다시 고칠 때만 펼친다.
+  // 배정이 하나도 없으면 접을 것도 없으니 저절로 펼쳐진 상태로 돌아간다.
+  let pickOpen = false;
   // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
   let guests = getGuests(gameDate);
   const rosterNames = new Set(ROSTER.map((p) => p.name));
@@ -887,6 +890,15 @@ export function mountTeamBuilder(container) {
     `;
   }
 
+  // 위쪽 참석자 칸이 접히거나 펼쳐지면 그 아래가 통째로 수백 px 밀린다. 누른 것이
+  // 손가락 밑에 그대로 있도록, 다시 그린 뒤 같은 것을 같은 높이로 굴려 놓는다.
+  function renderKeeping(selector) {
+    const before = container.querySelector(selector)?.getBoundingClientRect().top;
+    render();
+    const el = container.querySelector(selector);
+    if (before != null && el) window.scrollBy(0, el.getBoundingClientRect().top - before);
+  }
+
   function render() {
     const players = getAllPlayers(guests);
     const playersByName = Object.fromEntries(players.map((p) => [p.name, p]));
@@ -900,6 +912,10 @@ export function mountTeamBuilder(container) {
 
     const teamsPlayers = Array.from({ length: teamCount }, (_, i) => selectedNames.filter((n) => assignments[n] === i));
     const anyAssigned = teamsPlayers.some((t) => t.length > 0);
+    if (!anyAssigned) pickOpen = false;
+    const folded = anyAssigned && !pickOpen;
+    const guestCount = guests.filter((n) => selected.has(n)).length;
+    const unassigned = selectedNames.length - teamsPlayers.reduce((a, t) => a + t.length, 0);
 
     container.innerHTML = `
       <div class="ts-toprow">
@@ -913,6 +929,15 @@ export function mountTeamBuilder(container) {
       </div>
 
       <h2 class="section-title">참석자 선택 (${selected.size}명)</h2>
+      ${
+        anyAssigned
+          ? `<button type="button" class="ts-pick-fold" id="ts-pick-fold" aria-expanded="${!folded}" aria-controls="ts-pick-body">
+              <span>✓ 참석 <b>${selected.size}명</b>${guestCount ? ` · 게스트 ${guestCount}명` : ""}</span>
+              <span class="ts-pick-fold-act">${folded ? "펼쳐서 고치기 ▾" : "접기 ▴"}</span>
+            </button>`
+          : ""
+      }
+      <div id="ts-pick-body" ${folded ? "hidden" : ""}>
       <!-- 명단을 통째로 다루는 단추는 명단 바로 위에 둔다. '전체 초기화'는 원래 저 아래
            팀 배정 줄에 있었는데, 정작 지우는 건 이 위의 참석자 선택이라 스크롤을 내려갔다
            와야 했다. 아래에는 배정만 건드리는 '배정 초기화'를 남긴다.
@@ -979,8 +1004,9 @@ export function mountTeamBuilder(container) {
             : `<p class="hint ts-guest-note">로스터에 없는 사람은 여기에 추가하세요. 그날 경기에만 쓰이고 로스터는 그대로예요.</p>`
         }
       </div>
+      </div>
 
-      <h2 class="section-title">팀 배정</h2>
+      <h2 class="section-title" id="ts-assign-title">팀 배정</h2>
       <p class="hint">이름 옆 팀 글자를 눌러 배정해주세요.</p>
       <div class="ts-assign-toolbar">
         <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
@@ -1056,6 +1082,25 @@ export function mountTeamBuilder(container) {
 
       <button type="button" class="btn btn-primary" id="ts-image-btn" ${anyAssigned ? "" : "disabled"}>🖼 공지 이미지 만들기</button>
       <button type="button" class="btn" id="ts-sheet-btn" ${anyAssigned ? "" : "disabled"}>📄 기록지 출력</button>
+
+      <!-- 아래 고정 줄. 어디까지 굴렸든 인원과 팀 균형이 보이고, 공지 이미지로 바로 간다.
+           배정 전에는 공지 이미지를 만들 수 없으니 팀 배정으로 내려가는 단추를 대신 둔다. -->
+      ${
+        selected.size
+          ? `<div class="ts-dock" id="ts-dock">
+              <div class="ts-dock-in">
+                <p class="ts-dock-sum"><b>${selected.size}명</b>${teamsPlayers
+                  .map((t, i) => ` · <span class="ts-dock-team" style="--team-color:${팀표(teamCount, i).색}">${팀표(teamCount, i).짧게} ${t.length}</span>`)
+                  .join("")}${unassigned && anyAssigned ? ` · <span class="ts-dock-left">남음 ${unassigned}</span>` : ""}</p>
+                ${
+                  anyAssigned
+                    ? `<button type="button" class="btn btn-primary" id="ts-dock-image">공지 이미지 →</button>`
+                    : `<button type="button" class="btn" id="ts-dock-assign">팀 배정 ↓</button>`
+                }
+              </div>
+            </div>`
+          : ""
+      }
     `;
 
     document.getElementById("ts-date").addEventListener("input", (e) => {
@@ -1210,7 +1255,7 @@ export function mountTeamBuilder(container) {
           assignments[name] = team;
         }
         persist();
-        render();
+        renderKeeping(`.ts-team-btn[data-name="${CSS.escape(name)}"][data-team="${team}"]`);
       });
     });
 
@@ -1223,14 +1268,31 @@ export function mountTeamBuilder(container) {
         assignments[name] = minTeam;
       });
       persist();
-      render();
+      renderKeeping("#ts-auto-assign");
     });
 
     document.getElementById("ts-clear-assign").addEventListener("click", () => {
       assignments = {};
       persist();
-      render();
+      renderKeeping("#ts-clear-assign");
     });
+
+    const fold = document.getElementById("ts-pick-fold");
+    if (fold) {
+      fold.addEventListener("click", () => {
+        pickOpen = !pickOpen;
+        renderKeeping("#ts-pick-fold");
+      });
+    }
+
+    const dockImage = document.getElementById("ts-dock-image");
+    if (dockImage) dockImage.addEventListener("click", () => document.getElementById("ts-image-btn").click());
+    const dockAssign = document.getElementById("ts-dock-assign");
+    if (dockAssign) {
+      dockAssign.addEventListener("click", () => {
+        document.getElementById("ts-assign-title").scrollIntoView({ block: "start" });
+      });
+    }
 
     const clearAll = document.getElementById("ts-clear-all");
     if (clearAll) {
