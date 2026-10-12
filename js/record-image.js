@@ -37,9 +37,17 @@ const C = {
   ink: "#161b28", ink2: "#6a7288", line: "#d7dbe6",
   zebra: "#f5f7fb", total: "#eaeef7", win: "#e8590c", draw: "#7c7f8a",
   made: "#12833f", miss: "#c02626",
-  // A팀 · B팀 · C팀. 자리(0/1)가 아니라 팀 이름으로 고른다 — 3파전은 같은 팀이
-  // 경기마다 앞자리·뒷자리를 오가므로, 자리로 색을 주면 B팀 색이 경기마다 바뀐다.
-  team: ["#c2410c", "#15803d", "#7e22ce"],
+  // A팀 · B팀 · C팀 · 화이트 · 퍼플(js/record.js 의 색팀이름 순서). 자리(0/1)가 아니라
+  // 팀 이름으로 고른다 — 3파전은 같은 팀이 경기마다 앞자리·뒷자리를 오가므로, 자리로
+  // 색을 주면 B팀 색이 경기마다 바뀐다.
+  // team: 흰 바탕 위 글씨색. 화이트는 아이보리 글씨가 흰 바탕에 사라지므로 진한 갈색
+  //       (#7a5a24, 흰 바탕 6.33:1)으로 쓴다.
+  team: ["#c2410c", "#15803d", "#7e22ce", "#7a5a24", "#5b3fd0"],
+  // teamFill · teamInk: 팀 띠 · 딱지의 바탕과 그 위 글씨. 화이트만 유니폼처럼 아이보리
+  // 바탕에 갈색 글씨(5.77:1)를 얹고, 흰 바탕과 갈리게 테두리(teamLine)를 두른다.
+  teamFill: ["#c2410c", "#15803d", "#7e22ce", "#fff3dd", "#5b3fd0"],
+  teamInk: ["#ffffff", "#ffffff", "#ffffff", "#7a5a24", "#ffffff"],
+  teamLine: [null, null, null, "#9c7c45", null],
 };
 // 코트 그림에 쓸 색 — 흰 바탕에 얹으므로 바닥을 옅게 둔다.
 const COURT = {
@@ -58,8 +66,12 @@ function T(x, y, s, { size = 16, weight = 400, fill = C.ink, anchor = "start", o
     + ` fill="${fill}" text-anchor="${anchor}"${op < 1 ? ` opacity="${op}"` : ""}>${esc(s)}</text>`;
 }
 
-const 사각 = (x, y, w, h, fill, r = 0) =>
-  `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"${r ? ` rx="${r}"` : ""} />`;
+const 사각 = (x, y, w, h, fill, r = 0, line = null) =>
+  `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"${r ? ` rx="${r}"` : ""}`
+  + `${line ? ` stroke="${line}" stroke-width="1.5"` : ""} />`;
+
+/** 팀 색으로 칠한 띠 · 딱지. 화이트는 아이보리 바탕에 테두리를 두른다. */
+const 팀사각 = (x, y, w, h, ti, r = 0) => 사각(x, y, w, h, C.teamFill[ti], r, C.teamLine[ti]);
 
 // ── 박스스코어 열 ────────────────────────────────────────
 // 칸 자리를 고정해 두고 숫자는 가운데 맞춘다. SVG 안에서는 글자 너비를 잴 수 없어
@@ -86,8 +98,8 @@ const ROW_H = 34;
 function 박스스코어(rows, pm, ti, 팀이름, y, 색) {
   const 줄 = rows.filter((r) => r.team === ti);
   const out = [];
-  out.push(사각(PAD, y, INNER, 30, C.team[색], 6));
-  out.push(T(PAD + 12, y + 21, 팀이름, { size: 16, weight: 800, fill: "#ffffff" }));
+  out.push(팀사각(PAD, y, INNER, 30, 색, 6));
+  out.push(T(PAD + 12, y + 21, 팀이름, { size: 16, weight: 800, fill: C.teamInk[색] }));
   let cy = y + 30;
 
   out.push(사각(PAD, cy, INNER, 28, C.head));
@@ -135,8 +147,8 @@ const 딱지폭 = (이름) => 이름.length * 12 + 14;
  *  색칠한 이름은 그냥 검은 이름이다. (코트 안의 ● / ✕ 를 모양으로도 가른 것과 같다.) */
 function 팀딱지(x, 글줄y, ti, 이름) {
   const w = 딱지폭(이름);
-  return 사각(x, 글줄y - 14, w, 20, C.team[ti], 4)
-    + T(x + w / 2, 글줄y, 이름, { size: 12, weight: 800, fill: "#ffffff", anchor: "middle" });
+  return 팀사각(x, 글줄y - 14, w, 20, ti, 4)
+    + T(x + w / 2, 글줄y, 이름, { size: 12, weight: 800, fill: C.teamInk[ti], anchor: "middle" });
 }
 
 /** 잘라내기 이름표. 한 그림 안에서 겹치면 안 되므로 번호를 올려 가며 붙인다. */

@@ -37,7 +37,8 @@ export function emptyGame() {
     date: "",          // YYYY-MM-DD
     gameNo: 1,
     gameType: "자체전",
-    teams: [emptyTeam("혼 A"), emptyTeam("혼 B")],
+    // 2팀 자체전은 유니폼 두 벌 이름으로 부른다(화이트 · 퍼플).
+    teams: [emptyTeam("혼 화이트"), emptyTeam("혼 퍼플")],
   };
 }
 

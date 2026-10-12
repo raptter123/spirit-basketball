@@ -229,9 +229,10 @@ print(json.dumps({s: [[c if c is not None else "" for c in r] for r in wb[s].ite
 say(Object.keys(엑셀).join("/") === "선수기록/팀효율/자리별/샷차트/쿼터별/이벤트원본", `시트 여섯 장: ${Object.keys(엑셀).join(" / ")}`);
 const 팀시트 = 엑셀["팀효율"];
 const H = 팀시트[0];
-const aRow = 팀시트.find((r) => r[1] === "A팀");
+// 2팀 경기의 앞팀 이름은 화이트(유니폼 이름, #171 부터. 전에는 "A팀").
+const aRow = 팀시트.find((r) => r[1] === "화이트");
 say(팀시트.length === 3 && H.length === 14, `팀효율 ${팀시트.length - 1}줄 · ${H.length}칸`);
-say(aRow[2] === (득실 > 0 ? "승" : "패"), `A팀 승패 칸: ${aRow[2]}`);
+say(aRow[2] === (득실 > 0 ? "승" : "패"), `화이트(앞팀) 승패 칸: ${aRow[2]}`);
 const efgCol = H.indexOf("eFG%");
 say(aRow[efgCol] > 0 && aRow[efgCol] < 1, `eFG% 가 분수로 저장됨: ${aRow[efgCol]} (${(aRow[efgCol] * 100).toFixed(1)} 아님)`);
 const 선수시트 = 엑셀["선수기록"];

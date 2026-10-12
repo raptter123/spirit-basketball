@@ -48,9 +48,10 @@ const RIM = { x: 250, y: 442 };
 const THREE_R = 257;
 const CORNER_X = 30;
 
-export const TEAM_COLOR = ["#f97316", "#22c55e", "#a855f7"];
+// 색 번호 순서(색팀이름)와 같다. 화이트 · 퍼플은 우리 유니폼 두 벌 — 아이보리와 보라.
+export const TEAM_COLOR = ["#f97316", "#22c55e", "#a855f7", "#fff3dd", "#8f73ff"];
 
-/** 팀 이름에서 색 번호를 뽑는다. A팀 → 0, B팀 → 1, C팀 → 2.
+/** 팀 이름에서 색 번호를 뽑는다. A팀 → 0, B팀 → 1, C팀 → 2, 화이트 → 3, 퍼플 → 4.
  *
  *  자리(경기 안에서 앞팀이냐 뒷팀이냐)로 색을 주면 안 된다. 3파전은 AB · BC · CA
  *  세 경기를 도는데, B팀이 AB 경기에서는 뒷자리라 초록, BC 경기에서는 앞자리라
@@ -58,7 +59,7 @@ export const TEAM_COLOR = ["#f97316", "#22c55e", "#a855f7"];
  *
  *  이름에서 못 찾으면 자리를 그대로 쓴다 — 게스트 팀처럼 이름이 다를 수 있다. */
 export function 팀색번호(이름, 자리 = 0) {
-  const i = TEAM_NAME.indexOf(String(이름 || ""));
+  const i = 색팀이름.indexOf(String(이름 || ""));
   return i >= 0 ? i : 자리;
 }
 
@@ -223,7 +224,7 @@ export function boxScore(game, events = game.events) {
 /** 보관함 목록에 한 줄로 적을 말. */
 export function 한줄요약(game) {
   const [a, b] = 경기점수(game);
-  return `${game.date} · ${game.teams[0]?.name || "A팀"} ${점수글(a)} : ${점수글(b)} ${game.teams[1]?.name || "B팀"} · 기록 ${playCount(game.events)}개`;
+  return `${game.date} · ${game.teams[0]?.name || TWO_TEAM_NAME[0]} ${점수글(a)} : ${점수글(b)} ${game.teams[1]?.name || TWO_TEAM_NAME[1]} · 기록 ${playCount(game.events)}개`;
 }
 
 /** 내보내기 코드는 버튼을 누를 때만 불러온다. 정적으로 import 하면 기록 화면이
@@ -260,13 +261,26 @@ export function teamsFromDraft(draft) {
   return {
     gameDate: draft.gameDate,
     teams: teams.map((names, i) => ({
-      name: TEAM_NAME[i],
+      name: 팀이름들(teams.length)[i],
       players: names.sort().map((n) => ROSTER.find((r) => r.name === n) || { name: n }),
     })),
   };
 }
 
+/** 3파전 팀 이름. */
 export const TEAM_NAME = ["A팀", "B팀", "C팀"];
+
+/** 2팀 경기 팀 이름 — 우리가 입는 유니폼 두 벌. A팀 · B팀 대신 이 이름으로 부른다. */
+export const TWO_TEAM_NAME = ["화이트", "퍼플"];
+
+/** 팀 수에 맞는 이름들. 2팀이면 화이트 · 퍼플, 3팀이면 A · B · C. */
+export function 팀이름들(팀수) {
+  return 팀수 === 2 ? TWO_TEAM_NAME : TEAM_NAME;
+}
+
+/** 색 번호 순서. 화면(data-t) · 밴드 이미지 · 엑셀이 모두 이 순서로 색을 고른다.
+ *  옛 경기(2팀인데 A팀 · B팀)도 그대로 주황 · 초록으로 보이도록 A · B · C 를 앞에 둔다. */
+export const 색팀이름 = [...TEAM_NAME, ...TWO_TEAM_NAME];
 
 /** 팀 수에 맞는 대진. 세 팀이면 서로 한 경기씩 — 세 경기가 된다.
  *  코트에서는 AB 1쿼터 → BC 1쿼터 → CA 1쿼터 → AB 2쿼터 순으로 돌지만,
@@ -280,7 +294,7 @@ function newGame(src) {
   const teams = [0, 1].map((i) => {
     const players = src?.teams?.[i]?.players || [];
     return {
-      name: src?.teams?.[i]?.name || TEAM_NAME[i],
+      name: src?.teams?.[i]?.name || TWO_TEAM_NAME[i],
       players,
       // 교체가 드무니 앞 5명을 코트에 올려 두고 시작한다. 5명 미만이면 전원.
       onCourt: players.slice(0, 5).map((p) => p.name),
@@ -442,7 +456,7 @@ export function mountRecord(container) {
     let picked = [[], []];
     let next = 0;
     // 교류전(1팀)이면 우리 팀 이름은 '혼' 하나다. 칸 이름표도 그걸 따른다.
-    const 칸이름 = (i) => (팀수 === 1 ? 우리팀이름 : TEAM_NAME[i]);
+    const 칸이름 = (i) => (팀수 === 1 ? 우리팀이름 : 팀이름들(팀수)[i]);
     const 다시그리기 = () => {
       container.querySelector("#rec-pick-teams").innerHTML = picked.map((list, i) => `
         <div class="rec-pick-col" data-t="${팀색번호(칸이름(i), i)}">
@@ -557,7 +571,7 @@ export function mountRecord(container) {
         return;
       }
       세션시작(경기들만들기(picked.map((names, i) => ({
-        name: TEAM_NAME[i],
+        name: 팀이름들(picked.length)[i],
         players: names.map((n) => ROSTER.find((r) => r.name === n) || { name: n }),
       }))));
     });

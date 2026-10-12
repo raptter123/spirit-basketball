@@ -22,7 +22,7 @@
 //   6.75m 로 놓고 환산하면 코트 너비 480 이 12.6m 가 되는데 실제는 15m 다.
 //   그래서 "골대에서 몇 m" 는 지어낸 숫자가 된다. 대신 구역(골밑·미들·3점)과
 //   좌우만 적는다 — 그림 좌표에서 확실하게 나오는 값이다.
-import { boxScore, pointsOf, qLabel, TEAM_NAME, 기록팀, 플마있음, 경기점수, 점수글 } from "./record.js";
+import { boxScore, pointsOf, qLabel, 색팀이름, 기록팀, 플마있음, 경기점수, 점수글 } from "./record.js";
 import {
   효율, plusMinus, 팀지표, 승패, 자리별선수, 구역들, 구역이름, 좌우이름, 파일꼬리, 내려주기,
   하루합계, 하루파일꼬리,
@@ -243,11 +243,11 @@ export async function 엑셀만들기(game) {
   // 숫자로 박아 두면 칸이 하나 늘 때마다 엉뚱한 열이 물든다.
   //
   // 색은 경기 안 자리(앞팀/뒷팀)가 아니라 팀 이름으로 고른다. 3파전은 AB · BC · CA
-  // 를 도는데 자리로 주면 B팀이 경기마다 다른 색이 된다. TEAM_NAME 을 통째로
+  // 를 도는데 자리로 주면 B팀이 경기마다 다른 색이 된다. 색팀이름을 통째로
   // 넘겨 A팀 → 0, B팀 → 1, C팀 → 2 로 맞춘다.
   const 팀열 = (머리) => {
     const col = 머리.indexOf("팀");
-    return col < 0 ? undefined : { col, 이름: TEAM_NAME };
+    return col < 0 ? undefined : { col, 이름: 색팀이름 };
   };
   const 원본 = 원본시트(game);
 

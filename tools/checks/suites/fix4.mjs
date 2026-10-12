@@ -148,12 +148,15 @@ print(json.dumps({
   "글꼴수": int(re.search(r'<fonts count="(\\d+)"', styles).group(1)),
   "서식수": int(re.search(r'<cellXfs count="(\\d+)"', styles).group(1)),
   "C팀색": "FF6B21A8" in styles,
+  "화이트퍼플": "FF7A5A24" in styles and "FFFFF3DD" in styles and "FF5B3FD0" in styles,
 }, ensure_ascii=False))
 `], { encoding: "utf8" }));
 say(z.media.length === 1 && z.닻 === 1, `엑셀 샷차트 그림 ${z.media.length}장 · 닻 ${z.닻}개 (한 장에 전원)`);
 say(z.ext[0][0] === 1000, `그림 너비 ${z.ext[0][0]}px (밴드 이미지와 같은 좌표계)`);
 say(z.ext[0][1] > 400, `그림 높이 ${z.ext[0][1]}px — 팀 둘 + 선수들이 다 들어감`);
-say(z.글꼴수 === 7 && z.서식수 === 21 && z.C팀색, `엑셀 서식에 C팀 색 있음 (글꼴 ${z.글꼴수}벌 · 서식 ${z.서식수}가지)`);
+// 화이트 · 퍼플 두 벌이 더해져 글꼴 7 → 9, 서식 21 → 26 (#171).
+say(z.글꼴수 === 9 && z.서식수 === 26 && z.C팀색 && z.화이트퍼플,
+  `엑셀 서식에 C팀 · 화이트 · 퍼플 색 있음 (글꼴 ${z.글꼴수}벌 · 서식 ${z.서식수}가지)`);
 
 // 그림 안에 선수가 여럿인지 — PNG 를 열어 높이로 본다
 const 크기 = execFileSync("python3", ["-c", `

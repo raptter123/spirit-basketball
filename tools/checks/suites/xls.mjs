@@ -91,8 +91,8 @@ const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 15000 }), 
 const 파일 = `${DL}/${dl.suggestedFilename()}`;
 await dl.saveAs(파일);
 const 크기 = fs.statSync(파일).size;
-// 같은 날 여러 경기를 받으면 이름이 겹치지 않도록 대진(AB)이 뒤에 붙는다.
-say(/^spirit-game-\d{4}-\d{2}-\d{2}-\d{4}-AB\.xlsx$/.test(dl.suggestedFilename()),
+// 같은 날 여러 경기를 받으면 이름이 겹치지 않도록 대진이 뒤에 붙는다(화이트–퍼플 → WP).
+say(/^spirit-game-\d{4}-\d{2}-\d{2}-\d{4}-WP\.xlsx$/.test(dl.suggestedFilename()),
   `파일명 ${dl.suggestedFilename()} (${크기}바이트, 아스키만)`);
 
 // ── 진짜 엑셀인가: 파이썬 openpyxl 로 열어 값을 꺼낸다
