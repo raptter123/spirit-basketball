@@ -582,11 +582,15 @@ const XF = {
 };
 const XF_NOTE = 11;
 // 팀 이름 칸에만 쓰는 색. 줄이 많아지면 어느 팀 줄인지 눈으로 못 따라가서 넣었다.
-// 3파전이면 팀이 셋이므로 세 벌을 둔다.
+// 3파전이면 팀이 셋이므로 세 벌을 둔다. 그 뒤 두 벌은 2팀 경기의 화이트 · 퍼플
+// (js/record.js 의 색팀이름 순서). 화이트는 흰 바탕에서 글자가 사라지므로 칸을
+// 아이보리(#FFF3DD)로 칠하고 진한 갈색 글자를 얹는다 — 유니폼처럼 '흰 칸' 으로 읽힌다.
 const XF_TEAM = [
   { plain: 12, zebra: 13, total: 14, head: 12 },
   { plain: 15, zebra: 16, total: 17, head: 15 },
   { plain: 18, zebra: 19, total: 20, head: 18 },
+  { plain: 21, zebra: 21, total: 22, head: 21 },
+  { plain: 23, zebra: 24, total: 25, head: 23 },
 ];
 
 const STYLES =
@@ -598,7 +602,7 @@ const STYLES =
   // 4.46 · 4.32 로 기준(4.5)에 못 미쳤다. 지금은 가장 나쁜 자리에서도 4.81 · 4.85 고,
   // 원래 색과의 색차는 ΔE 3.4 · 4.5 라 같은 팀 색으로 읽힌다.
   // (css/style.css 가 --accent 와 --accent-text 를 나눠 쓰는 것과 같은 이유다.)
-  `<fonts count="7">` +
+  `<fonts count="9">` +
   `<font><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FF161B28"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FFDFE4F5"/><name val="맑은 고딕"/></font>` +
@@ -606,20 +610,24 @@ const STYLES =
   `<font><b/><sz val="11"/><color rgb="FFB93E0B"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FF147739"/><name val="맑은 고딕"/></font>` +
   `<font><b/><sz val="11"/><color rgb="FF6B21A8"/><name val="맑은 고딕"/></font>` +
+  // 7 화이트(아이보리 칸 위 갈색 5.77:1) · 8 퍼플(흰 바탕 6.85 · 합계 줄 5.89)
+  `<font><b/><sz val="11"/><color rgb="FF7A5A24"/><name val="맑은 고딕"/></font>` +
+  `<font><b/><sz val="11"/><color rgb="FF5B3FD0"/><name val="맑은 고딕"/></font>` +
   `</fonts>` +
-  `<fills count="5">` +
+  `<fills count="6">` +
   `<fill><patternFill patternType="none"/></fill>` +
   `<fill><patternFill patternType="gray125"/></fill>` +
   `<fill><patternFill patternType="solid"><fgColor rgb="FF2C3557"/><bgColor indexed="64"/></patternFill></fill>` +
   `<fill><patternFill patternType="solid"><fgColor rgb="FFF5F7FB"/><bgColor indexed="64"/></patternFill></fill>` +
   `<fill><patternFill patternType="solid"><fgColor rgb="FFEAEEF7"/><bgColor indexed="64"/></patternFill></fill>` +
+  `<fill><patternFill patternType="solid"><fgColor rgb="FFFFF3DD"/><bgColor indexed="64"/></patternFill></fill>` +
   `</fills>` +
   `<borders count="2">` +
   `<border><left/><right/><top/><bottom/><diagonal/></border>` +
   `<border><left/><right/><top/><bottom style="thin"><color rgb="FFD7DBE6"/></bottom><diagonal/></border>` +
   `</borders>` +
   `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-  `<cellXfs count="21">` +
+  `<cellXfs count="26">` +
   // 0~2 보통 줄
   `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>` +
@@ -648,6 +656,13 @@ const STYLES =
   `<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="6" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  // 21~22 화이트 (보통 · 얼룩은 아이보리 칸, 합계 줄도 아이보리)
+  `<xf numFmtId="0" fontId="7" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="7" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  // 23~25 퍼플 (보통 · 얼룩 · 합계)
+  `<xf numFmtId="0" fontId="8" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="8" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
+  `<xf numFmtId="0" fontId="8" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>` +
   `</cellXfs>` +
   `<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles>` +
   `</styleSheet>`;

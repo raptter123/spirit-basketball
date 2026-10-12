@@ -93,16 +93,16 @@ function cleanGame(saved) {
 
   if (Array.isArray(saved.teams)) {
     g.teams = [0, 1].map((i) => {
-      const t = emptyTeam(str(saved.teams[i]?.name, i === 0 ? "혼 A" : "혼 B"));
+      const t = emptyTeam(str(saved.teams[i]?.name, i === 0 ? "혼 화이트" : "혼 퍼플"));
       t.q = cleanQ(saved.teams[i]?.q);
       t.players = cleanPlayers(saved.teams[i]?.players);
       return t;
     });
   } else if (saved.us || saved.players) {
-    g.teams[0].name = str(saved.us, "혼 A");
+    g.teams[0].name = str(saved.us, "혼 화이트");
     g.teams[0].q = cleanQ(saved.usQ);
     g.teams[0].players = cleanPlayers(saved.players);
-    g.teams[1].name = str(saved.them, "혼 B");
+    g.teams[1].name = str(saved.them, "혼 퍼플");
     g.teams[1].q = cleanQ(saved.themQ);
   }
   return g;

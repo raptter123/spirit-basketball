@@ -82,11 +82,11 @@ say(목록[0].배지 === "무", `맨 위가 가장 최근 경기 — 배지 "${�
 say(목록[0].점수.map((s) => s.점).join(":") === "4:4", `맨 위 점수 ${목록[0].점수.map((s) => s.점).join(" : ")}`);
 say(목록[0].점수.every((s) => !s.이김), `무승부는 어느 쪽도 win 아님`);
 
-say(목록[1].배지 === "B팀 승" && 목록[1].점수.map((s) => s.점).join(":") === "2:6",
+say(목록[1].배지 === "퍼플 승" && 목록[1].점수.map((s) => s.점).join(":") === "2:6",
   `둘째 줄 ${목록[1].점수.map((s) => s.점).join(" : ")} → ${목록[1].배지}`);
 say(목록[1].점수[1].이김 && !목록[1].점수[0].이김, `이긴 B팀 점수만 진하게 (win 표시)`);
 
-say(목록[2].배지 === "A팀 승" && 목록[2].점수.map((s) => s.점).join(":") === "8:2",
+say(목록[2].배지 === "화이트 승" && 목록[2].점수.map((s) => s.점).join(":") === "8:2",
   `셋째 줄 ${목록[2].점수.map((s) => s.점).join(" : ")} → ${목록[2].배지}`);
 // 첫 경기는 A팀 첫 선수가 2점 하나, 둘째 선수가 셋 → 최다는 둘째 선수 6점
 say(목록[2].아래.includes(`최다 ${g1.A[1]} 6점`), `최다 득점자: "${목록[2].아래}"`);
@@ -126,7 +126,7 @@ await p.evaluate(() => document.querySelectorAll("[data-arch-del]")[1].click());
 await p.waitForTimeout(500);
 const 남은 = await p.evaluate(() => [...document.querySelectorAll(".rec-arch-row")]
   .map((r) => r.querySelector(".rec-arch-badge").textContent.trim()));
-say(남은.join("/") === "무/A팀 승", `가운데 줄만 지워짐 — 남은 것 ${남은.join(", ")}`);
+say(남은.join("/") === "무/화이트 승", `가운데 줄만 지워짐 — 남은 것 ${남은.join(", ")}`);
 
 if (errs.length) say(false, "JS오류: " + errs.join(" | "));
 await b.close();

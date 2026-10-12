@@ -50,7 +50,7 @@ for (const [글, px] of Object.entries(전)) {
   if (px === null) continue;
   확인(크기[글] === px, `"${글}" 글씨 ${크기[글]} (전 ${px})`);
 }
-const 팀카드 = Object.entries(크기).filter(([글]) => /^[A-C]팀 \(\d+명\)$/.test(글));
+const 팀카드 = Object.entries(크기).filter(([글]) => /^([A-C]팀|화이트|퍼플) \(\d+명\)$/.test(글));
 확인(팀카드.length > 0 && 팀카드.every(([, px]) => px === "16px"), `팀 카드 제목 ${팀카드.length}개 글씨 ${[...new Set(팀카드.map(([, px]) => px))].join()} (전 16px)`);
 확인(errs.length === 0, `자바스크립트 오류 ${errs.length}건${errs.length ? " — " + errs[0] : ""}`);
 

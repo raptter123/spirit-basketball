@@ -351,7 +351,9 @@ export function 짧은날짜(s) {
 export function 대진표시(game) {
   // 교류전은 상대 이름이 대개 한글이라 딸 글자가 없다. 그날 몇 번째 교류전인지로 가른다.
   if (교류전(game)) return `EX${game.no || 1}`;
-  const 딴것 = (game.teams || []).map((t) => (String(t?.name || "").match(/[A-Za-z0-9]+/) || [""])[0]);
+  // 화이트 · 퍼플(2팀 유니폼 이름)은 한글뿐이라 딸 글자가 없다. W · P 로 정해 둔다 — "WP".
+  const 정한글자 = { 화이트: "W", 퍼플: "P" };
+  const 딴것 = (game.teams || []).map((t) => 정한글자[t?.name] || (String(t?.name || "").match(/[A-Za-z0-9]+/) || [""])[0]);
   return 딴것.length && 딴것.every(Boolean)
     ? 딴것.join("")
     : String((game.startedAt || 0) % 1000).padStart(3, "0");

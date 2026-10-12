@@ -77,7 +77,7 @@ const 파일 = `${DL}/${dl.suggestedFilename()}`;
 await dl.saveAs(파일);
 fs.copyFileSync(파일, `${OUT}/result.png`);
 // 시각(시분)까지 붙는다 — 같은 날 같은 대진을 두 번 해도 안 겹친다. 엑셀과 같은 꼬리다.
-say(/^spirit-result-\d{4}-\d{2}-\d{2}-\d{4}-AB\.png$/.test(dl.suggestedFilename()), `파일명 ${dl.suggestedFilename()} (날짜-시각-대진, 엑셀과 같은 꼬리)`);
+say(/^spirit-result-\d{4}-\d{2}-\d{2}-\d{4}-WP\.png$/.test(dl.suggestedFilename()), `파일명 ${dl.suggestedFilename()} (날짜-시각-대진, 엑셀과 같은 꼬리)`);
 const 정보 = execFileSync("python3", ["-c", `
 from struct import unpack
 from PIL import Image

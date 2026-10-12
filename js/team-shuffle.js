@@ -13,6 +13,7 @@ import { sheetHTML, SHEET_CSS, PLAYER_ROWS, SHEET_MM } from "./sheetform.js";
 import { getNextEventDate } from "./events.js";
 import { 참석명단읽기 } from "./band-paste.js";
 import { escapeHtml, todayStr } from "./util.js";
+import { TWO_TEAM_NAME } from "./record.js";
 import {
   jerseyHTML,
   hasNumber,
@@ -26,6 +27,19 @@ const TEAM_LETTERS = ["A", "B", "C", "D"];
 // 팀마다 확실히 다른 색이어야 배정 단추에서 헷갈리지 않는다.
 // D 는 보라 — 주황·초록·파랑 어느 것과도 안 겹친다.
 const TEAM_ACCENT = ["#f97316", "#22c55e", "#3b82f6", "#a855f7"];
+
+/** 팀 하나의 이름과 색. 2팀이면 우리 유니폼 두 벌(화이트 · 퍼플), 3팀이면 A · B · C.
+ *  이름: 화면 · 공지 이미지에 쓰는 이름 / 짧게: 배정 단추 글자 / 색: 화면용(테마를 따르는 CSS 변수)
+ *  그림색 · 그림선: 공지 이미지용 고정 색. 화이트는 크림 종이에 묻히므로 테두리를 두른다. */
+function 팀표(teamCount, i) {
+  if (teamCount === 2) {
+    return [
+      { 이름: TWO_TEAM_NAME[0], 짧게: TWO_TEAM_NAME[0], 색: "var(--team-white)", 그림색: "#fff3dd", 그림선: "#9c7c45" },
+      { 이름: TWO_TEAM_NAME[1], 짧게: TWO_TEAM_NAME[1], 색: "var(--team-purple)", 그림색: "#7c5cff", 그림선: null },
+    ][i];
+  }
+  return { 이름: `${TEAM_LETTERS[i]}팀`, 짧게: TEAM_LETTERS[i], 색: TEAM_ACCENT[i], 그림색: null, 그림선: null };
+}
 const FONT = "'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif";
 
 function nameWithCaptain(p) {
@@ -320,14 +334,16 @@ function drawColumnTheme(rows, gameDate, teamCount, colorKey) {
   drawTitle(ctx, gameDate, teamCount, pad, pad + 30, P.title, 26);
 
   rows.forEach((team, r) => {
-    const color = P.team[r % P.team.length];
+    // 2팀이면 유니폼 색(화이트 · 퍼플), 아니면 색표의 팀 색.
+    const color = team.color || P.team[r % P.team.length];
+    const line = team.line || color;
     const x = pad + r * (colW + gap);
     const top = pad + titleH;
 
     roundRectPath(ctx, x, top, colW, headH + maxRows * rowH, 14);
     ctx.fillStyle = P.card;
     ctx.fill();
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = line;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -335,11 +351,13 @@ function drawColumnTheme(rows, gameDate, teamCount, colorKey) {
     ctx.fillStyle = color;
     ctx.fill();
     ctx.fillRect(x, top + headH - 14, colW, 14);
+    // 화이트 머리띠는 크림 종이와 색이 거의 같아 테두리를 그어 종이와 가른다.
+    if (team.line) { ctx.strokeStyle = team.line; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.fillStyle = inkOn(color);
     ctx.font = `900 19px ${FONT}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${team.letter}팀 · ${team.players.length}명`, x + colW / 2, top + headH / 2 + 1);
+    ctx.fillText(`${team.label} · ${team.players.length}명`, x + colW / 2, top + headH / 2 + 1);
 
     team.players.forEach((p, i) => {
       const cy = top + headH + i * rowH + rowH / 2;
@@ -370,13 +388,15 @@ function drawBlockTheme(rows, gameDate, teamCount, colorKey) {
 
   let y = pad + titleH;
   rows.forEach((team, r) => {
-    const color = P.team[r % P.team.length];
+    // 2팀이면 유니폼 색(화이트 · 퍼플), 아니면 색표의 팀 색.
+    const color = team.color || P.team[r % P.team.length];
+    const line = team.line || color;
     const h = blockH(team);
 
     roundRectPath(ctx, pad, y, width - pad * 2, h, 14);
     ctx.fillStyle = P.card;
     ctx.fill();
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = line;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -384,11 +404,13 @@ function drawBlockTheme(rows, gameDate, teamCount, colorKey) {
     ctx.fillStyle = color;
     ctx.fill();
     ctx.fillRect(pad, y + headH - 14, width - pad * 2, 14);
+    // 화이트 머리띠는 크림 종이와 색이 거의 같아 테두리를 그어 종이와 가른다.
+    if (team.line) { ctx.strokeStyle = team.line; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.fillStyle = inkOn(color);
     ctx.font = `900 18px ${FONT}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${team.letter}팀`, pad + 14, y + headH / 2 + 1);
+    ctx.fillText(team.label, pad + 14, y + headH / 2 + 1);
     ctx.textAlign = "right";
     ctx.font = `bold 15px ${FONT}`;
     ctx.fillText(`${team.players.length}명`, width - pad - 14, y + headH / 2 + 1);
@@ -419,14 +441,16 @@ function drawLineupTheme(rows, gameDate, teamCount, colorKey) {
 
   let y = pad + titleH;
   rows.forEach((team, r) => {
-    const color = P.team[r % P.team.length];
+    // 2팀이면 유니폼 색(화이트 · 퍼플), 아니면 색표의 팀 색.
+    const color = team.color || P.team[r % P.team.length];
+    const line = team.line || color;
     const h = blockH(team);
     const right = width - pad - 12;
 
     roundRectPath(ctx, pad, y, width - pad * 2, h, 12);
     ctx.fillStyle = P.card;
     ctx.fill();
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = line;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -434,11 +458,13 @@ function drawLineupTheme(rows, gameDate, teamCount, colorKey) {
     ctx.fillStyle = color;
     ctx.fill();
     ctx.fillRect(pad, y + headH - 12, width - pad * 2, 12);
+    // 화이트 머리띠는 크림 종이와 색이 거의 같아 테두리를 그어 종이와 가른다.
+    if (team.line) { ctx.strokeStyle = team.line; ctx.lineWidth = 1.5; ctx.stroke(); }
     ctx.fillStyle = inkOn(color);
     ctx.font = `900 17px ${FONT}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${team.letter}팀`, pad + 12, y + headH / 2 + 1);
+    ctx.fillText(team.label, pad + 12, y + headH / 2 + 1);
     ctx.textAlign = "right";
     ctx.font = `bold 14px ${FONT}`;
     ctx.fillText(`${team.players.length}명`, right, y + headH / 2 + 1);
@@ -975,8 +1001,8 @@ export function mountTeamBuilder(container) {
                 { length: teamCount },
                 (_, i) => `
                 <button type="button" class="ts-team-btn ${assignments[name] === i ? "is-active" : ""}" style="--team-color:${
-                  TEAM_ACCENT[i]
-                }" data-name="${escapeHtml(name)}" data-team="${i}">${TEAM_LETTERS[i]}</button>`
+                  팀표(teamCount, i).색
+                }" data-name="${escapeHtml(name)}" data-team="${i}">${팀표(teamCount, i).짧게}</button>`
               ).join("")}
             </div>
           </div>`
@@ -993,8 +1019,8 @@ export function mountTeamBuilder(container) {
           const teamNames = teamsPlayers[i];
           const proj = computeProjection(teamNames, playersByName);
           return `
-          <div class="ts-preview-card" style="--team-color:${TEAM_ACCENT[i]}">
-            <h3>${TEAM_LETTERS[i]}팀 (${teamNames.length}명)</h3>
+          <div class="ts-preview-card" style="--team-color:${팀표(teamCount, i).색}">
+            <h3>${팀표(teamCount, i).이름} (${teamNames.length}명)</h3>
             <div class="ts-preview-names">${
               teamNames.length
                 ? teamNames
@@ -1221,6 +1247,9 @@ export function mountTeamBuilder(container) {
     document.getElementById("ts-image-btn").addEventListener("click", () => {
       const rows = Array.from({ length: teamCount }, (_, i) => ({
         letter: TEAM_LETTERS[i],
+        label: 팀표(teamCount, i).이름,
+        color: 팀표(teamCount, i).그림색,
+        line: 팀표(teamCount, i).그림선,
         // 유니폼을 그리려면 번호가 필요하니 이름만 넘기지 않고 선수를 통째로 넘긴다.
         players: teamsPlayers[i].map((n) => ({
           name: nameWithCaptain(playersByName[n]),
@@ -1233,7 +1262,7 @@ export function mountTeamBuilder(container) {
 
     document.getElementById("ts-sheet-btn").addEventListener("click", () => {
       const teams = Array.from({ length: teamCount }, (_, i) => ({
-        name: `혼 ${TEAM_LETTERS[i]}`,
+        name: `혼 ${teamCount === 2 ? TWO_TEAM_NAME[i] : TEAM_LETTERS[i]}`,
         // 기록지에는 (C) 같은 꼬리표 없이 이름만 — 판독 뒤 로스터와 짝을 맞춰야 한다.
         // 세 번째 값은 로스터에서 몇 번째인지. 이게 종이에 버블로 같이 찍혀서,
         // 사진을 올리는 사람이 누구든 이름이 나온다.

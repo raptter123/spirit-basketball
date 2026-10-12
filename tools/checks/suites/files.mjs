@@ -1,5 +1,5 @@
 // 받는 파일 바로잡기를 확인한다.
-//   1. 같은 날 A팀–B팀을 두 번 하면 엑셀도 이미지도 이름이 갈린다
+//   1. 같은 날 화이트–퍼플을 두 번 하면 엑셀도 이미지도 이름이 갈린다 (대진 꼬리는 WP)
 //   2. 한 경기의 엑셀과 이미지는 이름 뒷부분(날짜-시각-대진)이 같다
 //   3. 결과 화면의 엑셀 안내 글이 실제 엑셀 시트 이름과 같다
 //
@@ -74,8 +74,8 @@ say(첫.png !== 둘.png, `밴드 이미지 이름이 갈림 (${꼬리(첫.png)} 
 say(첫.xlsx !== 둘.xlsx, `엑셀 이름이 갈림 (${꼬리(첫.xlsx)} ≠ ${꼬리(둘.xlsx)})`);
 say(꼬리(첫.xlsx) === 꼬리(첫.png) && 꼬리(둘.xlsx) === 꼬리(둘.png),
   `한 경기의 엑셀과 이미지는 이름 뒷부분이 같음 (${꼬리(첫.png)})`);
-say(/^spirit-result-2026-09-24-1905-AB\.png$/.test(첫.png), `이미지 이름 모양 — ${첫.png}`);
-say(/^spirit-result-2026-09-24-19(4[5-9]|5\d)-AB\.png$/.test(둘.png), `40분 뒤 경기는 시각이 19:4x — ${둘.png}`);
+say(/^spirit-result-2026-09-24-1905-WP\.png$/.test(첫.png), `이미지 이름 모양 — ${첫.png}`);
+say(/^spirit-result-2026-09-24-19(4[5-9]|5\d)-WP\.png$/.test(둘.png), `40분 뒤 경기는 시각이 19:4x — ${둘.png}`);
 say(fs.readdirSync(DL).length === 4, `폴더에 파일 ${fs.readdirSync(DL).length}개 (덮어쓴 것 없음)`);
 say(fs.readdirSync(DL).every((f) => fs.statSync(`${DL}/${f}`).size > 1000),
   `네 파일 모두 내용이 있음 (가장 작은 것 ${Math.min(...fs.readdirSync(DL).map((f) => fs.statSync(`${DL}/${f}`).size)).toLocaleString()}바이트)`);
