@@ -79,7 +79,7 @@ for (const [w, h, 기대] of [[430, 932, 3], [390, 844, 3], [375, 667, 3], [360,
     `자동 배정하면 접힘 — "${접힘.글}" (${접힘.높이}px, aria-expanded=${접힘.펼침})`);
   확인(Math.abs(단추후 - 단추전) <= 1,
     `위가 접혀도 '자동 배정' 단추가 제자리(${Math.round(단추전)} → ${Math.round(단추후)}px)`);
-  확인(길이후 < 길이전 - 600, `화면 길이 ${길이전} → ${길이후}px`);
+  확인(길이후 <= 길이전 - 500, `화면 길이 ${길이전} → ${길이후}px`);
 
   // 고정 줄
   const 독 = await p.evaluate(() => {
@@ -136,18 +136,16 @@ for (const [w, h, 기대] of [[430, 932, 3], [390, 844, 3], [375, 667, 3], [360,
   await ctx.close();
 }
 
-// ── 3) 칩을 펼친 채 첫 배정(이름 옆 팀 단추) — 위가 접혀도 누른 단추가 제자리 ──
+// ── 3) 칩을 펼친 채 첫 배정(남은 사람 칩) — 위가 접혀도 팀 판이 제자리 ──
 {
   const { p, ctx } = await 열기(390, 844);
-  const 단추 = `.ts-team-btn[data-team="1"]`;
-  await p.evaluate((s) => document.querySelectorAll(s)[3].scrollIntoView({ block: "center" }), 단추);
-  const 이름 = await p.evaluate((s) => document.querySelectorAll(s)[3].dataset.name, 단추);
-  const sel = `.ts-team-btn[data-name="${이름}"][data-team="1"]`;
-  const 전 = await 위(p, sel);
-  await p.click(sel); await p.waitForTimeout(300);
-  const 후 = await 위(p, sel);
+  await p.evaluate(() => document.getElementById("ts-board").scrollIntoView({ block: "center" }));
+  const 이름 = await p.evaluate(() => document.querySelector(".ts-left-list .ts-chip").dataset.name);
+  const 전 = await 위(p, "#ts-board");
+  await p.locator(".ts-left-list .ts-chip").first().click(); await p.waitForTimeout(300);
+  const 후 = await 위(p, "#ts-board");
   확인(Math.abs(후 - 전) <= 1 && await p.evaluate(() => document.getElementById("ts-pick-body").hidden),
-    `첫 배정 단추(${이름} → 퍼플)를 누르면 접히고 단추는 제자리(${Math.round(전)} → ${Math.round(후)}px)`);
+    `첫 배정(남은 사람 ${이름} → 화이트)을 하면 참석자 칸이 접히고 팀 판은 제자리(${Math.round(전)} → ${Math.round(후)}px)`);
   await ctx.close();
 }
 

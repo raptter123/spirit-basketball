@@ -29,7 +29,7 @@ const 크기 = {};
 for (const 길 of 길들) {
   await p.goto(`${URL}/index.html?s=${Math.random()}${길}`); await p.waitForTimeout(600);
   if (길 === "#/team-shuffle") {
-    // 참석자를 골라야 '팀 구성 미리보기' 아래 팀 카드 제목이 생긴다.
+    // 참석자를 골라야 '팀 배정' 판에 팀 칸 제목(h3)이 생긴다.
     for (let i = 0; i < 8; i++) await p.evaluate((k) => document.querySelectorAll("input[type=checkbox][data-name]")[k]?.click(), i);
     await p.waitForTimeout(300);
   }
@@ -44,8 +44,9 @@ for (const 길 of 길들) {
 }
 
 // 태그를 바꾼 제목들이 전과 같은 크기인가 (전: h3 · h4 였을 때 잰 값).
+// '팀 구성 미리보기'(h2)는 팀 판(D2)이 배정과 미리보기를 한 판으로 합치면서 없어졌다.
 const 전 = { "공 소유 타이밍": "16px", "2026-09-30 일정": null, "다가오는 일정": "18px", "참석자 선택 (8명)": "16px",
-  "팀 배정": "16px", "팀 구성 미리보기": "16px", "직접 고르기": "18px", "지난 경기 1개": "18.72px" };
+  "팀 배정": "16px", "직접 고르기": "18px", "지난 경기 1개": "18.72px" };
 for (const [글, px] of Object.entries(전)) {
   if (px === null) continue;
   확인(크기[글] === px, `"${글}" 글씨 ${크기[글]} (전 ${px})`);

@@ -603,7 +603,7 @@ function renderTeamShuffle() {
     <section class="shuffle-view">
       <a class="back-link tap-wide" href="#/">← 홈으로</a>
       <h1>자체전 팀 편성</h1>
-      <p class="hint">참석자를 로스터에서 선택하고, 이름 옆 팀 글자를 눌러 배정해주세요.</p>
+      <p class="hint">참석자를 로스터에서 선택하고, 아래 팀 판에서 이름을 눌러 나눠 주세요.</p>
       <div id="team-builder-container"></div>
     </section>
   `;
