@@ -38,13 +38,13 @@ async function 팀짜기(p, 팀수, 사람수) {
   const { p, ctx } = await 새창();
   await 팀짜기(p, 2, 10);
   const r = await p.evaluate(() => ({
-    단추: [...new Set([...document.querySelectorAll(".ts-team-btn")].map((x) => x.textContent.trim()))],
-    카드: [...document.querySelectorAll(".ts-preview-card h3")].map((h) => h.textContent.trim().replace(/ \(\d+명\)/, "")),
-    단추폭: Math.min(...[...document.querySelectorAll(".ts-team-btn")].map((x) => x.getBoundingClientRect().width)),
+    칸: [...document.querySelectorAll(".ts-col-title")].map((h) => h.textContent.trim().replace(/ \(\d+명\)/, "")),
+    칩말: [...new Set([...document.querySelectorAll(".ts-col .ts-chip")].map((x) => x.getAttribute("aria-label").split("누르면 ")[1]))],
+    칩높이: Math.min(...[...document.querySelectorAll(".ts-chip")].map((x) => x.getBoundingClientRect().height)),
     넘침: document.documentElement.scrollWidth - innerWidth,
   }));
-  확인(r.단추.join() === "화이트,퍼플" && r.카드.join() === "화이트,퍼플" && r.단추폭 >= 44 && r.넘침 === 0,
-    `2팀 팀 편성 — 배정 단추 ${r.단추.join(" · ")} (최소 폭 ${Math.round(r.단추폭)}px) · 미리보기 ${r.카드.join(" · ")} · 가로 넘침 ${r.넘침}`);
+  확인(r.칸.join() === "화이트,퍼플" && r.칩말.sort().join() === "퍼플로,화이트로" && r.칩높이 >= 44 && r.넘침 === 0,
+    `2팀 팀 판 — 칸 ${r.칸.join(" · ")} · 칩 안내 "${r.칩말.join(" · ")}" (칩 최소 높이 ${Math.round(r.칩높이)}px) · 가로 넘침 ${r.넘침}`);
   // 기록지 이름
   const 기록지 = await p.evaluate(() => { document.querySelector("#ts-sheet-btn").click(); return [...document.querySelectorAll(".sheet-print-modal .sheet")].map((s) => (s.textContent.match(/혼 (화이트|퍼플|[A-C])/) || [""])[0]); });
   확인(기록지.join() === "혼 화이트,혼 퍼플", `기록지 두 장의 팀 이름 — ${기록지.join(" · ")}`);
@@ -59,11 +59,13 @@ async function 팀짜기(p, 팀수, 사람수) {
 {
   const { p, ctx } = await 새창();
   await 팀짜기(p, 3, 12);
+  await p.locator(".ts-col .ts-chip").first().click(); await p.waitForTimeout(300);
   const r = await p.evaluate(() => ({
-    단추: [...new Set([...document.querySelectorAll(".ts-team-btn")].map((x) => x.textContent.trim()))],
-    카드: [...document.querySelectorAll(".ts-preview-card h3")].map((h) => h.textContent.trim().replace(/ \(\d+명\)/, "")),
+    칸: [...document.querySelectorAll(".ts-col-title")].map((h) => h.textContent.trim().replace(/ \(\d+명\)/, "")),
+    옮길곳: [...document.querySelectorAll(".ts-move")].map((x) => x.textContent.trim()),
   }));
-  확인(r.단추.join() === "A,B,C" && r.카드.join() === "A팀,B팀,C팀", `3팀 팀 편성은 그대로 — 단추 ${r.단추.join(" · ")} · 미리보기 ${r.카드.join(" · ")}`);
+  확인(r.칸.join() === "A팀,B팀,C팀" && r.옮길곳.join() === "→ B팀,→ C팀,빼기",
+    `3팀 팀 판은 그대로 A · B · C — 칸 ${r.칸.join(" · ")} · A팀 칩을 누르면 ${r.옮길곳.join(" · ")}`);
   await ctx.close();
 }
 

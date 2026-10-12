@@ -809,6 +809,8 @@ export function mountTeamBuilder(container) {
   // 팀 배정을 시작하면 참석자 고르기(칩 38개 · 980px)를 한 줄로 접는다. 다시 고칠 때만 펼친다.
   // 배정이 하나도 없으면 접을 것도 없으니 저절로 펼쳐진 상태로 돌아간다.
   let pickOpen = false;
+  // 3팀 판에서 옮길 팀 단추를 펼쳐 둔 사람(한 번에 한 명).
+  let chipOpen = null;
   // 게스트는 날짜에 묶여 있다. 날짜를 바꾸면 그 날짜의 목록으로 통째로 갈아탄다.
   let guests = getGuests(gameDate);
   const rosterNames = new Set(ROSTER.map((p) => p.name));
@@ -917,6 +919,65 @@ export function mountTeamBuilder(container) {
     const guestCount = guests.filter((n) => selected.has(n)).length;
     const unassigned = selectedNames.length - teamsPlayers.reduce((a, t) => a + t.length, 0);
 
+    // 팀 판의 이름 칩. team 이 null 이면 '남은 사람' 줄의 칩이다.
+    // 2팀은 누르면 바로 옮긴다(남은 사람 → 화이트, 화이트 ↔ 퍼플).
+    // 3팀은 누르면 그 자리에 옮길 팀 단추가 펼쳐진다 — 한 번 누름으로는 어느 팀으로 갈지 정할 수 없다.
+    function chipHTML(name, team) {
+      const p = playersByName[name];
+      const 이름 = escapeHtml(nameWithCaptain(p));
+      const 열림 = teamCount !== 2 && chipOpen === name;
+      const 갈곳 = teamCount === 2 ? (team === null ? 0 : 1 - team) : null;
+      const 설명 = teamCount === 2 ? `${이름}, 누르면 ${팀표(2, 갈곳).이름}로` : 이름;
+      const 단추들 = 열림
+        ? `<div class="ts-move-list" role="group" aria-label="${이름} 옮길 곳">${Array.from({ length: teamCount }, (_, j) => j)
+            .filter((j) => j !== team)
+            .map((j) => `<button type="button" class="ts-move" style="--team-color:${팀표(teamCount, j).색}"
+                data-name="${escapeHtml(name)}" data-team="${j}">→ ${팀표(teamCount, j).이름}</button>`)
+            .join("")}${
+            team === null ? "" : `<button type="button" class="ts-move" data-name="${escapeHtml(name)}" data-team="">빼기</button>`
+          }</div>`
+        : "";
+      return `<li class="ts-chip-item${열림 ? " is-open" : ""}">
+        <button type="button" class="ts-chip" data-name="${escapeHtml(name)}" aria-label="${설명}"${
+          teamCount === 2 ? "" : ` aria-expanded="${열림}"`
+        }>${jerseyHTML(p, "is-sm")}<span class="ts-chip-name">${이름}${guestTagHTML(p)}</span></button>${단추들}</li>`;
+    }
+
+    // 팀마다 예상치(7인 팀으로 환산, 괄호는 인당 평균). 예전 미리보기 카드에 한 줄로
+    // 적던 것을 팀끼리 한눈에 견주게 표로 모은다. 득점은 팀 칸 머리에도 있다.
+    function projTableHTML() {
+      const projs = teamsPlayers.map((names) => computeProjection(names, playersByName));
+      if (!projs.some(Boolean)) return "";
+      const 줄 = [
+        ["득점", "ppg", "ppgAvg"],
+        ["리바운드", "rpg", "rpgAvg"],
+        ["어시스트", "apg", "apgAvg"],
+        ["턴오버", "topg", "topgAvg"],
+      ].filter(([, k]) => projs.some((x) => x && x[k] != null));
+      const 칸 = (x, k, avg) => (x && x[k] != null ? `${x[k].toFixed(1)} <small>(${x[avg].toFixed(1)})</small>` : "—");
+      const 빠짐 = teamsPlayers
+        .map((names, i) => (projs[i] && projs[i].statCount < names.length ? `${팀표(teamCount, i).이름} ${names.length - projs[i].statCount}명` : ""))
+        .filter(Boolean);
+      return `
+      <table class="ts-proj-table">
+        <caption>예상치 — ${TYPICAL_TEAM_SIZE}인 팀으로 환산, 괄호는 인당 평균</caption>
+        <thead><tr><td></td>${teamsPlayers
+          .map((_, i) => `<th scope="col"><span class="ts-proj-dot" style="--team-color:${팀표(teamCount, i).색}"></span>${팀표(teamCount, i).짧게}</th>`)
+          .join("")}</tr></thead>
+        <tbody>
+          ${줄.map(([말, k, avg]) => `<tr><th scope="row">${말}</th>${projs.map((x) => `<td>${칸(x, k, avg)}</td>`).join("")}</tr>`).join("")}
+          ${
+            projs.some((x) => x && x.fgPctAvg != null)
+              ? `<tr><th scope="row">야투율</th>${projs.map((x) => `<td>${x && x.fgPctAvg != null ? `${Math.round(x.fgPctAvg * 100)}%` : "—"}</td>`).join("")}</tr>`
+              : ""
+          }
+        </tbody>
+      </table>
+      <p class="hint ts-preview-hint">실제 경기는 5명만 코트에 뛰기 때문에, 인원이 많고 적음에 상관없이 공정하게 비교할 수 있도록 ${TYPICAL_TEAM_SIZE}인 팀 기준으로 환산한 예상치예요.${
+        빠짐.length ? ` 기록이 없는 사람(${빠짐.join(" · ")})은 셈에서 뺐어요.` : ""
+      }</p>`;
+    }
+
     container.innerHTML = `
       <div class="ts-toprow">
         <label class="ts-date-label">경기 날짜
@@ -1007,78 +1068,46 @@ export function mountTeamBuilder(container) {
       </div>
 
       <h2 class="section-title" id="ts-assign-title">팀 배정</h2>
-      <p class="hint">이름 옆 팀 글자를 눌러 배정해주세요.</p>
+      <p class="hint">${
+        teamCount === 2
+          ? "이름을 누르면 다른 팀으로 옮겨요. 남은 사람은 누르면 화이트로 들어가요."
+          : "이름을 누르면 옮길 팀 단추가 나와요."
+      }</p>
       <div class="ts-assign-toolbar">
         <button type="button" class="btn btn-sm" id="ts-auto-assign">🔀 미배정 인원 자동 배정</button>
         <button type="button" class="link-btn tap-wide" id="ts-clear-assign">배정 초기화</button>
       </div>
-      <div class="ts-assign-list">
-        ${
-          selectedNames.length
-            ? selectedNames
-                .map(
-                  (name) => `
-          <div class="ts-assign-row">
-            <span class="ts-assign-name">${jerseyHTML(playersByName[name], "is-sm")}${escapeHtml(
-                    nameWithCaptain(playersByName[name])
-                  )}${guestTagHTML(playersByName[name])}</span>
-            <div class="ts-team-buttons">
-              ${Array.from(
-                { length: teamCount },
-                (_, i) => `
-                <button type="button" class="ts-team-btn ${assignments[name] === i ? "is-active" : ""}" style="--team-color:${
-                  팀표(teamCount, i).색
-                }" data-name="${escapeHtml(name)}" data-team="${i}">${팀표(teamCount, i).짧게}</button>`
-              ).join("")}
+      ${
+        selectedNames.length
+          ? `${
+              unassigned
+                ? `<div class="ts-left-row" id="ts-left-row">
+                    <h3 class="ts-left-title">남은 사람 ${unassigned}명</h3>
+                    <ul class="ts-left-list">${selectedNames
+                      .filter((n) => !(n in assignments))
+                      .map((n) => chipHTML(n, null))
+                      .join("")}</ul>
+                  </div>`
+                : ""
+            }
+            <div class="ts-board" id="ts-board" style="--cols:${teamCount}">
+              ${teamsPlayers
+                .map((names, i) => {
+                  const proj = computeProjection(names, playersByName);
+                  return `
+                <section class="ts-col" style="--team-color:${팀표(teamCount, i).색}" aria-labelledby="ts-col-${i}">
+                  <h3 class="ts-col-title" id="ts-col-${i}">${팀표(teamCount, i).이름} (${names.length}명)</h3>
+                  <p class="ts-col-proj">${proj ? `예상 <b>${proj.ppg.toFixed(1)}</b>점` : "예상 —"}</p>
+                  <ul class="ts-col-list">${
+                    names.length ? names.map((n) => chipHTML(n, i)).join("") : `<li class="ts-col-empty">아직 없음</li>`
+                  }</ul>
+                </section>`;
+                })
+                .join("")}
             </div>
-          </div>`
-                )
-                .join("")
-            : `<p class="hint">위에서 참석자를 먼저 선택해주세요.</p>`
-        }
-      </div>
-
-      <h2 class="section-title">팀 구성 미리보기</h2>
-      <p class="hint ts-preview-hint">실제 경기는 5명만 코트에 뛰기 때문에, 인원이 많고 적음에 상관없이 공정하게 비교할 수 있도록 ${TYPICAL_TEAM_SIZE}인 팀 기준으로 환산한 예상치예요.</p>
-      <div class="ts-preview-grid">
-        ${Array.from({ length: teamCount }, (_, i) => {
-          const teamNames = teamsPlayers[i];
-          const proj = computeProjection(teamNames, playersByName);
-          return `
-          <div class="ts-preview-card" style="--team-color:${팀표(teamCount, i).색}">
-            <h3>${팀표(teamCount, i).이름} (${teamNames.length}명)</h3>
-            <div class="ts-preview-names">${
-              teamNames.length
-                ? teamNames
-                    .map(
-                      (n) =>
-                        `<span class="ts-preview-player">${jerseyHTML(playersByName[n], "is-sm")}${escapeHtml(
-                          nameWithCaptain(playersByName[n])
-                        )}</span>`
-                    )
-                    .join("")
-                : "아직 없음"
-            }</div>
-            ${
-              proj
-                ? `<div class="ts-preview-stats">예상 득점 <strong>${proj.ppg.toFixed(1)}</strong>점 (인당 평균 ${proj.ppgAvg.toFixed(
-                    1
-                  )})</div>
-                   <div class="ts-preview-stats">리바운드 ${proj.rpg.toFixed(1)} (평균 ${proj.rpgAvg.toFixed(
-                    1
-                  )}) · 어시스트 ${proj.apg.toFixed(1)} (평균 ${proj.apgAvg.toFixed(1)})${
-                    proj.topg != null ? ` · 턴오버 ${proj.topg.toFixed(1)} (평균 ${proj.topgAvg.toFixed(1)})` : ""
-                  }${proj.fgPctAvg != null ? ` · 야투율 ${Math.round(proj.fgPctAvg * 100)}%` : ""}</div>`
-                : ""
-            }
-            ${
-              proj && proj.statCount < teamNames.length
-                ? `<div class="hint ts-preview-note">${teamNames.length - proj.statCount}명은 기록 데이터가 없어 통계에서 제외했어요.</div>`
-                : ""
-            }
-          </div>`;
-        }).join("")}
-      </div>
+            ${projTableHTML()}`
+          : `<p class="hint">위에서 참석자를 먼저 선택해주세요.</p>`
+      }
 
       <button type="button" class="btn btn-primary" id="ts-image-btn" ${anyAssigned ? "" : "disabled"}>🖼 공지 이미지 만들기</button>
       <button type="button" class="btn" id="ts-sheet-btn" ${anyAssigned ? "" : "disabled"}>📄 기록지 출력</button>
@@ -1245,17 +1274,31 @@ export function mountTeamBuilder(container) {
       });
     });
 
-    container.querySelectorAll(".ts-team-btn").forEach((btn) => {
+    // 칩과 펼친 단추는 판 안에서 자리를 옮기므로, 판 맨 위를 기준으로 제자리를 지킨다.
+    // (첫 배정이면 위의 참석자 칸이 접히고, 남은 사람 줄이 사라지면 판이 그만큼 올라온다)
+    container.querySelectorAll(".ts-chip").forEach((btn) => {
       btn.addEventListener("click", () => {
         const name = btn.dataset.name;
-        const team = Number(btn.dataset.team);
-        if (assignments[name] === team) {
-          delete assignments[name];
+        if (teamCount === 2) {
+          assignments[name] = name in assignments ? 1 - assignments[name] : 0;
+          persist();
+          renderKeeping("#ts-board");
         } else {
-          assignments[name] = team;
+          chipOpen = chipOpen === name ? null : name;
+          render();
+          container.querySelector(`.ts-chip[data-name="${CSS.escape(name)}"]`)?.focus();
         }
+      });
+    });
+
+    container.querySelectorAll(".ts-move").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const name = btn.dataset.name;
+        if (btn.dataset.team === "") delete assignments[name];
+        else assignments[name] = Number(btn.dataset.team);
+        chipOpen = null;
         persist();
-        renderKeeping(`.ts-team-btn[data-name="${CSS.escape(name)}"][data-team="${team}"]`);
+        renderKeeping("#ts-board");
       });
     });
 
@@ -1267,12 +1310,14 @@ export function mountTeamBuilder(container) {
         for (let i = 1; i < teamCount; i++) if (counts[i] < counts[minTeam]) minTeam = i;
         assignments[name] = minTeam;
       });
+      chipOpen = null;
       persist();
       renderKeeping("#ts-auto-assign");
     });
 
     document.getElementById("ts-clear-assign").addEventListener("click", () => {
       assignments = {};
+      chipOpen = null;
       persist();
       renderKeeping("#ts-clear-assign");
     });
