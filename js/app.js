@@ -6,6 +6,7 @@ import { mountTeamBuilder } from "./team-shuffle.js";
 import { mountBoard } from "./board.js";
 import { mountStatsPage } from "./statspage.js";
 import { mountRecord, 경기점수, 점수글 } from "./record.js";
+import { 화면켜두기 } from "./wakelock.js";
 import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
@@ -1541,7 +1542,10 @@ function router() {
     clearTacticSimAssignment();
   }
   previousHash = hash;
-  if (hash !== "#/record") document.body.classList.remove("rec-focus");
+  if (hash !== "#/record") {
+    document.body.classList.remove("rec-focus");
+    화면켜두기(false);   // 기록 화면을 벗어나면 화면 켜 두기도 놓는다
+  }
   updateNavActive();
   if (hash.startsWith("#/tactic/")) {
     renderDetail(decodeURIComponent(hash.slice("#/tactic/".length)));

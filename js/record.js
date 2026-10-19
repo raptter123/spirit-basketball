@@ -20,6 +20,7 @@
 //   이벤트 원본을 그대로 둔다. 합계만 저장하면 나중에 "3쿼터만" "골밑만" 을
 //   영원히 못 뽑는다. 원본이 있으면 무엇이든 다시 계산된다.
 import { ROSTER } from "./roster.js";
+import { 화면켜두기 } from "./wakelock.js";
 import { hasNumber } from "./jersey.js";
 import { escapeHtml as esc, todayStr } from "./util.js";
 import {
@@ -331,6 +332,8 @@ export function 경기들만들기(팀들, gameDate) {
 // 메뉴는 경기 중에 쓸 일이 없고, 오히려 잘못 눌러 화면이 날아갈 위험만 있다.
 function setFocus(on) {
   document.body.classList.toggle("rec-focus", !!on);
+  // 경기 중에는 화면이 저절로 꺼지지 않게 한다(js/wakelock.js).
+  화면켜두기(on);
 }
 
 export function mountRecord(container) {
