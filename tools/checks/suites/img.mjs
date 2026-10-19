@@ -62,7 +62,7 @@ for (let q = 0; q < 4; q++) {
     else if (made && rnd() < 0.4) await 스팟("ast", 코트[Math.floor(rnd() * 10)]);
     if (rnd() < 0.15) await 스팟("to", who);
   }
-  if (q < 3) { await p.click("#rec-q"); await p.waitForTimeout(120); }
+  if (q < 3) { await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(120); }
 }
 
 

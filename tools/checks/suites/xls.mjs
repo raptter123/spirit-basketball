@@ -64,7 +64,7 @@ await 코트탭(150, 195); await 선수탭(B[0]); await p.click("#rec-miss"); aw
 await 스팟("ast"); await 선수탭(A[1]);
 
 // ── 2쿼터로 넘기고: A[0] 코너 3점 성공, B[1] 리바운드, A[2] 자유투 성공
-await p.click("#rec-q"); await p.waitForTimeout(220);
+await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(220);
 await 코트탭(20, 440); await 선수탭(A[0]); await p.click("#rec-made"); await p.waitForTimeout(200);
 // 수비 리바운드는 버튼 하나로 바로 고른다.
 await 리바("rebD"); await 선수탭(B[1]); await p.waitForTimeout(200);

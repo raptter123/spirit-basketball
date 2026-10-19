@@ -60,6 +60,8 @@
   --rec-ok-text: #4ade80;
   --rec-no-text: #fca5a5;
   --rec-etc-text: #b3a1ff;
+  --rec-warn-bg: #3a2c12;
+  --rec-same-bg: #173a2b;
   /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
   --accent-btn: #7857fa;
 
@@ -140,6 +142,8 @@
   --rec-ok-text: #15803d;
   --rec-no-text: #b91c1c;
   --rec-etc-text: #5b3fd0;
+  --rec-warn-bg: #fbefd9;
+  --rec-same-bg: #e3f4ea;
   --accent-btn: #d80204;
 
   --offense: #2563eb;
@@ -4644,6 +4648,55 @@ body:has(#ts-search:focus, .ts-guest-input:focus, #ts-paste-text:focus) .ts-dock
 }
 .rec-confirm .nm { font-size: var(--fs-xl); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rec-confirm .wh { font-size: var(--fs-lg); color: var(--mc); }
+/* 쿼터 끝 점수 맞춰 보기 — 엄지가 닿는 아래쪽에서 올라오는 판. */
+.rec-qc-bg {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: flex-end;
+  background: rgba(10, 6, 30, .5);
+}
+.rec-qc {
+  width: 100%; max-width: 560px; margin: 0 auto;
+  display: grid; gap: 12px;
+  padding: 18px max(18px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  border-radius: 18px 18px 0 0; background: var(--surface);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, .25);
+}
+.rec-qc h3 { margin: 0; font-size: var(--fs-lg); }
+.rec-qc-sub { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+.rec-qc-score {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 12px; border-radius: 12px; background: var(--bg);
+}
+.rec-qc-team { display: grid; justify-items: center; gap: 2px; font-weight: 800; color: var(--ct); }
+.rec-qc-team span { font-size: var(--fs-sm); }
+/* 글씨 사다리 맨 위(24px). 시안은 40px 였지만 사다리 밖 크기는 만들지 않는다. */
+.rec-qc-team b { font-size: var(--fs-2xl); font-weight: 900; line-height: 1.1; }
+.rec-qc-colon { font-size: var(--fs-2xl); color: var(--text-muted); }
+.rec-qc-btn {
+  min-height: 52px; border-radius: 12px; border: 1px solid var(--surface-2);
+  background: var(--surface); color: var(--text); font-size: var(--fs-lg); font-weight: 800; cursor: pointer;
+}
+.rec-qc-btn.is-main { background: var(--accent-btn); border-color: var(--accent-btn); color: var(--accent-ink); }
+.rec-qc-btn:focus-visible, .rec-qc-ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rec-qc-step {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 12px; background: var(--bg);
+}
+.rec-qc-lab { min-width: 56px; font-size: var(--fs-md); font-weight: 800; }
+.rec-qc-lab span, .rec-qc-diff span { color: var(--ct); font-weight: 800; }
+.rec-qc-app { font-size: var(--fs-xs); color: var(--text-muted); }
+.rec-qc-ctl { display: flex; align-items: center; gap: 10px; }
+.rec-qc-ctl button {
+  width: 48px; height: 48px; border-radius: 10px; border: 1px solid var(--surface-2);
+  background: var(--surface); color: var(--text); font-size: var(--fs-2xl); font-weight: 800; cursor: pointer;
+}
+.rec-qc-ctl b { min-width: 44px; text-align: center; font-size: var(--fs-2xl); }
+.rec-qc-diff {
+  margin: 0; padding: 10px 12px; border-radius: 10px; font-size: var(--fs-sm); line-height: 1.55;
+  background: var(--rec-warn-bg); color: var(--text);
+}
+.rec-qc-diff.is-same { background: var(--rec-same-bg); }
+.rec-qc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .rec-shot-made { fill: var(--c); }
 .rec-shot-miss { fill: none; stroke: var(--c); stroke-width: 3; opacity: .75; }
 .rec-shot-live { fill: #facc15; stroke: var(--surface); stroke-width: 2.5; }

@@ -347,6 +347,9 @@ export function mountRecord(container) {
   // 방금 적은 것 — 다음 한 번 그릴 때만 코트 위에 크게 보여 준다(아래 방금띠).
   let 방금 = null;
   let 방금타이머 = null;
+  // 쿼터를 넘기기 전에 점수판과 맞춰 보는 창. null 이면 닫힘.
+  // { 단계: "묻기" | "넣기", 판: [화이트 점수판, 퍼플 점수판] }
+  let 쿼터확인 = null;
   let screen = game ? "live" : "setup";
 
   function save() {
@@ -360,6 +363,7 @@ export function mountRecord(container) {
     session.at = i;
     game = session.games[i];
     pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
+    쿼터확인 = null;
     save();
     render();
   }
@@ -644,6 +648,59 @@ export function mountRecord(container) {
     </div>`;
   }
 
+  /** 받침이 있으면 "이", 없으면 "가" — "퍼플이" · "화이트가". 한글이 아니면 "이(가)". */
+  function 이가(말) {
+    const c = String(말).trim().slice(-1).charCodeAt(0) - 0xac00;
+    if (!(c >= 0 && c < 11172)) return "이(가)";
+    return c % 28 ? "이" : "가";
+  }
+
+  /** 쿼터 끝 점수 맞춰 보기. 점수가 다르면 빠진 슛이 있다는 뜻이라, 기억이 남아 있는
+   *  쿼터 끝에 묻는다. 경기 끝까지 미루면 어느 쿼터에서 빠졌는지도 모른다.
+   *  교류전 상대 점수는 경기 중에 안 적으므로(결과 화면에서 최종 점수 하나) 우리 팀만 본다. */
+  function 쿼터확인창() {
+    if (!쿼터확인) return "";
+    const 앱 = 경기점수(game);
+    const 볼팀 = game.teams.map((t, ti) => ti).filter((ti) => !game.teams[ti].opp && 앱[ti] != null);
+    const 다음 = qLabel(game.q + 1, game.quarters);
+    const 이름 = (ti) => `<span data-t="${팀색자리(game, ti)}">${esc(game.teams[ti].name)}</span>`;
+    let 속;
+    if (쿼터확인.단계 === "묻기") {
+      속 = `
+        <h3 id="rec-qc-title">${qLabel(game.q, game.quarters)} 끝 — 점수판이랑 같아?</h3>
+        <p class="rec-qc-sub">다르면 빠진 슛이 있다는 뜻이에요. 기억날 때 바로 채워요.</p>
+        <div class="rec-qc-score">${볼팀.map((ti, k) => `${k ? `<span class="rec-qc-colon">:</span>` : ""}
+          <div class="rec-qc-team" data-t="${팀색자리(game, ti)}"><span>${esc(game.teams[ti].name)}</span><b>${앱[ti]}</b></div>`).join("")}</div>
+        <button type="button" class="rec-qc-btn is-main" id="rec-qc-ok">✓ 같아 · ${다음}로</button>
+        <button type="button" class="rec-qc-btn" id="rec-qc-diff">점수판이 달라</button>`;
+    } else {
+      const 차이 = 볼팀.map((ti) => ({ ti, d: 쿼터확인.판[ti] - 앱[ti] }));
+      const 맞음 = 차이.every((x) => x.d === 0);
+      const 말 = 맞음 ? "이제 점수가 같아요." : 차이.filter((x) => x.d).map((x) => x.d > 0
+        ? `${이름(x.ti)} <b>${x.d}점</b>이 빠졌어요. 빠진 슛 · 자유투를 더 적으면 맞아요.`
+        : `${이름(x.ti)}${이가(game.teams[x.ti].name)} 점수판보다 <b>${-x.d}점</b> 많아요. 잘못 적은 슛이 있는지 봐요.`).join("<br />");
+      속 = `
+        <h3 id="rec-qc-title">점수판 점수를 넣어 줘</h3>
+        ${볼팀.map((ti) => `
+          <div class="rec-qc-step">
+            <span class="rec-qc-lab">${이름(ti)}</span><span class="rec-qc-app">앱 ${앱[ti]}</span>
+            <span class="rec-qc-ctl">
+              <button type="button" data-qc-team="${ti}" data-qc-d="-1" aria-label="${esc(game.teams[ti].name)} 점수판 1점 빼기">−</button>
+              <b aria-live="polite">${쿼터확인.판[ti]}</b>
+              <button type="button" data-qc-team="${ti}" data-qc-d="1" aria-label="${esc(game.teams[ti].name)} 점수판 1점 더하기">+</button>
+            </span>
+          </div>`).join("")}
+        <p class="rec-qc-diff${맞음 ? " is-same" : ""}" role="status">${말}</p>
+        <div class="rec-qc-row">
+          <button type="button" class="rec-qc-btn${맞음 ? "" : " is-main"}" id="rec-qc-back">돌아가서 채우기</button>
+          <button type="button" class="rec-qc-btn${맞음 ? " is-main" : ""}" id="rec-qc-go">${맞음 ? "✓ " : "이대로 "}${다음}로</button>
+        </div>`;
+    }
+    return `<div class="rec-qc-bg" id="rec-qc-bg">
+      <div class="rec-qc" role="dialog" aria-modal="true" aria-labelledby="rec-qc-title">${속}</div>
+    </div>`;
+  }
+
   function 최근글() {
     const last = game.events.slice(-2).reverse();
     if (!last.length) return `<span class="rec-none">아직 기록이 없어요</span>`;
@@ -787,6 +844,7 @@ export function mountRecord(container) {
           <button type="button" class="btn" id="rec-finish">결과 보기</button>
           <button type="button" class="btn btn-danger" id="rec-scrap">기록 버리기</button>
         </div>
+        ${쿼터확인창()}
       </div>
     `;
     wireLive();
@@ -942,16 +1000,44 @@ export function mountRecord(container) {
       renderLive();
     });
 
-    container.querySelector("#rec-q").addEventListener("click", () => {
+    const 쿼터넘기기 = () => {
       // 4쿼터에서 1쿼터로 되돌아가면, 그 뒤에 찍는 기록이 1쿼터에 섞여 들어가
       // 쿼터별 집계가 조용히 망가진다. 그래서 되돌아가지 않고 연장으로 이어 센다.
       // 잘못 눌렀으면 되돌리기로 취소한다.
       이벤트추가({ type: "quarter", from: game.q, to: game.q + 1 });
       game.q += 1;
+      쿼터확인 = null;
       pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
       save();
       renderLive();
+    };
+    // 바로 넘기지 않고 점수판과 맞춰 보는 창을 먼저 띄운다.
+    container.querySelector("#rec-q").addEventListener("click", () => {
+      쿼터확인 = { 단계: "묻기", 판: [...경기점수(game)].map((v) => v ?? 0) };
+      renderLive();
+      container.querySelector("#rec-qc-ok")?.focus();
     });
+    if (쿼터확인) {
+      const 닫기 = () => { 쿼터확인 = null; renderLive(); };
+      container.querySelector("#rec-qc-bg").addEventListener("click", (e) => {
+        if (e.target.id === "rec-qc-bg") 닫기();   // 창 바깥(어두운 곳)을 누르면 그냥 닫는다
+      });
+      container.querySelector("#rec-qc-ok")?.addEventListener("click", 쿼터넘기기);
+      container.querySelector("#rec-qc-go")?.addEventListener("click", 쿼터넘기기);
+      container.querySelector("#rec-qc-back")?.addEventListener("click", 닫기);
+      container.querySelector("#rec-qc-diff")?.addEventListener("click", () => {
+        쿼터확인.단계 = "넣기";
+        renderLive();
+      });
+      for (const el of container.querySelectorAll("[data-qc-team]")) {
+        el.addEventListener("click", () => {
+          const ti = Number(el.dataset.qcTeam);
+          쿼터확인.판[ti] = Math.max(0, 쿼터확인.판[ti] + Number(el.dataset.qcD));
+          renderLive();
+          container.querySelector(`[data-qc-team="${ti}"][data-qc-d="${el.dataset.qcD}"]`)?.focus();
+        });
+      }
+    }
 
     for (const el of container.querySelectorAll(".rec-sub")) {
       el.addEventListener("click", () => {
