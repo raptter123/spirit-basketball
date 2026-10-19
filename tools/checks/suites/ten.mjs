@@ -113,7 +113,7 @@ for (const 판 of 판들) {
   // ── 경기 하나를 뛴다 ────────────────────────────────────
   async function 한경기(라벨) {
     for (let q = 1; q <= 판.쿼터; q++) {
-      if (q > 1) { await p.click("#rec-q"); await p.waitForTimeout(150); }
+      if (q > 1) { await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(150); }
       const 코트선수 = await p.evaluate(() =>
         [...document.querySelectorAll(".rec-team-row")].map((row) =>
           [...row.querySelectorAll(".rec-pchip")].map((c) => c.dataset.player)));

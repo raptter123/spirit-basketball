@@ -91,7 +91,7 @@ const 리바 = async (kind) => {
 };
 const 경기로 = (i) => p.evaluate((v) =>
   document.querySelector(`.rec-gbtn[data-game="${v}"]`).click(), i).then(() => p.waitForTimeout(300));
-const 쿼터넘김 = () => p.click("#rec-q").then(() => p.waitForTimeout(250));
+const 쿼터넘김 = () => p.click("#rec-q").then(() => p.click("#rec-qc-ok")).then(() => p.waitForTimeout(250));
 const 상태 = () => p.evaluate(() => ({
   점수: document.querySelector(".rec-score").innerText.replace(/\s+/g, " ").trim(),
   쿼터: document.querySelector("#rec-q b").textContent.trim(),

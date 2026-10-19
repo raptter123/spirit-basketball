@@ -54,7 +54,7 @@ for (let q = 0; q < 4; q++) {
     if (rnd() < 0.1) { await 스팟("ftm"); await 선수(팀[Math.floor(rnd() * 5)]); }
     if (rnd() < 0.08) { await 스팟("pf"); await 선수(팀[Math.floor(rnd() * 5)]); }
   }
-  if (q < 3) { await p.click("#rec-q"); await p.waitForTimeout(150); }
+  if (q < 3) { await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(150); }
 }
 await p.click("#rec-finish");
 await p.waitForTimeout(700);

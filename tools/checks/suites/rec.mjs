@@ -127,9 +127,10 @@ const 후 = (await 상태()).이벤트수;
 say(후 === 전 - 1, `되돌리기: ${전} → ${후}`);
 
 // ⑥ 쿼터 넘기기 — 넘어가고, 되돌리기로 돌아오고, 기록 수는 안 늘어난다
+//    (쿼터 단추를 누르면 점수 맞춰 보기 창이 먼저 뜬다. "같아" 로 넘긴다 — 창 자체는 qcheck 시험)
 const q0 = await 상태();
 say(q0.쿼터.now === "1쿼터" && q0.쿼터.next === "▸ 2쿼터로", `쿼터 버튼: "${q0.쿼터.now} / ${q0.쿼터.next}"`);
-await p.click("#rec-q");
+await p.click("#rec-q").then(() => p.click("#rec-qc-ok"));
 await p.waitForTimeout(250);
 const q1 = await 상태();
 say(q1.쿼터.now === "2쿼터", `쿼터 넘김 — ${q1.쿼터.now}`);
@@ -140,7 +141,7 @@ await p.waitForTimeout(250);
 const q2 = await 상태();
 say(q2.쿼터.now === "1쿼터", `쿼터 넘김을 되돌리니 ${q2.쿼터.now} 로 복귀`);
 // 4쿼터 다음은 1쿼터가 아니라 연장이어야 한다 (되돌아가면 뒤 기록이 1쿼터에 섞인다)
-for (let i = 0; i < 4; i++) { await p.click("#rec-q"); await p.waitForTimeout(120); }
+for (let i = 0; i < 4; i++) { await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(120); }
 const q3 = await 상태();
 say(q3.쿼터.now === "연장1", `4쿼터 다음은 1쿼터가 아니라 ${q3.쿼터.now}`);
 // 가장 긴 글("연장1 / ▸ 연장2로")일 때 윗줄이 안 넘치나

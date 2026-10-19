@@ -77,7 +77,7 @@ await p.evaluate(() => document.querySelector('[data-spot="reb"]').click()); awa
 await p.click("#rec-reb-o"); await p.waitForTimeout(50); await 선수탭(코트선수[2]);
 await p.evaluate(() => document.querySelector('[data-spot="ftm"]').click()); await 선수탭(코트선수[2]);
 // 2쿼터: 3점 성공
-await p.click("#rec-q"); await p.waitForTimeout(120);
+await p.click("#rec-q").then(() => p.click("#rec-qc-ok")); await p.waitForTimeout(120);
 await 탭(440, 250); await 선수탭(코트선수[3]); await p.click("#rec-made"); await p.waitForTimeout(60);
 say((await 점수판()) === "혼 6 : – 불사조", `기록 뒤 점수판 — "${await 점수판()}"`);
 
