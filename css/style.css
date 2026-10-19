@@ -56,6 +56,10 @@
   --team-white-text: #fff3dd;
   --team-purple: #8f73ff;
   --team-purple-text: #b3a1ff;
+  /* 기록 화면 '방금 적은 것' 띠의 글씨 색 — 성공 · 실패 · 그 밖(리바 · 어시 · 교체 …). */
+  --rec-ok-text: #4ade80;
+  --rec-no-text: #fca5a5;
+  --rec-etc-text: #b3a1ff;
   /* 흰 글씨를 얹는 버튼 배경만 미세하게 어둡게 — 눈으로는 --accent 와 구분되지 않는다. */
   --accent-btn: #7857fa;
 
@@ -133,6 +137,9 @@
   --team-white-text: #7a5a24;
   --team-purple: #7c5cff;
   --team-purple-text: #5b3fd0;
+  --rec-ok-text: #15803d;
+  --rec-no-text: #b91c1c;
+  --rec-etc-text: #5b3fd0;
   --accent-btn: #d80204;
 
   --offense: #2563eb;
@@ -4616,6 +4623,27 @@ body:has(#ts-search:focus, .ts-guest-input:focus, #ts-paste-text:focus) .ts-dock
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   pointer-events: none;
 }
+/* 방금 적은 것. 안내줄 자리에 크게 띄웠다가 2초 뒤(또는 다음 것을 누르는 순간) 안내줄로
+   돌아간다. 안내줄처럼 눌리지 않게 두어, 그 밑 코트를 누르면 그대로 찍힌다. */
+.rec-confirm {
+  --mc: var(--rec-etc-text);
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  max-width: calc(100% - 16px);
+  padding: 7px 16px 7px 9px; border-radius: 999px;
+  background: var(--surface); border: 2px solid var(--mc);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+  color: var(--text); font-weight: 800; white-space: nowrap;
+  pointer-events: none;
+}
+.rec-confirm.is-ok { --mc: var(--rec-ok-text); }
+.rec-confirm.is-no { --mc: var(--rec-no-text); }
+.rec-confirm .ic {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--mc); color: var(--surface); font-size: var(--fs-md); line-height: 1;
+}
+.rec-confirm .nm { font-size: var(--fs-xl); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rec-confirm .wh { font-size: var(--fs-lg); color: var(--mc); }
 .rec-shot-made { fill: var(--c); }
 .rec-shot-miss { fill: none; stroke: var(--c); stroke-width: 3; opacity: .75; }
 .rec-shot-live { fill: #facc15; stroke: var(--surface); stroke-width: 2.5; }

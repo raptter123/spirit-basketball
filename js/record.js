@@ -344,6 +344,9 @@ export function mountRecord(container) {
   let subIn = null;     // { team, name } | null   — 교체로 들어올 사람
   // 리바를 누른 뒤 공격/수비를 고르기 전까지 true. 고르면 spot 이 rebO/rebD 가 된다.
   let rebAsk = false;
+  // 방금 적은 것 — 다음 한 번 그릴 때만 코트 위에 크게 보여 준다(아래 방금띠).
+  let 방금 = null;
+  let 방금타이머 = null;
   let screen = game ? "live" : "setup";
 
   function save() {
@@ -614,6 +617,33 @@ export function mountRecord(container) {
     return "슛한 자리를 눌러";
   }
 
+  /** 방금 적은 것을 띠 한 줄로. 성공 · 실패 · 그 밖으로 색을 나눈다.
+   *  쿼터 넘김은 위 쿼터 단추 글씨가 바뀌는 것으로 충분해서 띄우지 않는다. */
+  function 방금말(e) {
+    if (!e || e.type === "quarter") return null;
+    if (e.type === "shot") {
+      return { 종류: e.made ? "ok" : "no", ic: e.made ? "✓" : "✗", 이름: e.player, 무엇: `${e.pts}점 ${e.made ? "성공" : "실패"}` };
+    }
+    if (e.type === "ftm") return { 종류: "ok", ic: "✓", 이름: e.player, 무엇: "자유투 성공" };
+    if (e.type === "fta") return { 종류: "no", ic: "✗", 이름: e.player, 무엇: "자유투 실패" };
+    if (e.type === "sub") {
+      return { 종류: "etc", ic: "⇄", 이름: e.player, 무엇: e.out ? `들어감 · ${e.out} 나감` : "들어감" };
+    }
+    const 표 = { rebO: ["↑", "공격 리바"], rebD: ["↓", "수비 리바"], reb: ["↓", "리바"], ast: ["+", "어시"],
+      stl: ["+", "스틸"], blk: ["+", "블락"], to: ["!", "턴오버"], pf: ["!", "파울"] };
+    const [ic, 무엇] = 표[e.type] || ["+", EVENT_LABEL[e.type] || e.type];
+    return { 종류: "etc", ic, 이름: e.player || "", 무엇 };
+  }
+
+  /** 방금 적은 것을 안내줄 자리에 크게 띄운다. 기록자는 코트를 보고 있으므로 거기서 바로
+   *  읽혀야 잘못 누른 것을 그 자리에서 알아채고 되돌린다(아래 '방금 · 그 앞' 줄은 멀다).
+   *  2초 뒤 안내줄로 돌아가고, 그 전에 다음 것을 누르면 다시 그리면서 바로 사라진다. */
+  function 방금띠(m) {
+    return `<div class="rec-confirm is-${m.종류}" id="rec-confirm" role="status">
+      <span class="ic" aria-hidden="true">${m.ic}</span> <span class="nm">${esc(m.이름)}</span> <span class="wh">${esc(m.무엇)}</span>
+    </div>`;
+  }
+
   function 최근글() {
     const last = game.events.slice(-2).reverse();
     if (!last.length) return `<span class="rec-none">아직 기록이 없어요</span>`;
@@ -660,6 +690,9 @@ export function mountRecord(container) {
 
   function renderLive() {
     const [sa, sb] = 경기점수(game).map(점수글);
+    clearTimeout(방금타이머);
+    const 보일것 = 방금;
+    방금 = null;
     const onCourt = game.teams.map((t) =>
       t.players.filter((p) => t.onCourt.includes(p.name)));
     const bench = game.teams.map((t) =>
@@ -703,7 +736,8 @@ export function mountRecord(container) {
                 // 탑 3점을 찍으면 위로 24 올라간 글씨가 화면 밖으로 잘려 나갔다.
                 pending.y - 24 < 160 ? pending.y + 36 : pending.y - 24}">${pending.pts}점</text>` : ""}
           </svg>
-          <div class="rec-tip">${안내글()}</div>
+          <div class="rec-tip" ${보일것 ? "hidden" : ""}>${안내글()}</div>
+          ${보일것 ? 방금띠(보일것) : ""}
         </div>
 
         <div class="rec-side">
@@ -756,6 +790,14 @@ export function mountRecord(container) {
       </div>
     `;
     wireLive();
+    if (보일것) {
+      방금타이머 = setTimeout(() => {
+        const 띠 = container.querySelector("#rec-confirm");
+        const 안내 = container.querySelector(".rec-tip");
+        if (띠) 띠.remove();
+        if (안내) 안내.hidden = false;
+      }, 2000);
+    }
   }
 
   function 코트좌표(svg, ev) {
@@ -770,6 +812,7 @@ export function mountRecord(container) {
 
   function 이벤트추가(ev) {
     game.events.push({ t: Date.now(), q: game.q, ...ev });
+    방금 = 방금말(ev);
     save();
   }
 
@@ -892,6 +935,9 @@ export function mountRecord(container) {
         else t.onCourt = t.onCourt.filter((n) => n !== 지운것.player);
       }
       pending = null; armed = null; spot = null; subIn = null; rebAsk = false;
+      // 무엇을 지웠는지 띄운다. 되돌리기를 두 번 눌러 맞게 적은 것까지 지우는 일을 막는다.
+      const 지운말 = 지운것?.type === "quarter" ? { 이름: "쿼터 넘김", 무엇: "" } : 방금말(지운것);
+      방금 = 지운말 ? { 종류: "etc", ic: "↩", 이름: "취소", 무엇: `${지운말.이름} ${지운말.무엇}`.trim() } : null;
       save();
       renderLive();
     });
