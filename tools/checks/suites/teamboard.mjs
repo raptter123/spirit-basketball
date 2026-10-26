@@ -110,6 +110,13 @@ const 판위 = (p) => p.evaluate(() => document.getElementById("ts-board").getBo
   확인(남은단추.join() === "→ A팀,→ B팀,→ C팀", `남은 사람 칩을 누르면 ${남은단추.join(" · ")}`);
   await p.click(`.ts-move[data-name="${사람}"][data-team="1"]`); await p.waitForTimeout(300);
   확인((await 칸들(p))[1].이름.includes(사람), "→ B팀 으로 들어감");
+  // 칩을 펼친 채 2팀으로 갔다가 3팀으로 돌아오면 접혀 있어야 한다(10/26 점검에서 찾음).
+  await p.locator(".ts-col .ts-chip").first().click(); await p.waitForTimeout(200);
+  const 펼친수 = await p.locator(".ts-move").count();
+  await p.click('.team-count-select .chip[data-count="2"]'); await p.waitForTimeout(200);
+  await p.click('.team-count-select .chip[data-count="3"]'); await p.waitForTimeout(200);
+  const 남은수 = await p.locator(".ts-move").count();
+  확인(펼친수 > 0 && 남은수 === 0, `펼친 채 2팀 → 3팀으로 돌아오면 접힘 (펼친 단추 ${펼친수} → ${남은수})`);
   await ctx.close();
 }
 
