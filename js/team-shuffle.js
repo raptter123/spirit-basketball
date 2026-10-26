@@ -1141,6 +1141,9 @@ export function mountTeamBuilder(container) {
     container.querySelectorAll(".team-count-select .chip").forEach((btn) => {
       btn.addEventListener("click", () => {
         teamCount = Number(btn.dataset.count);
+        // 3팀에서 펼쳐 둔 옮길 곳 단추는 팀 수가 바뀌면 접는다. 남겨 두면 2팀에 갔다가
+        // 3팀으로 돌아왔을 때 예전에 펼친 칩이 저 혼자 펼쳐진 채로 나온다.
+        chipOpen = null;
         Object.keys(assignments).forEach((name) => {
           if (assignments[name] >= teamCount) delete assignments[name];
         });
