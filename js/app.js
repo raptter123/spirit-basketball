@@ -10,7 +10,7 @@ import { 화면켜두기 } from "./wakelock.js";
 import { ROSTER } from "./roster.js";
 import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
-import { getUpcomingEvents } from "./events.js";
+import { getUpcomingEvents, getSkippedBetween } from "./events.js";
 import { escapeHtml, todayStr } from "./util.js";
 import {
   getOverride,
@@ -128,6 +128,10 @@ function homeNextHTML() {
   const 둘째줄 = 덩어리([시간, e.location, e.entrance]);
   const 오늘이날 = e.date === todayStr();
   const 마감 = 오늘이날 ? "" : 덩어리(rsvpDueLabel(e));
+  // 가장 가까운 정기 일정 앞에 쉬는 날이 끼어 있으면 먼저 알린다. 안 그러면 늘 가던 날
+  // 그대로 나오는 줄 알고 체육관에 간다.
+  const 쉼 = getSkippedBetween(todayStr(), e.date)
+    .map((x) => `${shortDateLabel(x.date)} ${x.title}은 쉬어요${x.reason ? ` (${x.reason})` : ""}`);
   return `
     <section class="home-next" aria-labelledby="home-next-title">
       <div class="home-next-head">
@@ -140,6 +144,7 @@ function homeNextHTML() {
       </div>
       ${둘째줄 ? `<p class="home-next-sub">${둘째줄}</p>` : ""}
       ${마감 ? `<p class="home-next-due">${마감}</p>` : ""}
+      ${쉼.length ? `<p class="home-next-off">${쉼.map((x) => escapeHtml(x)).join("<br />")}</p>` : ""}
       <div class="home-next-btns">
         ${e.type === "자체전" ? `<a class="btn" href="#/team-shuffle">팀 짜기</a>` : ""}
         <a class="btn btn-primary" href="#/record">기록 시작</a>
