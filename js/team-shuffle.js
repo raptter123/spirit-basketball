@@ -285,10 +285,48 @@ function playerBadge(p) {
 const AUTUMN = {
   maple:  { team: ["#c0392b", "#e0a021", "#556b2f", "#6b3f5e"], paper: "#fdf3e0", card: "#fffaf0", ink: "#4a2a15", title: "#8c3113" },
   kraft:  { team: ["#8f5136", "#c08a3e", "#5a6b45", "#6b3f5e"], paper: "#e6d5b8", card: "#f5ead6", ink: "#3d2a18", title: "#4b3421" },
-  ginkgo: { team: ["#e5a812", "#c2410c", "#0f766e", "#7c3f58"], paper: "#1e2436", card: "#2b3348", ink: "#f0ead8", title: "#f4c542" },
+  ginkgo: { team: ["#e5a812", "#c2410c", "#0f766e", "#7c3f58"], paper: "#1e2436", card: "#2b3348", ink: "#f0ead8", title: "#f4c542", dark: true },
+};
+// 겨울 색(12 ~ 2월 경기). flake 는 제목 띠에 뿌리는 눈송이 색이다.
+const WINTER = {
+  snow:  { team: ["#2b5c8a", "#c0392b", "#3d7a5a", "#6b4f9e"], paper: "#eef4fa", card: "#ffffff", ink: "#1d2b44", title: "#2b5c8a", flake: "rgba(43,92,138,0.22)" },
+  xmas:  { team: ["#c0392b", "#d4a537", "#2f7a55", "#7a4f9e"], paper: "#123528", card: "#1b4535", ink: "#f5efe0", title: "#e8c26a", flake: "rgba(255,255,255,0.24)", dark: true },
+  night: { team: ["#6fa8ff", "#f2a0bd", "#7fd6b8", "#c2a8ff"], paper: "#121a30", card: "#1c2644", ink: "#e8eefc", title: "#a9c7ff", flake: "rgba(255,255,255,0.30)", dark: true },
 };
 function pal(colorKey) {
-  return AUTUMN[colorKey] || AUTUMN.maple;
+  return AUTUMN[colorKey] || WINTER[colorKey] || AUTUMN.maple;
+}
+export { pal as 공지색 };   // 시험에서 명암비를 재려고 내보낸다
+
+/** 경기 날짜가 12 · 1 · 2월이면 겨울 색, 아니면 가을 색을 고르게 한다.
+ *  오늘이 아니라 경기 날짜로 정한다 — 11월 말에 12월 첫 경기 공지를 만들면 겨울이다. */
+export function 철색들(gameDate) {
+  const m = Number(String(gameDate || "").slice(5, 7));
+  return [12, 1, 2].includes(m) ? WINTER_COLORS : VERT_COLORS;
+}
+
+/** 제목 띠에 눈송이를 뿌린다(겨울 색에만). 씨앗을 고정해 늘 같은 자리에 그린다 —
+ *  공지를 다시 만들어도 그림이 바뀌지 않는다. 제목 글자와 겹치면 읽기 어려워서
+ *  제목이 차지한 칸(avoid)은 건너뛴다. */
+function 눈송이(ctx, P, width, bandH, avoid) {
+  if (!P.flake) return;
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+  ctx.save();
+  ctx.fillStyle = P.flake;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "15px sans-serif";
+  let 그림 = 0;
+  for (let i = 0; i < 120 && 그림 < 22; i++) {
+    const x = 6 + rnd() * (width - 12), y = 6 + rnd() * (bandH - 12), big = rnd() < 0.35, r = 1.4 + rnd() * 1.8;
+    const 여유 = big ? 10 : 4;
+    if (x > avoid.x0 - 여유 && x < avoid.x1 + 여유 && y > avoid.y0 - 여유 && y < avoid.y1 + 여유) continue;
+    if (big) ctx.fillText("\u2744", x, y);
+    else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+    그림++;
+  }
+  ctx.restore();
 }
 
 // 왼쪽에 유니폼, 오른쪽에 이름. 세로 배치에서는 가운데 정렬보다 왼쪽 정렬이
@@ -316,7 +354,10 @@ function drawTitle(ctx, gameDate, teamCount, x, y, color, size) {
   ctx.textBaseline = "alphabetic";
   ctx.font = `900 ${size}px ${FONT}`;
   ctx.fillStyle = color;
-  ctx.fillText(`${dateLabel} 자체${teamCount}파전`, x, y);
+  const 글 = `${dateLabel} 자체${teamCount}파전`;
+  ctx.fillText(글, x, y);
+  // 눈송이가 피해 갈 제목 칸.
+  return { x0: x, x1: x + ctx.measureText(글).width, y0: y - size, y1: y + size * 0.3 };
 }
 
 // V1. 세로 칼럼 — 팀이 가로로 나란히 서고, 선수가 그 안에서 세로로 쌓인다.
@@ -331,7 +372,7 @@ function drawColumnTheme(rows, gameDate, teamCount, colorKey) {
 
   ctx.fillStyle = P.paper;
   ctx.fillRect(0, 0, width, height);
-  drawTitle(ctx, gameDate, teamCount, pad, pad + 30, P.title, 26);
+  눈송이(ctx, P, width, pad + titleH - 6, drawTitle(ctx, gameDate, teamCount, pad, pad + 30, P.title, 26));
 
   rows.forEach((team, r) => {
     // 2팀이면 유니폼 색(화이트 · 퍼플), 아니면 색표의 팀 색.
@@ -362,7 +403,7 @@ function drawColumnTheme(rows, gameDate, teamCount, colorKey) {
     team.players.forEach((p, i) => {
       const cy = top + headH + i * rowH + rowH / 2;
       if (i % 2 === 1) {
-        ctx.fillStyle = colorKey === "ginkgo" ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
+        ctx.fillStyle = P.dark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
         ctx.fillRect(x + 2, cy - rowH / 2, colW - 4, rowH);
       }
       drawPlayerLeft(ctx, p, x + 14, cy, `bold 19px ${FONT}`, P.ink, 30);
@@ -384,7 +425,7 @@ function drawBlockTheme(rows, gameDate, teamCount, colorKey) {
 
   ctx.fillStyle = P.paper;
   ctx.fillRect(0, 0, width, height);
-  drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 27);
+  눈송이(ctx, P, width, pad + titleH - 6, drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 27));
 
   let y = pad + titleH;
   rows.forEach((team, r) => {
@@ -437,7 +478,7 @@ function drawLineupTheme(rows, gameDate, teamCount, colorKey) {
 
   ctx.fillStyle = P.paper;
   ctx.fillRect(0, 0, width, height);
-  drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 26);
+  눈송이(ctx, P, width, pad + titleH - 6, drawTitle(ctx, gameDate, teamCount, pad, pad + 32, P.title, 26));
 
   let y = pad + titleH;
   rows.forEach((team, r) => {
@@ -472,7 +513,7 @@ function drawLineupTheme(rows, gameDate, teamCount, colorKey) {
     team.players.forEach((p, i) => {
       const cy = y + headH + i * rowH + rowH / 2 + 3;
       if (i % 2 === 1) {
-        ctx.fillStyle = colorKey === "ginkgo" ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
+        ctx.fillStyle = P.dark ? "rgba(255,255,255,0.045)" : "rgba(0,0,0,0.035)";
         ctx.fillRect(pad + 2, cy - rowH / 2, width - pad * 2 - 4, rowH);
       }
       drawPlayerLeft(ctx, p, pad + 14, cy, `bold 21px ${FONT}`, P.ink, 32);
@@ -520,6 +561,12 @@ const VERT_COLORS = [
   { key: "kraft", label: "\u{1F342} 낙엽" },
   { key: "ginkgo", label: "\u{1F33E} 은행" },
 ];
+// 12 ~ 2월 경기에는 이 셋을 대신 보여 준다(철색들).
+const WINTER_COLORS = [
+  { key: "snow", label: "\u2744\uFE0F 눈꽃" },
+  { key: "xmas", label: "\u{1F384} 성탄" },
+  { key: "night", label: "\u{1F319} 겨울밤" },
+];
 
 function downloadCanvas(canvas, filename) {
   canvas.toBlob((blob) => {
@@ -556,7 +603,8 @@ function copyCanvasToClipboard(canvas) {
 
 function showTeamImageModal(rows, gameDate, teamCount) {
   let theme = IMAGE_THEMES[0];
-  let colorKey = "maple";
+  const 색들 = 철색들(gameDate);
+  let colorKey = 색들[0].key;
   let canvas = theme.draw(rows, gameDate, teamCount, colorKey);
 
   const backdrop = document.createElement("div");
@@ -572,7 +620,7 @@ function showTeamImageModal(rows, gameDate, teamCount) {
           ${IMAGE_THEMES.map((t) => `<button type="button" class="chip ts-style-chip${t.key === theme.key ? " chip-active" : ""}" data-style="${t.key}">${t.label}</button>`).join("")}
         </div>
         <div class="ts-style-row" role="group" aria-label="색">
-          ${VERT_COLORS.map((c) => `<button type="button" class="chip ts-color-chip${c.key === colorKey ? " chip-active" : ""}" data-color="${c.key}">${c.label}</button>`).join("")}
+          ${색들.map((c) => `<button type="button" class="chip ts-color-chip${c.key === colorKey ? " chip-active" : ""}" data-color="${c.key}">${c.label}</button>`).join("")}
         </div>
         <div class="ts-image-preview"><img src="${dataUrl}" alt="팀 공지 이미지 (${theme.label} 스타일)" /></div>
         <p class="hint">이미지를 길게 눌러 저장하거나, 아래 버튼으로 복사/다운로드해서 밴드나 카톡에 붙여넣어주세요.</p>
