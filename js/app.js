@@ -12,6 +12,7 @@ import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents, getSkippedBetween } from "./events.js";
 import { escapeHtml, todayStr } from "./util.js";
+import { 눈HTML } from "./winter.js";
 import {
   getOverride,
   saveOverride,
@@ -205,6 +206,7 @@ function renderHome() {
       ${homeLastGameHTML()}
 
       ${installGuideHTML()}
+      ${눈HTML()}
     </section>
   `;
 }
