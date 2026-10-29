@@ -125,6 +125,7 @@
 | `spirit-team-builder-draft` | 팀 편성 화면을 벗어나면 (라우터가 지운다) |
 | `spirit-last-attendees` | 안 지워짐 — 빈 명단은 저장하지 않는다 |
 | `spirit-guests-by-date` | 날짜별. 8일치만 남기고 오래된 건 버린다 |
+| `spirit-weather` | 홈 날씨 한 줄. 1시간 지나면 새로 받아 덮어씀 |
 | `spirit-theme` · `spirit-tactic-favorites` · `spirit-board` 등 | 안 지워짐 |
 
 ## 배포

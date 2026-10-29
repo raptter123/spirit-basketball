@@ -3497,6 +3497,19 @@ body:has(#ts-search:focus, .ts-guest-input:focus, #ts-paste-text:focus) .ts-dock
   font-weight: 700;
 }
 
+/* 일요일 날씨 한 줄(js/weather.js). 받은 시각을 작게 붙여 예보가 바뀔 수 있음을 알린다. */
+.home-next-weather {
+  margin: 6px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.home-next-weather small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* 이번 주 쉬는 날. 늘 가던 날인 줄 알고 체육관에 가는 일을 막으려고 눈에 띄게. */
 .home-next-off {
   margin: 6px 0 0;

@@ -466,3 +466,24 @@ export function clearRecordArchive() {
     // no-op
   }
 }
+
+// 홈 '다음 일정' 카드의 날씨 한 줄(js/weather.js). 1시간 안에 다시 열면 받아 둔 것을 쓴다 —
+// 홈을 열 때마다 날씨 서비스에 묻지 않으려고. 1시간이 지나면 새로 받는다(예보는 6시간마다 바뀐다).
+const WEATHER_KEY = "spirit-weather";
+
+export function getWeatherCache() {
+  try {
+    const raw = localStorage.getItem(WEATHER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveWeatherCache(v) {
+  try {
+    localStorage.setItem(WEATHER_KEY, JSON.stringify(v));
+  } catch {
+    // no-op
+  }
+}
