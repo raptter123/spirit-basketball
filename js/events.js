@@ -66,6 +66,17 @@ export const RECURRING_EVENTS = [
   },
 ];
 
+// 정기 일정을 쉬는 날(연말 · 설 연휴 등). date 는 그 정기 일정이 열렸을 날짜,
+// title 은 위 RECURRING_EVENTS 의 title, reason 은 화면에 그대로 나가는 까닭.
+// 여기에 적으면 홈 '다음 일정' · 달력 · 팀 편성 기본 날짜가 그 날을 건너뛴다.
+//   예) { date: "2027-02-07", title: "자체전", reason: "설날" },
+export const SKIP_DAYS = [
+];
+
+function 쉬는날(dateStr, title) {
+  return SKIP_DAYS.find((s) => s.date === dateStr && s.title === title) || null;
+}
+
 export const EVENT_TYPE_COLOR = {
   자체전: "var(--offense)",
   대회: "var(--defense)",
@@ -88,6 +99,8 @@ function recurringEventsOn(dateStr) {
     rules: e.rules,
     notes: e.notes,
     recurring: true,
+    // 쉬는 날이면 일정은 남기되(달력에 '쉼' 으로 보이게) 표시를 단다.
+    ...(쉬는날(dateStr, e.title) ? { skipped: true, skipReason: 쉬는날(dateStr, e.title).reason || "" } : {}),
   }));
 }
 
@@ -96,6 +109,7 @@ export function getEventsOn(dateStr) {
 }
 
 // fromDateStr 기준 windowDays 일 안의 모든 일정(반복 + 단발성)을 날짜순으로 반환.
+// 쉬는 날(SKIP_DAYS)의 정기 일정은 빼고 그다음 주를 보여 준다.
 // 자체전처럼 매주 반복되는 일정은 매번 나열하면 목록만 길어지고 정보가 없으므로,
 // 가장 가까운 한 번만 남기고 나머지는 걸러낸다. 대회처럼 반복이 아닌 일정은 전부 그대로 보여준다.
 export function getUpcomingEvents(fromDateStr, windowDays = 60) {
@@ -104,7 +118,7 @@ export function getUpcomingEvents(fromDateStr, windowDays = 60) {
   for (let i = 0; i < windowDays; i++) {
     const d = new Date(from);
     d.setDate(from.getDate() + i);
-    result.push(...getEventsOn(dateStr(d)));
+    result.push(...getEventsOn(dateStr(d)).filter((e) => !e.skipped));
   }
   result.sort((a, b) => a.date.localeCompare(b.date));
 
@@ -117,8 +131,16 @@ export function getUpcomingEvents(fromDateStr, windowDays = 60) {
   });
 }
 
+/** fromDateStr 부터 toDateStr 전날까지 쉬는 정기 일정. 홈 카드가 "11/1 은 쉬어요" 를 띄운다. */
+export function getSkippedBetween(fromDateStr, toDateStr) {
+  return SKIP_DAYS
+    .filter((s) => s.date >= fromDateStr && s.date < toDateStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // fromDateStr 이후 가장 가까운 title 일정의 날짜. 없으면 null.
-export function getNextEventDate(title, fromDateStr, windowDays = 14) {
+// 연말처럼 두 주를 잇달아 쉬어도 찾도록 4주를 본다.
+export function getNextEventDate(title, fromDateStr, windowDays = 28) {
   const match = getUpcomingEvents(fromDateStr, windowDays).find((e) => e.title === title);
   return match ? match.date : null;
 }

@@ -1596,6 +1596,18 @@ body {
   border-radius: 50%;
 }
 
+/* 쉬는 날: 색을 채우지 않은 고리. 일정은 있었지만 이번엔 쉰다는 뜻. */
+.event-dot.is-off,
+.legend-dot.is-off {
+  box-sizing: border-box;
+  background: transparent;
+  border: 1.5px solid var(--text-muted);
+}
+
+.event-card.is-off {
+  opacity: 0.85;
+}
+
 .calendar-legend {
   display: flex;
   gap: 16px;
@@ -3423,6 +3435,17 @@ body:has(#ts-search:focus, .ts-guest-input:focus, #ts-paste-text:focus) .ts-dock
 .home-next-due {
   color: var(--text);
   font-weight: 700;
+}
+
+/* 이번 주 쉬는 날. 늘 가던 날인 줄 알고 체육관에 가는 일을 막으려고 눈에 띄게. */
+.home-next-off {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
 }
 
 .home-next-sub span,

@@ -1,4 +1,4 @@
-import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR } from "./events.js";
+import { getEventsOn, getUpcomingEvents, EVENT_TYPE_COLOR, SKIP_DAYS } from "./events.js";
 import { getHolidayOn } from "./holidays.js";
 import { dateStr } from "./util.js";
 
@@ -30,19 +30,25 @@ export function mountCalendar(container) {
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = toDateStr(year, month, d);
       const dayEvents = getEventsOn(dateStr);
-      const types = [...new Set(dayEvents.map((e) => e.type))];
+      // 쉬는 날의 정기 일정은 색 점 대신 빈 고리로 — 일정은 있었지만 이번엔 쉰다.
+      const types = [...new Set(dayEvents.filter((e) => !e.skipped).map((e) => e.type))];
+      const offTypes = [...new Set(dayEvents.filter((e) => e.skipped).map((e) => e.type))];
       const holiday = getHolidayOn(dateStr);
       const classes = ["calendar-day"];
       if (dateStr === todayStr) classes.push("is-today");
       if (dateStr === selected) classes.push("is-selected");
-      if (types.length) classes.push("has-event");
+      if (types.length || offTypes.length) classes.push("has-event");
       if (holiday) classes.push("is-holiday");
       const dots = types
         .map((t) => `<span class="event-dot" style="background:${dotColor(t)}"></span>`)
+        .join("") + offTypes
+        .map((t) => `<span class="event-dot is-off" style="border-color:${dotColor(t)}"></span>`)
         .join("");
+      const 쉼말 = dayEvents.filter((e) => e.skipped).map((e) => `${e.title} 쉼${e.skipReason ? `(${e.skipReason})` : ""}`);
+      const 풍선 = [holiday?.name, ...쉼말].filter(Boolean).join(" · ");
       cells += `<button type="button" class="${classes.join(" ")}" data-date="${dateStr}" ${
-        holiday ? `title="${holiday.name}"` : ""
-      }>${d}${types.length ? `<span class="event-dots">${dots}</span>` : ""}</button>`;
+        풍선 ? `title="${풍선}"` : ""
+      }>${d}${types.length || offTypes.length ? `<span class="event-dots">${dots}</span>` : ""}</button>`;
     }
 
     const selectedEvents = getEventsOn(selected);
@@ -64,6 +70,7 @@ export function mountCalendar(container) {
           <span><span class="legend-dot" style="background:${dotColor("자체전")}"></span>자체전</span>
           <span><span class="legend-dot" style="background:${dotColor("대회")}"></span>대회</span>
           <span class="legend-holiday">공휴일</span>
+          ${SKIP_DAYS.length ? `<span><span class="legend-dot is-off"></span>쉼</span>` : ""}
         </div>
       </div>
       <div class="day-detail">
@@ -108,6 +115,15 @@ export function mountCalendar(container) {
 
   function eventCardHTML(e) {
     const badgeClass = e.type === "대회" ? "badge-defense" : "badge-offense";
+    if (e.skipped) {
+      return `
+      <div class="event-card is-off">
+        <span class="badge ${badgeClass}">${e.type}</span>
+        <strong>${e.title} — 쉬어요</strong>
+        <div class="event-meta">${e.date}${e.skipReason ? ` · ${e.skipReason}` : ""}</div>
+      </div>
+    `;
+    }
     return `
       <div class="event-card">
         <span class="badge ${badgeClass}">${e.type}</span>
