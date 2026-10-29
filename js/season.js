@@ -14,6 +14,7 @@ import { openWorkbook, readSheet, createWorkbookSheets } from "./xlsx-lite.js";
 import { escapeHtml as esc } from "./util.js";
 import { 효율, 구역집계, 구역들, pct1, 부호, 내려주기 } from "./record-stats.js";
 import { CHART_VIEW, 차트속, 구역말 } from "./record-chart.js";
+import { 어워즈창 } from "./awards.js";
 
 // 선수기록 시트 머리글 → 합계 열쇠(record.js 의 boxScore 와 같은 이름).
 const 더할칸 = {
@@ -222,6 +223,7 @@ export function mountSeason(root) {
         <div id="season-chart">${차트HTML()}</div>
         <div class="stats-actions">
           <button type="button" class="btn btn-primary" id="season-xlsx">합친 엑셀 받기</button>
+          <button type="button" class="btn" id="season-awards">🏆 어워즈 이미지</button>
           <button type="button" class="btn" id="season-clear">모두 비우기</button>
         </div>` : ""}
     `;
@@ -235,6 +237,9 @@ export function mountSeason(root) {
     for (const el of root.querySelectorAll("[data-del]")) {
       el.addEventListener("click", () => { 경기들.splice(Number(el.dataset.del), 1); 알림 = []; render(); });
     }
+    root.querySelector("#season-awards")?.addEventListener("click", () => {
+      어워즈창(시즌합계(경기들), 경기들.map((g) => g.날짜).filter(Boolean).sort(), 내려주기);
+    });
     root.querySelector("#season-clear")?.addEventListener("click", () => { 경기들 = []; 알림 = []; 차트대상 = null; render(); });
     root.querySelector("#season-xlsx")?.addEventListener("click", async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
