@@ -30,3 +30,27 @@ export function 눈HTML(dateStr) {
   }).join("");
   return `<div class="home-snow" aria-hidden="true">${점}</div>`;
 }
+
+/** 12월 24 · 25일이면 true — 로고에 산타 모자를 씌운다. */
+export function 성탄인가(dateStr = todayStr()) {
+  const md = String(dateStr).slice(5, 10);
+  return md === "12-24" || md === "12-25";
+}
+
+// 산타 모자 그림. 빨간 고깔이 오른쪽으로 접히고, 흰 털 띠와 방울이 달린다.
+const 모자SVG = `<svg viewBox="0 0 40 30" aria-hidden="true" focusable="false">
+  <path d="M4 24 C 10 8, 22 2, 34 8 C 30 12, 27 17, 27 24 Z" fill="#d62828"/>
+  <rect x="2" y="20.5" width="28" height="7.5" rx="3.75" fill="#ffffff"/>
+  <circle cx="35" cy="9" r="4.2" fill="#ffffff"/>
+</svg>`;
+
+/** 헤더 로고에 모자를 씌우거나 벗긴다. 화면을 옮길 때마다 불러 날짜가 바뀌면 따라간다.
+ *  로고는 테마마다 한 벌씩(다크 · 라이트) 있어서 둘 다에 씌운다 — 보이는 쪽만 보인다. */
+export function 성탄모자(dateStr) {
+  const 성탄 = 성탄인가(dateStr);
+  for (const 로고 of document.querySelectorAll(".brand .brand-logo")) {
+    const 있음 = 로고.querySelector(".brand-hat");
+    if (성탄 && !있음) 로고.insertAdjacentHTML("beforeend", `<span class="brand-hat">${모자SVG}</span>`);
+    else if (!성탄 && 있음) 있음.remove();
+  }
+}

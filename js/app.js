@@ -12,7 +12,7 @@ import { jerseyHTML } from "./jersey.js";
 import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents, getSkippedBetween } from "./events.js";
 import { escapeHtml, todayStr } from "./util.js";
-import { 눈HTML } from "./winter.js";
+import { 눈HTML, 성탄모자 } from "./winter.js";
 import {
   getOverride,
   saveOverride,
@@ -1541,6 +1541,7 @@ let previousHash = null;
 
 function router() {
   const hash = location.hash;
+  성탄모자();   // 12/24 · 25 에만 로고에 산타 모자(js/winter.js)
   // 기록 화면은 방금 짠 팀을 그대로 가져다 쓰므로, 그리로 갈 때는 초안을 남겨 둔다.
   if (previousHash === "#/team-shuffle" && hash !== "#/team-shuffle" && hash !== "#/record") {
     clearTeamBuilderDraft();
