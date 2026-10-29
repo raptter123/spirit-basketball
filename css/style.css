@@ -3262,6 +3262,40 @@ body:has(#ts-search:focus, .ts-guest-input:focus, #ts-paste-text:focus) .ts-dock
   max-width: 220px;
 }
 
+/* 겨울(12 ~ 2월) 홈에 내리는 눈(js/winter.js). 화면 전체에 깔리지만 눌리지 않고,
+   아래 탭 · 헤더보다 뒤에 둔다. 밝은 테마의 크림 바탕에서는 흰 눈이 안 보여서 얼음 파랑. */
+.home-snow {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home-snow i {
+  position: absolute;
+  top: -12px;
+  border-radius: 50%;
+  background: var(--snow, rgba(255, 255, 255, 0.55));
+  animation-name: home-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+:root[data-theme="light"] .home-snow i {
+  background: rgba(96, 135, 190, 0.45);
+}
+
+@keyframes home-snow-fall {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--drift, 0px), 105vh, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-snow { display: none; }
+}
+
 .home-view h1 {
   margin: 8px 0 4px;
 }
