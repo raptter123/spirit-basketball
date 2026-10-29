@@ -13,6 +13,7 @@ import { GLOSSARY, GLOSSARY_GROUPS } from "./glossary.js";
 import { getUpcomingEvents, getSkippedBetween } from "./events.js";
 import { escapeHtml, todayStr } from "./util.js";
 import { 눈HTML, 성탄모자 } from "./winter.js";
+import { 날씨보일때, 날씨채우기 } from "./weather.js";
 import {
   getOverride,
   saveOverride,
@@ -146,6 +147,7 @@ function homeNextHTML() {
       ${둘째줄 ? `<p class="home-next-sub">${둘째줄}</p>` : ""}
       ${마감 ? `<p class="home-next-due">${마감}</p>` : ""}
       ${쉼.length ? `<p class="home-next-off">${쉼.map((x) => escapeHtml(x)).join("<br />")}</p>` : ""}
+      ${날씨보일때(e) ? `<p class="home-next-weather" id="home-weather" hidden></p>` : ""}
       <div class="home-next-btns">
         ${e.type === "자체전" ? `<a class="btn" href="#/team-shuffle">팀 짜기</a>` : ""}
         <a class="btn btn-primary" href="#/record">기록 시작</a>
@@ -209,6 +211,8 @@ function renderHome() {
       ${눈HTML()}
     </section>
   `;
+  // 날씨는 받아 오는 데 시간이 걸려서, 화면을 먼저 그리고 자리만 나중에 채운다.
+  날씨채우기(document.getElementById("home-weather"), getUpcomingEvents(todayStr(), 60)[0]);
 }
 
 // 이미 홈 화면에 추가해서 앱처럼 열고 있는 중인가.
